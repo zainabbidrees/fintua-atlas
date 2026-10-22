@@ -134,6 +134,24 @@ export const STATE_META: Record<
   live: { label: "Live", dot: "bg-settled", text: "text-settled" },
 };
 
+/** Spelled-out counts read as editorial copy rather than as a metric. */
+const WORDS = [
+  "No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight",
+  "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen",
+  "Sixteen", "Seventeen", "Eighteen", "Nineteen", "Twenty",
+];
+
+export function spell(n: number): string {
+  return WORDS[n] ?? String(n);
+}
+
+/** Total filings already live in Comply, across every published country. */
+export function filingsLive(runs: CountryRun[]): number {
+  return runs
+    .filter((r) => r.state === "live")
+    .reduce((sum, r) => sum + r.filingsConfirmed, 0);
+}
+
 export type FilterId = "all" | "active" | "needs_you" | "live";
 
 export const FILTERS: { id: FilterId; label: string; match: (r: CountryRun) => boolean }[] = [
