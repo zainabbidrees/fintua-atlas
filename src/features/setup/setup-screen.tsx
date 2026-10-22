@@ -238,7 +238,7 @@ export function SetupScreen() {
       </div>
 
       {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-60">
+      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-8 py-3">
           <Button variant="ghost" asChild>
             <Link href="/countries">{copy.page.back}</Link>

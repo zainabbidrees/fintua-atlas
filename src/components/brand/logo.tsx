@@ -50,23 +50,3 @@ export function Wordmark({
     </span>
   );
 }
-
-/**
- * A fine dot lattice for the deep panels. An SVG texture rather than a gradient
- * — it adds depth without the sheen the brand brief rules out.
- */
-export function DotTexture({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      className={cn("pointer-events-none absolute inset-0 size-full", className)}
-    >
-      <defs>
-        <pattern id="atlas-dots" width="22" height="22" patternUnits="userSpaceOnUse">
-          <circle cx="1.5" cy="1.5" r="1.5" fill="currentColor" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#atlas-dots)" />
-    </svg>
-  );
-}
