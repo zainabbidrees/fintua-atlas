@@ -192,3 +192,58 @@ export interface ObligationRun {
   progress: number;
   findings: Finding[];
 }
+
+/* ── Step 3: Rules & rates ───────────────────────────────────────────────
+ *
+ * The datasets Comply consumes. Unlike step 2 this genuinely is tabular —
+ * rules are rows with consistent columns and experts read down them — so it
+ * stays a table rather than being forced into prose.
+ *
+ * The risk here is different too. A wrong rate is visible; a wrong box mapping
+ * produces a return that looks correct and is not. So coverage gaps matter
+ * more than a tidy row count.
+ */
+
+export type DatasetId = "rates" | "sales" | "purchases" | "vies";
+
+export const DATASET_LABEL: Record<DatasetId, string> = {
+  rates: "Rates",
+  sales: "Sale rules",
+  purchases: "Purchase rules",
+  vies: "VIES mapping",
+};
+
+/** One editable cell's worth of state. */
+export interface Cell {
+  value: string;
+  /** The agent's value, kept once a human changes it. */
+  original?: string;
+}
+
+export interface RuleRow {
+  id: string;
+  cells: Record<string, Cell>;
+  /** Set when the row needs a human decision before it can ship. */
+  issue?: string;
+}
+
+export interface RuleColumn {
+  key: string;
+  label: string;
+  /** Codes and percentages align and compare better in mono. */
+  mono?: boolean;
+  editable?: boolean;
+  /** Tailwind width class for the column. */
+  width?: string;
+}
+
+export interface Dataset {
+  id: DatasetId;
+  columns: RuleColumn[];
+  rows: RuleRow[];
+  /**
+   * Transaction types Comply knows about that no rule covers. The quiet
+   * failure mode of this step, and the reason it isn't just a grid.
+   */
+  uncovered: string[];
+}

@@ -91,9 +91,22 @@ export function ReturnsScreen({
                 An obligation is still being researched
               </span>
             )}
-            <Button variant="primary" disabled={!r.allSettled || r.anyRunning}>
-              Continue to Rules &amp; rates
-              <ArrowRight />
+            <Button
+              variant="primary"
+              disabled={!r.allSettled || r.anyRunning}
+              asChild={r.allSettled && !r.anyRunning}
+            >
+              {r.allSettled && !r.anyRunning ? (
+                <Link href={`/countries/${countryCode}/rules`}>
+                  Continue to Rules &amp; rates
+                  <ArrowRight />
+                </Link>
+              ) : (
+                <span>
+                  Continue to Rules &amp; rates
+                  <ArrowRight />
+                </span>
+              )}
             </Button>
           </div>
         </div>
