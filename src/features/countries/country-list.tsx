@@ -89,8 +89,8 @@ export function CountryList() {
             type="search"
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Find a country"
-            aria-label="Find a country"
+            placeholder="Search jurisdictions"
+            aria-label="Search jurisdictions"
             className="h-7 w-full border-0 bg-transparent pl-6 text-[13px] text-text placeholder:text-text-faint focus:outline-none sm:w-44"
           />
         </div>
@@ -169,7 +169,7 @@ function Row({ run, index }: { run: CountryRun; index: number }) {
               {run.filingsConfirmed}
             </span>
             {" of "}
-            <span className="tabular-nums">{run.filingsFound}</span> filings
+            <span className="tabular-nums">{run.filingsFound}</span> obligations
           </p>
           <div className="mt-2 flex gap-1" aria-hidden>
             {Array.from({ length: 5 }, (_, i) => (
@@ -209,19 +209,19 @@ function EmptyState({ query, onReset }: { query: string; onReset: () => void }) 
         <SearchX className="size-5 text-text-faint" />
       </span>
       <p className="mt-4 text-[17px] font-medium tracking-tight text-text">
-        {query ? `Nothing matches “${query}”` : "Nothing in this view"}
+        {query ? `No jurisdiction matches “${query}”` : "No jurisdictions in this view"}
       </p>
       <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-text-muted">
         {query
-          ? "That country may not be onboarded yet — you can start it from here."
-          : "No country sits in this state at the moment."}
+          ? "This jurisdiction may not be onboarded yet. You can start it from here."
+          : "No jurisdiction currently sits at this stage."}
       </p>
       <button
         type="button"
         onClick={onReset}
         className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand transition-transform active:scale-[0.98]"
       >
-        Show everything
+        Clear filters
         <ArrowRight className="size-3.5" />
       </button>
     </div>

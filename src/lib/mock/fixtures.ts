@@ -28,7 +28,7 @@ const BE_GUIDANCE: Source = {
   publisher: "Belgian Federal Public Service Finance",
   lastUpdated: "2026-02-03",
   kind: "guidance",
-  whatsInIt: "Box-by-box instructions and the XML schema for electronic filing.",
+  whatsInIt: "Box-by-box completion notes and the XML schema for electronic filing.",
 };
 
 const EU_DIRECTIVE: Source = {
@@ -38,18 +38,18 @@ const EU_DIRECTIVE: Source = {
   publisher: "European Union",
   lastUpdated: "2025-11-20",
   kind: "authority",
-  whatsInIt: "The EU-wide VAT framework that national rules are built on.",
+  whatsInIt: "Harmonised EU VAT framework underlying national legislation.",
 };
 
 /** Deliberately weak: old, and not an official body. Drives the "needs check" state. */
 const BLOG: Source = {
   id: "be-blog",
-  title: "Belgian SAF-T: what to expect",
+  title: "Belgian SAF-T: anticipated requirements",
   url: "https://example-accountancy.be/blog/saf-t",
-  publisher: "An accountancy firm's blog",
+  publisher: "Vandeputte & Partners (commentary)",
   lastUpdated: "2019-06-11",
   kind: "other",
-  whatsInIt: "A commentary piece speculating about a future SAF-T mandate.",
+  whatsInIt: "Commentary speculating on a prospective SAF-T mandate.",
 };
 
 export const BE_SOURCES: Source[] = [
@@ -65,7 +65,7 @@ export const BE_FILINGS: Filing[] = [
     name: "VAT Return",
     localName: "Aangifte btw",
     frequency: "Monthly or quarterly",
-    whyItApplies: "Mandatory for every VAT-registered business.",
+    whyItApplies: "Mandatory for all VAT-registered taxable persons.",
     foundOn: BE_AUTHORITY,
     certainty: "confident",
     origin: "found",
@@ -75,7 +75,7 @@ export const BE_FILINGS: Filing[] = [
     name: "EC Sales List",
     localName: "Intracommunautaire opgave",
     frequency: "Monthly or quarterly",
-    whyItApplies: "Required for business-to-business sales to other EU countries.",
+    whyItApplies: "Required for intra-Community B2B supplies.",
     foundOn: EU_DIRECTIVE,
     certainty: "confident",
     origin: "found",
@@ -85,7 +85,8 @@ export const BE_FILINGS: Filing[] = [
     name: "Annual client listing",
     localName: "Jaarlijkse klantenlisting",
     frequency: "Once a year, by 31 March",
-    whyItApplies: "Belgium requires an annual listing of Belgian VAT-registered customers.",
+    whyItApplies:
+      "Annual listing of Belgian VAT-registered customers, due 31 March.",
     foundOn: BE_GUIDANCE,
     certainty: "confident",
     origin: "found",
@@ -95,11 +96,11 @@ export const BE_FILINGS: Filing[] = [
     name: "SAF-T",
     localName: null,
     frequency: null,
-    whyItApplies: "A standard audit file may be requested by the tax authority.",
+    whyItApplies: "Standard audit file, producible on request by the tax authority.",
     foundOn: BLOG,
     certainty: "needs_check",
     uncertainty:
-      "We only found this on a commentary blog from 2019, and nothing on the tax authority's own site. It may not apply in Belgium.",
+      "Identified only in secondary commentary from 2019, with no corroboration from the tax authority. Applicability to Belgium is unconfirmed.",
     origin: "found",
   },
 ];
@@ -119,7 +120,7 @@ const GENERIC_SOURCE: Source = {
   publisher: "National tax authority",
   lastUpdated: "2026-01-01",
   kind: "authority",
-  whatsInIt: "Return forms and filing deadlines.",
+  whatsInIt: "Return forms and statutory filing deadlines.",
 };
 
 export const GENERIC_FILINGS: Filing[] = [
@@ -128,7 +129,7 @@ export const GENERIC_FILINGS: Filing[] = [
     name: "VAT Return",
     localName: null,
     frequency: "Monthly",
-    whyItApplies: "Mandatory for every VAT-registered business.",
+    whyItApplies: "Mandatory for all VAT-registered taxable persons.",
     foundOn: GENERIC_SOURCE,
     certainty: "confident",
     origin: "found",
@@ -138,7 +139,7 @@ export const GENERIC_FILINGS: Filing[] = [
     name: "EC Sales List",
     localName: null,
     frequency: "Quarterly",
-    whyItApplies: "Required for business-to-business sales to other EU countries.",
+    whyItApplies: "Required for intra-Community B2B supplies.",
     foundOn: GENERIC_SOURCE,
     certainty: "confident",
     origin: "found",

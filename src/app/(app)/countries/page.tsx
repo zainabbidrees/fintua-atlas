@@ -29,9 +29,9 @@ export default function CountriesPage() {
 
         <div className="flex flex-col items-start gap-5 lg:pt-14">
           <p className="max-w-[46ch] text-sm leading-relaxed text-text-muted">
-            Each country is researched, reviewed by a tax expert and approved
-            twice before it files anything. Open one to see where it stands and
-            what it still needs.
+            Each jurisdiction is researched, reviewed by a domain specialist
+            and approved at two levels before it files anything. Open one to see
+            its current stage and outstanding items.
           </p>
           <Button variant="primary" asChild>
             <Link href="/countries/new">

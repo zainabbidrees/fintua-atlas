@@ -71,7 +71,7 @@ export function useSetup() {
       }
     } catch (err) {
       if ((err as Error)?.name === "AbortError") return;
-      setError("Something went wrong.");
+      setError("Research could not be completed.");
       setPhase("failed");
     }
   }, []);
@@ -141,11 +141,11 @@ export function useSetup() {
       setSearching(false);
 
       if (!found) {
-        setSearchMessage(`We couldn't find a filing matching "${term}".`);
+        setSearchMessage(`No obligation matching "${term}" was found for ${country.name}.`);
         return;
       }
       if (filings.some((f) => f.name.toLowerCase() === found.name.toLowerCase())) {
-        setSearchMessage(`${found.name} is already in the list.`);
+        setSearchMessage(`${found.name} is already in scope.`);
         return;
       }
       setFilings((f) => [...f, found]);

@@ -20,12 +20,12 @@ export function AttentionPanel() {
     <aside className="lg:sticky lg:top-10">
       <div className="rounded-2xl bg-deep p-7 text-on-deep">
         <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-deep-text-faint">
-          Waiting on you
+          Awaiting your decision
         </p>
 
         {waiting.length === 0 ? (
           <p className="mt-4 text-[15px] leading-relaxed text-deep-text">
-            Nothing needs a decision right now.
+            No jurisdiction is awaiting your decision.
           </p>
         ) : (
           <ul className="mt-5 space-y-3">
@@ -57,14 +57,14 @@ export function AttentionPanel() {
         )}
 
         <dl className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-deep-border">
-          <Stat label="Filings live" value={live} />
-          <Stat label="In flight" value={inFlight} />
+          <Stat label="Obligations live" value={live} />
+          <Stat label="In progress" value={inFlight} />
         </dl>
       </div>
 
       <p className="mt-4 px-1 text-[13px] leading-relaxed text-text-muted">
-        Published countries file automatically. Anything still in flight needs a
-        person before it can ship.
+        Published jurisdictions file automatically. Anything in progress requires
+        sign-off before go-live.
       </p>
     </aside>
   );

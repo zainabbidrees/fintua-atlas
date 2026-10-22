@@ -1,14 +1,13 @@
 /**
  * Every word the user reads, in one file.
  *
- * Two reasons it lives here rather than inside components:
- *  1. The tax experts can correct the terminology without touching code.
- *  2. The whole vocabulary is reviewable in one sitting.
- *
- * The rule we're applying: keep the words tax people actually say out loud
- * ("Return", "Boxes", "Local name"), drop the ones that only exist because a
- * programmer needed a name ("Initiation", "Discovery", "Deep Search",
- * "T1/T2/T3", "AI Reason").
+ * Register: the language a practising indirect-tax specialist uses in their own
+ * working notes. Precise where the profession is precise — obligation,
+ * rationale, corroborated, intra-Community, taxable person, secondary source —
+ * and plain everywhere else. Two failure modes to avoid: implementation
+ * vocabulary that leaked out of the codebase ("Initiation", "Deep Search",
+ * "T1/T2/T3"), and consumer-app chattiness that reads as beneath the reader
+ * ("Know something we missed?", "look solid").
  */
 
 import type { DocumentKind, SourceKind } from "./types";
@@ -16,139 +15,130 @@ import type { DocumentKind, SourceKind } from "./types";
 export const copy = {
   page: {
     title: "Onboard country",
-    step: "Step 1 of 5 · Set up",
-    stepsLabel: ["Set up", "Filings", "Rules", "Build", "Approval"],
-    done: "Set up complete",
-    doneBody:
-      "{count} filings confirmed for {country}, each with its source. Next we work through them one at a time.",
-    doneNext: "Go to Filings",
-    doneReview: "Review set up again",
+    step: "Step 1 of 5 · Scope",
+    stepsLabel: ["Scope", "Returns", "Rules & rates", "Build", "Approval"],
     saveDraft: "Save draft",
     back: "Back",
     continue: "Continue",
-    /** Shown next to Continue, saying what is actually blocking it. */
-    blockedNeedsCheck: "{count} filing still needs your check",
-    blockedNeedsCheckPlural: "{count} filings still need your check",
-    blockedNoFilings: "Keep at least one filing to continue",
+    blockedNeedsCheck: "{count} obligation requires review",
+    blockedNeedsCheckPlural: "{count} obligations require review",
+    blockedNoFilings: "At least one obligation must be confirmed",
+    done: "Scope confirmed",
+    doneBody:
+      "{count} filing obligations confirmed for {country}, each with supporting evidence. Each is now worked through individually.",
+    doneNext: "Continue to Returns",
+    doneReview: "Return to scope",
   },
 
   country: {
-    label: "Which country?",
-    placeholder: "Search for a country…",
-    /** Replaces "Select a country to discover sources." */
-    empty: "Pick a country and we'll start looking.",
-    changeWarningTitle: "Start again with a different country?",
+    /** "Jurisdiction" rather than "country": it also covers territories and
+        protocols that aren't countries but do have their own VAT regime. */
+    label: "Jurisdiction",
+    placeholder: "Search jurisdictions…",
+    empty: "Select a jurisdiction to begin research.",
+    changeWarningTitle: "Change jurisdiction?",
     changeWarningBody:
-      "We'll clear what we found for {current} and look up {next} instead.",
-    changeConfirm: "Yes, switch",
+      "Research for {current} will be discarded and restarted for {next}.",
+    changeConfirm: "Change jurisdiction",
     changeCancel: "Keep {current}",
   },
 
   research: {
-    /** Replaces "AI is discovering sources and return types…" */
-    runningTitle: "Looking up {country}'s tax filings",
-    runningHint: "You can keep working — we'll fill this in as we go.",
-    trailLabel: "What we're reading",
-    /** Replaces "Deep Search" / "Agent log" / "Live log". */
+    runningTitle: "Researching {country}'s filing obligations",
+    runningHint: "Findings populate as they are retrieved. You can continue working.",
+    trailLabel: "Sources consulted",
     activity: "Activity",
   },
 
   filings: {
-    /** Replaces "Return Types (4 selected)". The count that matters is the work. */
-    heading: "{country} — {count} filings found",
-    summaryAllClear: "All {count} look solid",
-    summaryMixed: "{solid} look solid · {checks} needs your check",
-    summaryMixedPlural: "{solid} look solid · {checks} need your check",
+    heading: "{count} filing obligations identified",
+    /** "Corroborated" is the evidential standard, not a mood. */
+    summaryAllClear: "All {count} corroborated",
+    summaryMixed: "{solid} corroborated · {checks} requires review",
+    summaryMixedPlural: "{solid} corroborated · {checks} require review",
     localNameMissing: "—",
-    /** Replaces "Rationale". */
-    whyLabel: "Why",
-    /** The proof, shown with the answer rather than on another screen. */
-    foundOnLabel: "Found on",
-    needsCheck: "Needs your check",
-    keep: "Keep",
+    whyLabel: "Rationale",
+    foundOnLabel: "Source",
+    needsCheck: "Requires review",
+    keep: "Confirm",
     remove: "Remove",
-    searchMore: "Something missing?",
-    searchMorePlaceholder: "Search for a filing…",
+    searchMore: "Missing an obligation?",
+    searchMorePlaceholder: "Search by name, e.g. OSS",
     searchMoreAction: "Search",
     noneFound:
-      "We couldn't find any filings for {country}. You can try again, or add what you know below.",
+      "No filing obligations were identified for {country}. Retry the research, or supply the material yourself below.",
     failed:
-      "Something went wrong while looking up {country}. You can try again, or add what you know below.",
-    retry: "Try again",
+      "Research for {country} could not be completed. Retry, or supply the material yourself below.",
+    retry: "Retry research",
   },
 
   sources: {
-    /** Collapsed by default — supporting evidence, not a second checklist. */
-    heading: "We read from {count} places",
+    heading: "{count} sources consulted",
     publisherLabel: "Published by",
     updatedLabel: "Last updated",
-    updatedUnknown: "No date given",
-    /** Replaces the "AI Reason" column header. */
-    whatsInItLabel: "What's in it",
+    updatedUnknown: "No publication date",
+    whatsInItLabel: "Contents",
     remove: "Remove",
-    /** Shown when a source still backs a filing the expert kept. */
-    inUse: "Used by {count} filing",
-    inUsePlural: "Used by {count} filings",
+    inUse: "Cited by {count} obligation",
+    inUsePlural: "Cited by {count} obligations",
   },
 
   documents: {
-    heading: "Know something we missed?",
-    hint: "Drop a file, or paste a link.",
-    dropAction: "Choose a file",
+    heading: "Add supporting material",
+    hint: "Upload a document, or provide a source URL.",
+    dropAction: "Select file",
     linkPlaceholder: "https://…",
-    linkInvalid: "That doesn't look like a web address.",
-    tooLarge: "{name} is over 20 MB.",
-    wrongType: "We can't read {name}. Try a PDF, spreadsheet, XML or text file.",
-    yours: "Your documents",
-    /** Asked once, when a file lands. */
-    kindQuestion: "What is this?",
-    noteQuestion: "Anything we should know?",
-    notePlaceholder: "Optional — e.g. this is the 2026 version",
-    save: "Add it",
+    linkInvalid: "Not a valid web address.",
+    tooLarge: "{name} exceeds the 20 MB limit.",
+    wrongType:
+      "{name} is an unsupported format. Accepted: PDF, XML, XSD, CSV, XLS, XLSX or TXT.",
+    yours: "Supporting material",
+    kindQuestion: "Document type",
+    noteQuestion: "Note",
+    notePlaceholder: "Optional — e.g. supersedes the version published online",
+    save: "Add document",
     cancel: "Cancel",
   },
 
   duplicate: {
-    title: "We already have this one",
-    body: "{name} matches a document we found on {publisher}.",
-    yoursNewer: "Yours is from {yours}. Ours is from {ours}.",
-    useYours: "Use mine instead",
-    keepBoth: "Keep both",
-    keepOurs: "Keep theirs",
+    title: "Duplicate source",
+    body: "{name} corresponds to a document already retrieved from {publisher}.",
+    yoursNewer: "Yours is dated {yours}. The retrieved copy is dated {ours}.",
+    useYours: "Use the uploaded version",
+    keepBoth: "Retain both",
+    keepOurs: "Keep the retrieved version",
   },
 
   clash: {
-    title: "Two sources don't agree",
-    /** Never resolved automatically — a disagreement is the point. */
-    hint: "Pick the one that's right, and say why.",
-    reasonLabel: "Why this one?",
-    reasonPlaceholder: "One line is enough",
-    confirm: "Save decision",
+    title: "Conflicting sources",
+    hint: "Select the authoritative version and record your rationale.",
+    reasonLabel: "Rationale",
+    reasonPlaceholder: "Brief justification",
+    confirm: "Record decision",
   },
 
   removeReason: {
-    /** The "why" box. This is the expertise worth keeping, and the audit defence. */
-    title: "Why are you removing this?",
-    hint: "One line. It's kept with the country record.",
+    title: "Reason for removal",
+    hint: "Retained with the jurisdiction record for audit purposes.",
     placeholder: "e.g. superseded by the 2026 circular",
     confirm: "Remove",
     cancel: "Cancel",
   },
 } as const;
 
-/** Replaces "T1 / T2 / T3" — nobody says "that's a T2 source". */
+/** The spec's own tiers, written out. Nobody says "that's a T2". */
 export const SOURCE_KIND_LABEL: Record<SourceKind, string> = {
   authority: "Tax authority",
   guidance: "Official guidance",
-  other: "Other source",
+  other: "Secondary source",
 };
 
 export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
-  blank_form: "Blank form",
-  completed_example: "Completed example return",
+  blank_form: "Blank return form",
+  completed_example: "Completed return (example)",
   official_guidance: "Official guidance",
-  schema: "Schema or technical spec",
-  advisor_notes: "Advisor notes",
+  schema: "Schema or technical specification",
+  advisor_notes: "Advisor correspondence",
 };
 
 /** Fills {placeholders} in the strings above. */

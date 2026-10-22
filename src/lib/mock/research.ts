@@ -48,11 +48,11 @@ function wait(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 function trailFor(countryName: string, sources: Source[]): string[] {
-  const lines = [`Searching for ${countryName}'s tax authority`];
+  const lines = [`Locating ${countryName}'s tax authority`];
   for (const s of sources) {
     lines.push(`Reading ${new URL(s.url).hostname} — ${s.title}`);
   }
-  lines.push("Working out which filings apply");
+  lines.push("Determining which obligations apply");
   return lines;
 }
 
@@ -68,23 +68,23 @@ export async function* researchCountry(
 ): AsyncGenerator<ResearchEvent> {
   const country = findCountry(countryCode);
   if (!country) {
-    yield { type: "error", message: "We don't recognise that country." };
+    yield { type: "error", message: "Jurisdiction not recognised." };
     return;
   }
 
   // XX is the deliberate failure fixture.
   if (countryCode === "XX") {
-    yield { type: "step", text: `Searching for ${country.name}'s tax authority` };
+    yield { type: "step", text: `Locating ${country.name}'s tax authority` };
     await wait(PACE_MS * 1.5, signal);
-    yield { type: "error", message: "We couldn't reach any sources." };
+    yield { type: "error", message: "No sources could be reached." };
     return;
   }
 
   // FR is the deliberate empty fixture.
   if (countryCode === "FR") {
-    yield { type: "step", text: `Searching for ${country.name}'s tax authority` };
+    yield { type: "step", text: `Locating ${country.name}'s tax authority` };
     await wait(PACE_MS, signal);
-    yield { type: "step", text: "Looking for filing requirements" };
+    yield { type: "step", text: "Searching for filing requirements" };
     await wait(PACE_MS * 1.5, signal);
     yield { type: "empty" };
     return;
@@ -125,7 +125,7 @@ export async function searchForFiling(
     localName: null,
     frequency: "Quarterly",
     whyItApplies:
-      "Used to report cross-border sales to consumers across the EU through a single return.",
+      "Reports cross-border B2C supplies across the EU through a single return.",
     foundOn: sources[0],
     certainty: "confident",
     origin: "added",

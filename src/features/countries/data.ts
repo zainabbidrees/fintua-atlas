@@ -31,7 +31,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "DE",
     name: "Germany",
-    stage: "Deep search running",
+    stage: "Research in progress",
     stepsDone: 1,
     filingsConfirmed: 1,
     filingsFound: 5,
@@ -43,7 +43,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "IT",
     name: "Italy",
-    stage: "Second approval",
+    stage: "Second-level approval",
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
@@ -55,7 +55,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "HU",
     name: "Hungary",
-    stage: "First approval",
+    stage: "First-level approval",
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
@@ -67,7 +67,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "PL",
     name: "Poland",
-    stage: "SQL applied to test",
+    stage: "Applied to test environment",
     stepsDone: 3,
     filingsConfirmed: 6,
     filingsFound: 6,
@@ -79,7 +79,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "RO",
     name: "Romania",
-    stage: "Rules & values",
+    stage: "Rules & rates",
     stepsDone: 2,
     filingsConfirmed: 3,
     filingsFound: 7,
@@ -121,7 +121,7 @@ export const STATE_META: Record<
   draft: { label: "Draft", dot: "bg-text-faint", text: "text-text-muted" },
   in_progress: { label: "In progress", dot: "bg-brand", text: "text-brand" },
   awaiting_you: {
-    label: "Needs you",
+    label: "Awaiting you",
     dot: "bg-attention",
     text: "text-attention-text",
   },
@@ -161,6 +161,6 @@ export const FILTERS: { id: FilterId; label: string; match: (r: CountryRun) => b
     label: "In progress",
     match: (r) => ["draft", "in_progress", "testing"].includes(r.state),
   },
-  { id: "needs_you", label: "Needs you", match: (r) => r.state === "awaiting_you" },
+  { id: "needs_you", label: "Awaiting you", match: (r) => r.state === "awaiting_you" },
   { id: "live", label: "Live", match: (r) => r.state === "live" },
 ];
