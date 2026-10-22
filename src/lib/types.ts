@@ -247,3 +247,43 @@ export interface Dataset {
    */
   uncovered: string[];
 }
+
+/* ── Step 4: Build ───────────────────────────────────────────────────────
+ *
+ * Owned by a Fintua developer, not the tax specialist — the only step in the
+ * wizard with a different audience.
+ *
+ * The SQL is generated from datasets already approved in step 3, so a human
+ * reading it line by line is quality assurance rather than design. What
+ * actually gives confidence is the lint, the dry run and the reference checks,
+ * so those lead and the SQL is available rather than forced.
+ */
+
+export type CheckState = "pass" | "warn" | "fail";
+
+export interface Check {
+  label: string;
+  state: CheckState;
+  /** What the check found, in words. */
+  detail: string;
+}
+
+export type ArtifactGroup = "schema" | "boxes" | "calculations";
+
+export const ARTIFACT_GROUP_LABEL: Record<ArtifactGroup, string> = {
+  schema: "Country & returns",
+  boxes: "Return boxes",
+  calculations: "Calculated boxes",
+};
+
+export interface BuildArtifact {
+  id: string;
+  group: ArtifactGroup;
+  fileName: string;
+  /** Plain-English summary, so the step is legible without reading SQL. */
+  summary: string;
+  sql: string;
+  checks: Check[];
+}
+
+export type BuildPhase = "ready" | "applying" | "applied" | "failed";

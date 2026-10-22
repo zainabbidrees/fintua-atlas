@@ -141,9 +141,22 @@ export function RulesScreen({
                   : `${r.openItems} items need a decision`}
               </span>
             )}
-            <Button variant="primary" disabled={r.openItems > 0}>
-              Continue to Build
-              <ArrowRight />
+            <Button
+              variant="primary"
+              disabled={r.openItems > 0}
+              asChild={r.openItems === 0}
+            >
+              {r.openItems === 0 ? (
+                <Link href={`/countries/${countryCode}/build`}>
+                  Continue to Build
+                  <ArrowRight />
+                </Link>
+              ) : (
+                <span>
+                  Continue to Build
+                  <ArrowRight />
+                </span>
+              )}
             </Button>
           </div>
         </div>
