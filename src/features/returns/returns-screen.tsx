@@ -130,32 +130,27 @@ function Detail({
           )}
         </div>
 
-        <p
-          className={cn(
-            "text-[13px] font-medium",
-            todo > 0 ? "text-attention-text" : "text-settled",
-          )}
-        >
-          {todo > 0
-            ? `${run.findings.length - todo} corroborated · ${todo} require review`
-            : `All ${run.findings.length} confirmed`}
-        </p>
-      </div>
-
-      {/* One action for the settled majority; the flagged ones stay individual,
-          so the review can't become a single rubber stamp. */}
-      {corroborated > 0 && (
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-          <p className="text-[13px] leading-relaxed text-text-muted">
-            {corroborated} {corroborated === 1 ? "finding is" : "findings are"} supported
-            by more than one source.
+        {/* Counts and the single bulk action share one line — an earlier pass
+            put them in a banner that repeated what this already says. */}
+        <div className="flex items-center gap-4">
+          <p
+            className={cn(
+              "text-[13px]",
+              todo > 0 ? "text-attention-text" : "text-text-muted",
+            )}
+          >
+            {todo > 0
+              ? `${run.findings.length - todo} corroborated · ${todo} require review`
+              : `All ${run.findings.length} confirmed`}
           </p>
-          <Button size="sm" onClick={() => r.confirmCorroborated(run.id)}>
-            <Check />
-            Confirm {corroborated === 1 ? "it" : "all " + corroborated}
-          </Button>
+          {corroborated > 0 && (
+            <Button size="sm" onClick={() => r.confirmCorroborated(run.id)}>
+              <Check />
+              Confirm {corroborated}
+            </Button>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="mt-6 space-y-8">
         {GROUP_ORDER.map((group) => {

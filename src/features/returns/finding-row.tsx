@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpRight, Check, ChevronDown, Pencil, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -10,11 +10,12 @@ import type { Finding } from "@/lib/types";
 /**
  * One extracted value, with the passage it came from.
  *
- * The passage is the whole point. Checking "is the deadline really the 20th?"
- * should cost one click, not a trip to a PDF — which is what the dev prototype
- * asked for, keeping sources on one screen and values on another.
- *
- * Flagged findings open by default: the work shouldn't have to be hunted for.
+ * Kept deliberately light. An earlier pass wrapped the quote in its own
+ * bordered card inside an already-bordered row, put the attribution on a
+ * wrapping second line, and gave every row two full-size buttons — one of them
+ * solid brand, repeated eight times down the page. The evidence is now an
+ * indented rule rather than a box, and only findings that actually need a
+ * decision carry a decision button.
  */
 export function FindingRow({
   finding,
@@ -32,12 +33,7 @@ export function FindingRow({
   const settled = finding.state === "confirmed" || finding.state === "edited";
 
   return (
-    <li
-      className={cn(
-        "relative border-b border-border last:border-0",
-        flagged && "bg-attention-quiet/40",
-      )}
-    >
+    <li className="relative border-b border-border last:border-0">
       {flagged && (
         <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-attention" />
       )}
@@ -46,29 +42,14 @@ export function FindingRow({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-sunken/60"
+        className="flex w-full flex-col gap-1 px-5 py-3.5 text-left transition-colors hover:bg-surface-sunken/50 sm:flex-row sm:items-baseline sm:gap-5"
       >
-        <span className="w-40 shrink-0 pt-px text-[13px] text-text-muted">
+        <span className="text-[12px] uppercase tracking-[0.06em] text-text-faint sm:w-36 sm:shrink-0 sm:text-[13px] sm:normal-case sm:tracking-normal">
           {finding.label}
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <span className="text-[15px] font-medium tracking-tight text-text">
-              {finding.value}
-            </span>
-            {settled && (
-              <Check
-                aria-label={finding.state === "edited" ? "Corrected" : "Confirmed"}
-                className="size-3.5 shrink-0 text-settled"
-              />
-            )}
-            {finding.state === "edited" && (
-              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
-                Corrected
-              </span>
-            )}
-          </span>
+          <span className="text-[14px] text-text">{finding.value}</span>
           {finding.detail && (
             <span className="mt-0.5 block text-[13px] leading-relaxed text-text-muted">
               {finding.detail}
@@ -76,52 +57,57 @@ export function FindingRow({
           )}
         </span>
 
-        {flagged && (
-          <span className="hidden shrink-0 items-center gap-1.5 text-[12px] font-medium text-attention-text sm:flex">
-            <TriangleAlert className="size-3.5" />
-            Requires review
-          </span>
-        )}
+        <span className="absolute right-5 top-3.5 flex shrink-0 items-center gap-2.5 sm:static">
+          {flagged ? (
+            <span className="hidden text-[12px] font-medium text-attention-text sm:inline">
+              Requires review
+            </span>
+          ) : settled ? (
+            <Check
+              aria-label={finding.state === "edited" ? "Corrected" : "Confirmed"}
+              className="size-3.5 text-settled"
+            />
+          ) : null}
 
-        <ChevronDown
-          aria-hidden
-          className={cn(
-            "size-4 shrink-0 text-text-faint transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            open && "rotate-180",
-          )}
-        />
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "size-3.5 text-text-faint transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+              open && "rotate-180",
+            )}
+          />
+        </span>
       </button>
 
       {open && (
-        <div className="px-5 pb-5 pl-5 sm:pl-[14.25rem]">
+        <div className="px-5 pb-4 sm:pl-[12.25rem]">
           {finding.concern && (
-            <p className="mb-3 text-[13px] leading-relaxed text-attention-text">
+            <p className="mb-3 max-w-[62ch] text-[13px] leading-relaxed text-attention-text">
               {finding.concern}
             </p>
           )}
 
-          {/* The source wording, verbatim. */}
-          <figure className="rounded-lg border border-border bg-surface p-4">
-            <blockquote className="text-[13px] leading-relaxed text-text">
-              “{finding.evidence.quote}”
+          {/* A rule, not a box — the row is already a container. */}
+          <figure className="border-l border-border-strong pl-4">
+            <blockquote className="max-w-[62ch] text-[13px] leading-relaxed text-text-muted">
+              {finding.evidence.quote}
             </blockquote>
-            <figcaption className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-text-faint">
+            <figcaption className="mt-1.5 truncate text-[12px] text-text-faint">
               <a
                 href={finding.evidence.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-brand hover:underline"
+                className="inline-flex items-center gap-1 text-text-muted transition-colors hover:text-brand hover:underline"
               >
                 {finding.evidence.sourceTitle}
                 <ArrowUpRight className="size-3" />
               </a>
-              <span>· {finding.evidence.publisher}</span>
-              {finding.evidence.locator && <span>· {finding.evidence.locator}</span>}
+              {finding.evidence.locator && ` · ${finding.evidence.locator}`}
             </figcaption>
           </figure>
 
           {finding.originalValue && (
-            <p className="mt-3 text-[12px] leading-relaxed text-text-faint">
+            <p className="mt-3 max-w-[62ch] text-[12px] leading-relaxed text-text-faint">
               Agent proposed “{finding.originalValue}”.
               {finding.editReason && ` Corrected: ${finding.editReason}`}
             </p>
@@ -137,17 +123,21 @@ export function FindingRow({
               }}
             />
           ) : (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {!settled && (
+            <div className="mt-3 flex items-center gap-4">
+              {/* Only an undecided finding gets a decision button. Corroborated
+                  ones are settled by the single action in the header. */}
+              {flagged && (
                 <Button size="sm" variant="primary" onClick={onConfirm}>
-                  <Check />
                   Confirm
                 </Button>
               )}
-              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-                <Pencil />
-                Correct
-              </Button>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-[13px] font-medium text-text-muted transition-colors hover:text-brand"
+              >
+                Correct this
+              </button>
             </div>
           )}
         </div>
@@ -171,21 +161,20 @@ function EditForm({
   const canSave = value.trim() !== "" && reason.trim() !== "";
 
   return (
-    <div className="mt-3 rounded-lg border border-border bg-surface p-4">
-      <label className="block text-[13px] font-medium text-text">
+    <div className="mt-4 max-w-lg space-y-3">
+      <label className="block text-[13px] text-text-muted">
         Corrected value
         <Input
           autoFocus
           value={value}
-          /* Pre-filled with the agent's value, which is usually replaced
-             wholesale rather than appended to. */
+          /* Pre-filled with the agent's value, usually replaced wholesale. */
           onFocus={(e) => e.target.select()}
           onChange={(e) => setValue(e.target.value)}
           className="mt-1.5"
         />
       </label>
 
-      <label className="mt-3 block text-[13px] font-medium text-text">
+      <label className="block text-[13px] text-text-muted">
         Rationale
         <Textarea
           rows={2}
@@ -196,18 +185,17 @@ function EditForm({
         />
       </label>
 
-      <div className="mt-3 flex justify-end gap-2">
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          size="sm"
-          variant="primary"
-          disabled={!canSave}
-          onClick={() => onSave(value.trim(), reason.trim())}
-        >
+      <div className="flex items-center gap-4">
+        <Button size="sm" variant="primary" disabled={!canSave} onClick={() => onSave(value.trim(), reason.trim())}>
           Save correction
         </Button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-[13px] font-medium text-text-muted transition-colors hover:text-text"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
