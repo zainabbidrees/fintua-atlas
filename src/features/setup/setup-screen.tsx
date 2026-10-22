@@ -364,7 +364,7 @@ function SetupComplete({
   onBack: () => void;
 }) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-8 py-16">
+    <div className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col justify-center px-8 py-16">
       <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-raised)]">
         <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-settled-quiet">
           <Check className="size-6 text-settled" />

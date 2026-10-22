@@ -8,7 +8,14 @@ import { cn } from "@/lib/cn";
  * else is neutral, so "primary" keeps its meaning on a screen full of controls.
  */
 const button = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-4 [&_svg]:shrink-0",
+  [
+    "inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap",
+    "transition-[background-color,border-color,color,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+    // Tactile: the control gives under the press, so the action feels registered.
+    "active:scale-[0.985] motion-reduce:active:scale-100",
+    "disabled:pointer-events-none disabled:opacity-45",
+    "[&_svg]:size-4 [&_svg]:shrink-0",
+  ].join(" "),
   {
     variants: {
       variant: {
