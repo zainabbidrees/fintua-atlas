@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Fintua ATLAS — design tokens
+
+   Principle: colour carries meaning, not decoration. A neutral canvas, and
+   colour reserved for the primary action and anything asking for a decision.
+   If everything is coloured, "needs your check" stops meaning anything.
+
+   No gradients. Depth comes from spacing and hierarchy, not effects.
+   ────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand — a blue-violet sitting deliberately between the two.
+     Hue 272: blue is ~260, violet ~290. Moderate chroma reads considered,
+     not vivid. */
+  --brand: oklch(52% 0.18 272);
+  --brand-hover: oklch(45% 0.19 272);
+  --brand-quiet: oklch(96% 0.02 272);
+  --brand-edge: oklch(89% 0.05 272);
+  --on-brand: oklch(99% 0 0);
+
+  /* Neutrals carry a trace of the brand hue, so greys belong to the same
+     system rather than looking borrowed. */
+  --canvas: oklch(99% 0.002 272);
+  --surface: oklch(100% 0 0);
+  --surface-sunken: oklch(97.5% 0.004 272);
+  --border: oklch(92% 0.004 272);
+  --border-strong: oklch(86% 0.008 272);
+  --text: oklch(25% 0.02 272);
+  --text-muted: oklch(50% 0.012 272);
+  --text-faint: oklch(65% 0.01 272);
+
+  /* Semantic — the only other colours in the system. Muted on purpose. */
+  --attention: oklch(72% 0.14 70); /* needs a human decision */
+  --attention-quiet: oklch(97% 0.03 70);
+  --attention-edge: oklch(88% 0.07 70);
+  --attention-text: oklch(45% 0.11 60);
+
+  --risk: oklch(55% 0.19 25); /* destructive, conflicts */
+  --risk-quiet: oklch(97% 0.02 25);
+  --risk-edge: oklch(89% 0.06 25);
+
+  --settled: oklch(58% 0.11 155); /* confirmed — used sparingly */
+  --settled-quiet: oklch(97% 0.025 155);
+
+  --radius: 0.625rem;
+
+  /* Barely-there. A hairline border does most of the separation work. */
+  --shadow-raised: 0 1px 2px oklch(25% 0.02 272 / 0.05);
+  --shadow-overlay: 0 8px 28px oklch(25% 0.02 272 / 0.12);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-quiet: var(--brand-quiet);
+  --color-brand-edge: var(--brand-edge);
+  --color-on-brand: var(--on-brand);
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+
+  --color-attention: var(--attention);
+  --color-attention-quiet: var(--attention-quiet);
+  --color-attention-edge: var(--attention-edge);
+  --color-attention-text: var(--attention-text);
+  --color-risk: var(--risk);
+  --color-risk-quiet: var(--risk-quiet);
+  --color-risk-edge: var(--risk-edge);
+  --color-settled: var(--settled);
+  --color-settled-quiet: var(--settled-quiet);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+
+  --font-sans: var(--font-mona-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-mona-sans-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--border);
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background-color: var(--canvas);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Headings sit tighter than body text — Mona Sans opens up at larger sizes. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.015em;
+  }
+
+  /* Numbers that sit in columns must align. */
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Approvers drive this app by keyboard; focus is a requirement, not a polish item. */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--brand-quiet);
+  }
 }

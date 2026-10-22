@@ -39,3 +39,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Keep the licensed font files tracked; they're part of the design system.
