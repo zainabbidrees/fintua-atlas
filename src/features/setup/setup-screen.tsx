@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, RotateCcw, Search } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, Check, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddFileOrLink } from "@/components/patterns/add-file-or-link";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { LiveTrail } from "@/components/patterns/live-trail";
 import { PickOne } from "@/components/patterns/pick-one";
+import { StepMarks, Stepper } from "@/components/patterns/stepper";
 import { CountryPicker } from "@/components/domain/country-picker";
 import { DescribeDocument } from "@/components/domain/describe-document";
 import { DocumentList } from "@/components/domain/document-list";
@@ -16,23 +18,23 @@ import { SourcePanel } from "@/components/domain/source-panel";
 import { copy, fill } from "@/lib/copy";
 import { ACCEPTED_FILE_TYPES, MAX_UPLOAD_BYTES } from "./constants";
 import { useSetup } from "./use-setup";
-import type { Filing, Source, UserDocument } from "@/lib/types";
+import type { Filing, Source } from "@/lib/types";
+
+const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 
 export function SetupScreen() {
   const s = useSetup();
 
   const [filingToRemove, setFilingToRemove] = React.useState<Filing | null>(null);
   const [sourceToRemove, setSourceToRemove] = React.useState<Source | null>(null);
-  const [pendingFile, setPendingFile] = React.useState<{
-    name: string;
-    size: number;
-  } | null>(null);
+  const [pendingFile, setPendingFile] = React.useState<{ name: string; size: number } | null>(null);
   const [collision, setCollision] = React.useState<{
     source: Source;
     file: { name: string; size: number };
   } | null>(null);
   const [fileError, setFileError] = React.useState<string | null>(null);
   const [term, setTerm] = React.useState("");
+  const [finished, setFinished] = React.useState(false);
 
   const researching = s.phase === "researching";
   const hasResults = s.phase === "found" && s.filings.length > 0;
@@ -40,7 +42,6 @@ export function SetupScreen() {
 
   function handleFile(file: File) {
     setFileError(null);
-
     if (file.size > MAX_UPLOAD_BYTES) {
       setFileError(fill(copy.documents.tooLarge, { name: file.name }));
       return;
@@ -50,199 +51,223 @@ export function SetupScreen() {
       setFileError(fill(copy.documents.wrongType, { name: file.name }));
       return;
     }
-
-    // A document we already found: the expert decides, we never silently merge.
     const clash = s.findCollision(file.name);
     if (clash) {
       setCollision({ source: clash.source, file: { name: file.name, size: file.size } });
       return;
     }
-
     setPendingFile({ name: file.name, size: file.size });
   }
 
+  if (finished && s.country) {
+    return <SetupComplete countryName={s.country.name} count={s.filings.length} onBack={() => setFinished(false)} />;
+  }
+
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-10">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-text">
-            {copy.page.title}
-          </h1>
-          <p className="mt-1 text-sm text-text-muted">{copy.page.step}</p>
+    <div className="pb-20">
+      {/* Header band — sits on the sunken surface so the working area reads as paper. */}
+      <header className="border-b border-border bg-surface px-8 pt-8">
+        <div className="mx-auto w-full max-w-3xl">
+          <Link
+            href="/countries"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
+          >
+            <ArrowLeft className="size-3.5" />
+            Countries
+          </Link>
+
+          <div className="mt-3 flex items-end justify-between gap-6">
+            <div className="flex items-center gap-3">
+              {s.country && (
+                <span aria-hidden className="text-[28px] leading-none">
+                  {s.country.flag}
+                </span>
+              )}
+              <div>
+                <h1 className="text-[22px] font-semibold tracking-tight text-text">
+                  {s.country ? s.country.name : copy.page.title}
+                </h1>
+                <p className="mt-0.5 text-sm text-text-muted">{copy.page.step}</p>
+              </div>
+            </div>
+            <Button variant="secondary" size="sm">
+              {copy.page.saveDraft}
+            </Button>
+          </div>
+
+          <div className="mt-6 pb-4">
+            <Stepper steps={STEPS} currentIndex={0} completedCount={0} />
+          </div>
         </div>
-        <Button variant="secondary" size="sm">
-          {copy.page.saveDraft}
-        </Button>
       </header>
 
-      <div className="mt-8">
-        <CountryPicker
-          value={s.country}
-          label={copy.country.label}
-          placeholder={copy.country.placeholder}
-          onSelect={s.selectCountry}
-        />
-      </div>
-
-      {s.phase === "empty" && (
-        <p className="mt-8 text-sm text-text-muted">{copy.country.empty}</p>
-      )}
-
-      {/* Research in progress. The page stays usable throughout. */}
-      {researching && s.country && (
-        <section className="mt-8 rounded-lg border border-border bg-surface p-5">
-          <h2 className="text-[15px] font-semibold text-text">
-            {fill(copy.research.runningTitle, { country: s.country.name })}
-          </h2>
-          <p className="mt-1 text-sm text-text-muted">{copy.research.runningHint}</p>
-          <LiveTrail
-            entries={s.trail}
-            label={copy.research.trailLabel}
-            className="mt-4"
+      <div className="mx-auto w-full max-w-3xl px-8">
+        <section className="mt-8 rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-raised)]">
+          <CountryPicker
+            value={s.country}
+            label={copy.country.label}
+            placeholder={copy.country.placeholder}
+            onSelect={s.selectCountry}
           />
+          {s.phase === "empty" && (
+            <p className="mt-3 text-sm text-text-muted">{copy.country.empty}</p>
+          )}
         </section>
-      )}
 
-      {(s.phase === "nothing_found" || s.phase === "failed") && s.country && (
-        <section className="mt-8 rounded-lg border border-border bg-surface p-5">
-          <p className="text-sm leading-relaxed text-text">
-            {s.phase === "failed"
-              ? fill(copy.filings.failed, { country: s.country.name })
-              : fill(copy.filings.noneFound, { country: s.country.name })}
-          </p>
-          <Button size="sm" className="mt-3" onClick={s.retry}>
-            <RotateCcw />
-            {copy.filings.retry}
-          </Button>
-        </section>
-      )}
+        {researching && s.country && (
+          <section className="mt-5 rounded-xl border border-brand-edge bg-brand-quiet/50 p-5">
+            <h2 className="text-[15px] font-semibold text-text">
+              {fill(copy.research.runningTitle, { country: s.country.name })}
+            </h2>
+            <p className="mt-1 text-sm text-text-muted">{copy.research.runningHint}</p>
+            <LiveTrail entries={s.trail} label={copy.research.trailLabel} className="mt-4" />
+          </section>
+        )}
 
-      {hasResults && s.country && (
-        <section className="mt-8">
-          <h2 className="text-[15px] font-semibold text-text">
-            {fill(copy.filings.heading, {
-              country: s.country.name,
-              count: s.filings.length,
-            })}
-          </h2>
-          <p className="mt-0.5 text-sm text-text-muted">
-            {s.needsCheck === 0
-              ? fill(copy.filings.summaryAllClear, { count: s.filings.length })
-              : fill(
-                  s.needsCheck === 1
-                    ? copy.filings.summaryMixed
-                    : copy.filings.summaryMixedPlural,
-                  { solid: s.filings.length - s.needsCheck, checks: s.needsCheck },
-                )}
-          </p>
+        {(s.phase === "nothing_found" || s.phase === "failed") && s.country && (
+          <section className="mt-5 rounded-xl border border-attention-edge bg-attention-quiet p-5">
+            <p className="text-sm leading-relaxed text-text">
+              {s.phase === "failed"
+                ? fill(copy.filings.failed, { country: s.country.name })
+                : fill(copy.filings.noneFound, { country: s.country.name })}
+            </p>
+            <Button size="sm" className="mt-3" onClick={s.retry}>
+              <RotateCcw />
+              {copy.filings.retry}
+            </Button>
+          </section>
+        )}
 
-          <div className="mt-4 space-y-3">
-            {s.filings.map((filing) => (
-              <FilingCard
-                key={filing.id}
-                filing={filing}
-                onKeep={s.keepFiling}
-                onRemove={setFilingToRemove}
-              />
-            ))}
-          </div>
+        {hasResults && s.country && (
+          <section className="mt-8">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="text-[17px] font-semibold tracking-tight text-text">
+                {fill(copy.filings.heading, {
+                  country: s.country.name,
+                  count: s.filings.length,
+                })}
+              </h2>
+              <p
+                className={
+                  s.needsCheck === 0
+                    ? "text-sm font-medium text-settled"
+                    : "text-sm font-medium text-attention-text"
+                }
+              >
+                {s.needsCheck === 0
+                  ? fill(copy.filings.summaryAllClear, { count: s.filings.length })
+                  : fill(
+                      s.needsCheck === 1
+                        ? copy.filings.summaryMixed
+                        : copy.filings.summaryMixedPlural,
+                      { solid: s.filings.length - s.needsCheck, checks: s.needsCheck },
+                    )}
+              </p>
+            </div>
 
-          {/* Targeted search for something the agent missed. */}
-          <div className="mt-5">
-            <label className="text-sm font-medium text-text">
-              {copy.filings.searchMore}
-            </label>
-            <div className="mt-1.5 flex max-w-md gap-2">
-              <Input
-                value={term}
-                onChange={(e) => {
-                  setTerm(e.target.value);
-                  s.clearSearchMessage();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && term.trim()) {
+            <div className="mt-4 space-y-3">
+              {s.filings.map((filing) => (
+                <FilingCard
+                  key={filing.id}
+                  filing={filing}
+                  onKeep={s.keepFiling}
+                  onRemove={setFilingToRemove}
+                />
+              ))}
+            </div>
+
+            <div className="mt-5 rounded-xl border border-border bg-surface p-4">
+              <label className="text-sm font-medium text-text">
+                {copy.filings.searchMore}
+              </label>
+              <div className="mt-2 flex max-w-md gap-2">
+                <Input
+                  value={term}
+                  onChange={(e) => {
+                    setTerm(e.target.value);
+                    s.clearSearchMessage();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && term.trim()) {
+                      void s.addFiling(term);
+                      setTerm("");
+                    }
+                  }}
+                  placeholder={copy.filings.searchMorePlaceholder}
+                />
+                <Button
+                  disabled={!term.trim() || s.searching}
+                  onClick={() => {
                     void s.addFiling(term);
                     setTerm("");
-                  }
-                }}
-                placeholder={copy.filings.searchMorePlaceholder}
-              />
-              <Button
-                disabled={!term.trim() || s.searching}
-                onClick={() => {
-                  void s.addFiling(term);
-                  setTerm("");
-                }}
-              >
-                <Search />
-                {copy.filings.searchMoreAction}
-              </Button>
-            </div>
-            {s.searchMessage && (
-              <p className="mt-1.5 text-sm text-text-muted">{s.searchMessage}</p>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Supporting evidence — quieter than the scope decision above. */}
-      {s.sources.length > 0 && (
-        <div className="mt-8">
-          <SourcePanel
-            sources={s.sources}
-            filings={s.filings}
-            onRemove={setSourceToRemove}
-          />
-        </div>
-      )}
-
-      {/* Always available once a country is chosen — including after a failure. */}
-      {s.country && (
-        <div className="mt-8">
-          <AddFileOrLink
-            heading={copy.documents.heading}
-            hint={copy.documents.hint}
-            chooseLabel={copy.documents.dropAction}
-            linkPlaceholder={copy.documents.linkPlaceholder}
-            linkInvalidMessage={copy.documents.linkInvalid}
-            accept={ACCEPTED_FILE_TYPES.join(",")}
-            onFile={handleFile}
-            onLink={(url) => {
-              const name = new URL(url).hostname;
-              setPendingFile({ name, size: 0 });
-            }}
-          />
-          {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
-          <DocumentList documents={s.documents} onRemove={s.removeDocument} />
-        </div>
-      )}
-
-      <footer className="mt-10 flex items-center justify-between border-t border-border pt-5">
-        <Button variant="ghost">{copy.page.back}</Button>
-        <div className="flex items-center gap-3">
-          {hasResults && s.needsCheck > 0 && (
-            <span className="text-sm text-text-muted">
-              {fill(
-                s.needsCheck === 1
-                  ? copy.page.blockedNeedsCheck
-                  : copy.page.blockedNeedsCheckPlural,
-                { count: s.needsCheck },
+                  }}
+                >
+                  <Search />
+                  {copy.filings.searchMoreAction}
+                </Button>
+              </div>
+              {s.searchMessage && (
+                <p className="mt-2 text-sm text-text-muted">{s.searchMessage}</p>
               )}
-            </span>
-          )}
-          {s.phase === "found" && s.filings.length === 0 && (
-            <span className="text-sm text-text-muted">
-              {copy.page.blockedNoFilings}
-            </span>
-          )}
-          <Button variant="primary" disabled={!canContinue}>
-            {copy.page.continue}
-            <ArrowRight />
-          </Button>
-        </div>
-      </footer>
+            </div>
+          </section>
+        )}
 
-      {/* ── Decisions that need a human ─────────────────────────────────── */}
+        {s.sources.length > 0 && (
+          <div className="mt-6">
+            <SourcePanel sources={s.sources} filings={s.filings} onRemove={setSourceToRemove} />
+          </div>
+        )}
+
+        {s.country && (
+          <div className="mt-6">
+            <AddFileOrLink
+              heading={copy.documents.heading}
+              hint={copy.documents.hint}
+              chooseLabel={copy.documents.dropAction}
+              linkPlaceholder={copy.documents.linkPlaceholder}
+              linkInvalidMessage={copy.documents.linkInvalid}
+              accept={ACCEPTED_FILE_TYPES.join(",")}
+              onFile={handleFile}
+              onLink={(url) => setPendingFile({ name: new URL(url).hostname, size: 0 })}
+            />
+            {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
+            <DocumentList documents={s.documents} onRemove={s.removeDocument} />
+          </div>
+        )}
+      </div>
+
+      {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
+      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-60">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-8 py-3">
+          <Button variant="ghost" asChild>
+            <Link href="/countries">{copy.page.back}</Link>
+          </Button>
+          <div className="flex items-center gap-3">
+            {hasResults && s.needsCheck > 0 && (
+              <span className="text-sm text-attention-text">
+                {fill(
+                  s.needsCheck === 1
+                    ? copy.page.blockedNeedsCheck
+                    : copy.page.blockedNeedsCheckPlural,
+                  { count: s.needsCheck },
+                )}
+              </span>
+            )}
+            {s.phase === "found" && s.filings.length === 0 && (
+              <span className="text-sm text-text-muted">{copy.page.blockedNoFilings}</span>
+            )}
+            <Button
+              variant="primary"
+              disabled={!canContinue}
+              onClick={() => setFinished(true)}
+            >
+              {copy.page.continue}
+              <ArrowRight />
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <ConfirmWithReason
         open={filingToRemove !== null}
@@ -277,9 +302,7 @@ export function SetupScreen() {
         open={pendingFile !== null}
         onOpenChange={(open) => !open && setPendingFile(null)}
         onSave={(kind, note) => {
-          if (pendingFile) {
-            s.addDocument(pendingFile.name, pendingFile.size, kind, note);
-          }
+          if (pendingFile) s.addDocument(pendingFile.name, pendingFile.size, kind, note);
           setPendingFile(null);
         }}
       />
@@ -321,9 +344,7 @@ export function SetupScreen() {
           cancelLabel={copy.documents.cancel}
           onConfirm={(choice, reason) => {
             s.record("Resolved duplicate", collision.source.title, reason);
-            if (choice !== "theirs") {
-              setPendingFile(collision.file);
-            }
+            if (choice !== "theirs") setPendingFile(collision.file);
             setCollision(null);
           }}
         />
@@ -332,4 +353,44 @@ export function SetupScreen() {
   );
 }
 
-export type { UserDocument };
+/** Closes the step: says what was agreed, and what happens next. */
+function SetupComplete({
+  countryName,
+  count,
+  onBack,
+}: {
+  countryName: string;
+  count: number;
+  onBack: () => void;
+}) {
+  return (
+    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-8 py-16">
+      <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-raised)]">
+        <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-settled-quiet">
+          <Check className="size-6 text-settled" />
+        </span>
+
+        <h1 className="mt-5 text-[22px] font-semibold tracking-tight text-text">
+          {copy.page.done}
+        </h1>
+        <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-text-muted">
+          {fill(copy.page.doneBody, { count, country: countryName })}
+        </p>
+
+        <div className="mt-7">
+          <StepMarks total={STEPS.length} completed={1} label="Step 1 of 5 complete" />
+        </div>
+
+        <div className="mt-8 flex items-center justify-center gap-2">
+          <Button variant="ghost" onClick={onBack}>
+            {copy.page.doneReview}
+          </Button>
+          <Button variant="primary" size="lg">
+            {copy.page.doneNext}
+            <ArrowRight />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

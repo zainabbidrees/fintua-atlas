@@ -44,6 +44,14 @@
   --settled: oklch(58% 0.11 155); /* confirmed — used sparingly */
   --settled-quiet: oklch(97% 0.025 155);
 
+  /* Deep brand surfaces — the app's spine of colour: sidebar and auth panel. */
+  --deep: oklch(26% 0.09 275);
+  --deep-raised: oklch(31% 0.1 274);
+  --deep-border: oklch(37% 0.09 274);
+  --deep-text: oklch(88% 0.025 275);
+  --deep-text-faint: oklch(70% 0.03 275);
+  --on-deep: oklch(99% 0 0);
+
   --radius: 0.625rem;
 
   /* Barely-there. A hairline border does most of the separation work. */
@@ -66,6 +74,13 @@
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-text-faint: var(--text-faint);
+
+  --color-deep: var(--deep);
+  --color-deep-raised: var(--deep-raised);
+  --color-deep-border: var(--deep-border);
+  --color-deep-text: var(--deep-text);
+  --color-deep-text-faint: var(--deep-text-faint);
+  --color-on-deep: var(--on-deep);
 
   --color-attention: var(--attention);
   --color-attention-quiet: var(--attention-quiet);

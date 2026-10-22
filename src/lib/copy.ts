@@ -17,6 +17,12 @@ export const copy = {
   page: {
     title: "Add a country",
     step: "Step 1 of 5 · Set up",
+    stepsLabel: ["Set up", "Filings", "Rules", "Build", "Approval"],
+    done: "Set up complete",
+    doneBody:
+      "{count} filings confirmed for {country}, each with its source. Next we work through them one at a time.",
+    doneNext: "Go to Filings",
+    doneReview: "Review set up again",
     saveDraft: "Save draft",
     back: "Back",
     continue: "Continue",
