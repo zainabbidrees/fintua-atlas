@@ -123,7 +123,7 @@ function Row({ run, index }: { run: CountryRun; index: number }) {
       style={{ "--index": index } as React.CSSProperties}
     >
       <Link
-        href="/countries/new"
+        href={`/countries/${run.code}/returns`}
         className="group relative flex items-center gap-4 py-5 pl-4 pr-1 transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-surface focus-visible:bg-surface focus-visible:outline-none"
       >
         <span

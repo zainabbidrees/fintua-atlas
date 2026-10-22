@@ -60,7 +60,14 @@ export function SetupScreen() {
   }
 
   if (finished && s.country) {
-    return <SetupComplete countryName={s.country.name} count={s.filings.length} onBack={() => setFinished(false)} />;
+    return (
+      <SetupComplete
+        countryCode={s.country.code}
+        countryName={s.country.name}
+        count={s.filings.length}
+        onBack={() => setFinished(false)}
+      />
+    );
   }
 
   return (
@@ -95,8 +102,10 @@ export function SetupScreen() {
             </Button>
           </div>
 
-          <div className="mt-6 pb-4">
-            <Stepper steps={STEPS} currentIndex={0} completedCount={0} />
+          <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="min-w-[34rem]">
+              <Stepper steps={STEPS} currentIndex={0} completedCount={0} />
+            </div>
           </div>
         </div>
       </header>
@@ -239,11 +248,11 @@ export function SetupScreen() {
 
       {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-8 py-3">
-          <Button variant="ghost" asChild>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-8">
+          <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href="/countries">{copy.page.back}</Link>
           </Button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
             {hasResults && s.needsCheck > 0 && (
               <span className="text-sm text-attention-text">
                 {fill(
@@ -355,10 +364,12 @@ export function SetupScreen() {
 
 /** Closes the step: says what was agreed, and what happens next. */
 function SetupComplete({
+  countryCode,
   countryName,
   count,
   onBack,
 }: {
+  countryCode: string;
   countryName: string;
   count: number;
   onBack: () => void;
@@ -385,9 +396,11 @@ function SetupComplete({
           <Button variant="ghost" onClick={onBack}>
             {copy.page.doneReview}
           </Button>
-          <Button variant="primary" size="lg">
-            {copy.page.doneNext}
-            <ArrowRight />
+          <Button variant="primary" size="lg" asChild>
+            <Link href={`/countries/${countryCode}/returns`}>
+              {copy.page.doneNext}
+              <ArrowRight />
+            </Link>
           </Button>
         </div>
       </div>

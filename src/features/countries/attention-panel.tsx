@@ -32,7 +32,7 @@ export function AttentionPanel() {
             {waiting.map((run) => (
               <li key={run.code}>
                 <Link
-                  href="/countries/new"
+                  href={`/countries/${run.code}/returns`}
                   className="group flex items-center gap-3.5 rounded-xl border border-deep-border bg-deep-raised p-3.5 transition-colors hover:border-brand"
                 >
                   <span

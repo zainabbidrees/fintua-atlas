@@ -125,3 +125,70 @@ export interface TrailEntry {
   text: string;
   at: number;
 }
+
+/* ── Step 2: Returns ─────────────────────────────────────────────────────
+ *
+ * Where the agent's research meets the specialist's judgement. Each extracted
+ * value carries the passage it came from, so review is "confirm or correct"
+ * rather than "go and read the source" — the one pattern every document-AI
+ * product converges on, and the thing the dev prototype lacked entirely.
+ */
+
+/** Where a value was found, including the passage itself. */
+export interface Evidence {
+  sourceTitle: string;
+  publisher: string;
+  url: string;
+  /** Section, article or page, when the agent could pin one down. */
+  locator?: string;
+  /** The actual wording. Shown verbatim so nobody has to take it on trust. */
+  quote: string;
+}
+
+export type FindingState =
+  /** Two or more sources agree. Pre-accepted, still inspectable. */
+  | "corroborated"
+  /** Thin or conflicting evidence. Blocks the step until a human rules. */
+  | "needs_review"
+  /** A human has explicitly accepted it. */
+  | "confirmed"
+  /** A human changed the value; the agent's original is retained. */
+  | "edited";
+
+export type FindingGroup = "filing" | "rates" | "rules";
+
+export const FINDING_GROUP_LABEL: Record<FindingGroup, string> = {
+  filing: "Filing & deadlines",
+  rates: "Rates",
+  rules: "Treatment & rules",
+};
+
+export interface Finding {
+  id: string;
+  group: FindingGroup;
+  /** e.g. "Filing frequency". */
+  label: string;
+  value: string;
+  /** Qualification that would otherwise be lost, e.g. a turnover threshold. */
+  detail?: string;
+  evidence: Evidence;
+  state: FindingState;
+  /** Present when state is "needs_review": what the agent is unsure about. */
+  concern?: string;
+  /** The agent's value before a human changed it. */
+  originalValue?: string;
+  /** Why the human changed it. Required on edit. */
+  editReason?: string;
+}
+
+/** An obligation carried forward from scope, now being researched in detail. */
+export interface ObligationRun {
+  id: string;
+  name: string;
+  localName: string | null;
+  /** Agents run per obligation and in parallel, so each has its own state. */
+  agent: "running" | "ready" | "confirmed";
+  /** 0–100, meaningful only while running. */
+  progress: number;
+  findings: Finding[];
+}
