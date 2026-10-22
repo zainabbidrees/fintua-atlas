@@ -287,3 +287,55 @@ export interface BuildArtifact {
 }
 
 export type BuildPhase = "ready" | "applying" | "applied" | "failed";
+
+/* ── Step 5: Approval ────────────────────────────────────────────────────
+ *
+ * The production gate. Two levels, a comment required on every decision, and
+ * nothing reaches Comply until both are in.
+ *
+ * This is where the rationales captured in every earlier step pay off. An
+ * approver signing their name needs to see not just what the agent found, but
+ * what a human overruled and why — otherwise the sign-off is a formality.
+ */
+
+export type DecisionKind = "removed" | "corrected" | "resolved" | "dismissed";
+
+export const DECISION_KIND_LABEL: Record<DecisionKind, string> = {
+  removed: "Removed",
+  corrected: "Corrected",
+  resolved: "Resolved",
+  dismissed: "Marked not applicable",
+};
+
+/** A human overrule, with the reasoning that justified it. */
+export interface DecisionRecord {
+  id: string;
+  kind: DecisionKind;
+  subject: string;
+  /** Which step it was made in, so an approver can go back to it. */
+  step: string;
+  reason: string;
+  by: string;
+  at: string;
+}
+
+export interface ReadinessCheck {
+  label: string;
+  detail: string;
+  passed: boolean;
+}
+
+export type ApprovalStatus2 = "pending" | "approved" | "rejected";
+
+export interface ApprovalRecord {
+  level: 1 | 2;
+  label: string;
+  /** Who is entitled to decide it. */
+  group: string;
+  status: ApprovalStatus2;
+  decidedBy?: string;
+  decidedAt?: string;
+  comment?: string;
+}
+
+export type PublishPhase = "awaiting" | "ready" | "publishing" | "published";

@@ -163,9 +163,22 @@ export function BuildScreen({
                 Apply to test before requesting approval
               </span>
             )}
-            <Button variant="primary" disabled={phase !== "applied"}>
-              Continue to Approval
-              <ArrowRight />
+            <Button
+              variant="primary"
+              disabled={phase !== "applied"}
+              asChild={phase === "applied"}
+            >
+              {phase === "applied" ? (
+                <Link href={`/countries/${countryCode}/approval`}>
+                  Continue to Approval
+                  <ArrowRight />
+                </Link>
+              ) : (
+                <span>
+                  Continue to Approval
+                  <ArrowRight />
+                </span>
+              )}
             </Button>
           </div>
         </div>
