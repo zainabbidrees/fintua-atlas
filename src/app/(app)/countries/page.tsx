@@ -36,7 +36,7 @@ export default function CountriesPage() {
           <Button variant="primary" asChild>
             <Link href="/countries/new">
               <Plus />
-              Add a country
+              Onboard country
             </Link>
           </Button>
         </div>

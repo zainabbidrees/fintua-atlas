@@ -15,7 +15,7 @@ import type { DocumentKind, SourceKind } from "./types";
 
 export const copy = {
   page: {
-    title: "Add a country",
+    title: "Onboard country",
     step: "Step 1 of 5 · Set up",
     stepsLabel: ["Set up", "Filings", "Rules", "Build", "Approval"],
     done: "Set up complete",
