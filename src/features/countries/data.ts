@@ -15,8 +15,8 @@ export type RunState =
 export interface CountryRun {
   code: string;
   name: string;
-  /** Where the run currently sits, in the expert's words. */
-  stage: string;
+  /** Which of the five steps it currently sits at. */
+  step: string;
   /** Wizard steps finished, out of five. */
   stepsDone: number;
   filingsConfirmed: number;
@@ -31,7 +31,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "DE",
     name: "Germany",
-    stage: "Research in progress",
+    step: "Returns",
     stepsDone: 1,
     filingsConfirmed: 1,
     filingsFound: 5,
@@ -43,7 +43,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "IT",
     name: "Italy",
-    stage: "Second-level approval",
+    step: "Approval",
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
@@ -55,7 +55,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "HU",
     name: "Hungary",
-    stage: "First-level approval",
+    step: "Approval",
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
@@ -67,7 +67,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "PL",
     name: "Poland",
-    stage: "Applied to test environment",
+    step: "Build",
     stepsDone: 3,
     filingsConfirmed: 6,
     filingsFound: 6,
@@ -79,7 +79,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "RO",
     name: "Romania",
-    stage: "Rules & rates",
+    step: "Rules & rates",
     stepsDone: 2,
     filingsConfirmed: 3,
     filingsFound: 7,
@@ -91,7 +91,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "AT",
     name: "Austria",
-    stage: "Published to Comply",
+    step: "Published",
     stepsDone: 5,
     filingsConfirmed: 4,
     filingsFound: 4,
@@ -103,7 +103,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "AU",
     name: "Australia",
-    stage: "Published to Comply",
+    step: "Published",
     stepsDone: 5,
     filingsConfirmed: 5,
     filingsFound: 5,
@@ -118,8 +118,8 @@ export const STATE_META: Record<
   RunState,
   { label: string; dot: string; text: string }
 > = {
-  draft: { label: "Draft", dot: "bg-text-faint", text: "text-text-muted" },
-  in_progress: { label: "In progress", dot: "bg-brand", text: "text-brand" },
+  draft: { label: "Draft", dot: "bg-text-faint", text: "text-text-faint" },
+  in_progress: { label: "In progress", dot: "bg-text-faint", text: "text-text-muted" },
   awaiting_you: {
     label: "Awaiting you",
     dot: "bg-attention",
@@ -127,10 +127,10 @@ export const STATE_META: Record<
   },
   awaiting_approval: {
     label: "With approver",
-    dot: "bg-attention",
-    text: "text-attention-text",
+    dot: "bg-text-faint",
+    text: "text-text-muted",
   },
-  testing: { label: "In test", dot: "bg-text-muted", text: "text-text-muted" },
+  testing: { label: "In test", dot: "bg-text-faint", text: "text-text-muted" },
   live: { label: "Live", dot: "bg-settled", text: "text-settled" },
 };
 

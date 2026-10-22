@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { RUNS, STATE_META, filingsLive } from "./data";
+import { RUNS, filingsLive } from "./data";
 
 /**
  * Holds the right side the way the reference layouts hold it with an image —
@@ -46,7 +46,7 @@ export function AttentionPanel() {
                       {run.name}
                     </span>
                     <span className="block truncate text-[13px] text-deep-text-faint">
-                      {run.stage} · {STATE_META[run.state].label}
+                      {run.step} · {run.filingsConfirmed} obligations
                     </span>
                   </span>
                   <ArrowUpRight className="size-4 shrink-0 text-deep-text-faint transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-on-deep" />

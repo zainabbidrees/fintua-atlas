@@ -13,12 +13,12 @@ import { Textarea } from "@/components/ui/input";
 /**
  * Confirms a removal AND captures why.
  *
- * The reason is the point. A tax expert's judgement — "superseded by the 2026
+ * The reason is the point. A specialist's judgement — "superseded by the 2026
  * circular" — is exactly the knowledge the manual process kept in someone's
- * head and the automated one would otherwise throw away. It is also the answer
- * to "why did you exclude this?" three years later in an audit.
+ * head and the automated one would otherwise discard. It is also the answer to
+ * "on what basis was this excluded?" years later under audit.
  *
- * The reason is required: an empty box means the knowledge is lost anyway.
+ * Required: an empty box loses the knowledge anyway.
  */
 export function ConfirmWithReason({
   open,
@@ -41,45 +41,77 @@ export function ConfirmWithReason({
   destructive?: boolean;
   onConfirm: (reason: string) => void;
 }) {
-  const [reason, setReason] = React.useState("");
-
-  React.useEffect(() => {
-    if (open) setReason("");
-  }, [open]);
-
-  const canConfirm = reason.trim().length > 0;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{hint}</DialogDescription>
-
-        <Textarea
-          autoFocus
-          rows={3}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
+        {/* Radix unmounts this subtree on close, so the field state below is
+            fresh by construction — no effect resetting it after the fact. */}
+        <Body
+          title={title}
+          hint={hint}
           placeholder={placeholder}
-          className="mt-4"
+          confirmLabel={confirmLabel}
+          cancelLabel={cancelLabel}
+          destructive={destructive}
+          onCancel={() => onOpenChange(false)}
+          onConfirm={(reason) => {
+            onConfirm(reason);
+            onOpenChange(false);
+          }}
         />
-
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={destructive ? "danger" : "primary"}
-            disabled={!canConfirm}
-            onClick={() => {
-              onConfirm(reason.trim());
-              onOpenChange(false);
-            }}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Body({
+  title,
+  hint,
+  placeholder,
+  confirmLabel,
+  cancelLabel,
+  destructive,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  hint: string;
+  placeholder: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  destructive: boolean;
+  onCancel: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = React.useState("");
+  const canConfirm = reason.trim().length > 0;
+
+  return (
+    <>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogDescription>{hint}</DialogDescription>
+
+      <Textarea
+        autoFocus
+        rows={3}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder={placeholder}
+        className="mt-4"
+      />
+
+      <div className="mt-5 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          {cancelLabel}
+        </Button>
+        <Button
+          variant={destructive ? "danger" : "primary"}
+          disabled={!canConfirm}
+          onClick={() => onConfirm(reason.trim())}
+        >
+          {confirmLabel}
+        </Button>
+      </div>
+    </>
   );
 }

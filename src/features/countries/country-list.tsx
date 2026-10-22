@@ -15,11 +15,15 @@ import {
 /**
  * Rows, not a table.
  *
- * The previous pass had an uppercase column-header strip over tight rows —
- * which is what a database browser looks like, not a product. Here the rows
- * carry their own labels inline, separated by full-bleed hairlines with no
- * container around each one, and given enough height to breathe. An accent
- * bar wipes in on the left of whichever row you're on.
+ * Deliberately sparse. An earlier pass put ten things in every row — chip,
+ * name, status dot, status word, stage, owner, date, obligation count, a
+ * five-segment progress bar and an arrow — with three of them in brand blue,
+ * which left the colour meaning nothing and the metadata line truncating.
+ *
+ * Several of those said the same thing twice: a count beside a bar of the same
+ * count, a dot beside its own label, a "stage" that restated the status. What
+ * survives is a name, one line of context, one status, and a way in. Owner and
+ * progress belong on the record itself, which is one click away.
  */
 export function CountryList() {
   const [filter, setFilter] = React.useState<FilterId>("all");
@@ -120,83 +124,48 @@ function Row({ run, index }: { run: CountryRun; index: number }) {
     >
       <Link
         href="/countries/new"
-        className="group relative flex min-w-0 items-start gap-4 px-0 py-6 sm:gap-5 sm:px-4 transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-surface focus-visible:bg-surface focus-visible:outline-none sm:items-center"
+        className="group relative flex items-center gap-4 py-5 pl-4 pr-1 transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-surface focus-visible:bg-surface focus-visible:outline-none"
       >
-        {/* Accent wipe. scaleY, not height — transforms don't touch layout. */}
         <span
           aria-hidden
-          className={cn(
-            "absolute inset-y-0 left-0 w-[2px] origin-top scale-y-0 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            "group-hover:scale-y-100 group-focus-visible:scale-y-100",
-            done ? "bg-settled" : "bg-brand",
-          )}
+          className="absolute inset-y-0 left-0 w-[2px] origin-top scale-y-0 bg-brand transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-y-100 group-focus-visible:scale-y-100"
         />
 
+        {/* Neutral at rest. Brand appears only under the cursor, so the colour
+            in this list is never competing with the status. */}
         <span
           aria-hidden
-          className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-xl font-mono text-[13px] font-semibold tracking-tight transition-colors duration-300",
-            done
-              ? "bg-settled-quiet text-settled"
-              : "bg-brand-quiet text-brand group-hover:bg-brand group-hover:text-on-brand",
-          )}
+          className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-sunken font-mono text-[13px] font-semibold tracking-tight text-text-muted transition-colors duration-300 group-hover:bg-brand group-hover:text-on-brand"
         >
           {run.code}
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <h3 className="text-[15px] font-medium tracking-tight text-text">
-              {run.name}
-            </h3>
-            <span className="inline-flex items-center gap-1.5">
-              <span aria-hidden className={cn("size-1.5 rounded-full", state.dot)} />
-              <span className={cn("text-[12px] font-medium", state.text)}>
-                {state.label}
-              </span>
-            </span>
-          </div>
-
-          <p className="mt-1 truncate text-[13px] leading-relaxed text-text-muted">
-            {run.stage} · {run.owner.name} · {run.updated}
+          <h3 className="truncate text-[15px] font-medium tracking-tight text-text">
+            {run.name}
+          </h3>
+          <p className="mt-0.5 truncate text-[13px] text-text-faint">
+            {done
+              ? `${run.step} · ${run.filingsConfirmed} obligations`
+              : `${run.step} · ${run.filingsConfirmed} of ${run.filingsFound} confirmed`}
+            {" · "}
+            {run.updated}
           </p>
         </div>
 
-        {/* Filings and step progress, right-aligned like the references' actions. */}
-        <div className="hidden w-36 shrink-0 sm:block">
-          <p className="text-right text-[13px] text-text-muted">
-            <span className="tabular-nums font-medium text-text">
-              {run.filingsConfirmed}
-            </span>
-            {" of "}
-            <span className="tabular-nums">{run.filingsFound}</span> obligations
-          </p>
-          <div className="mt-2 flex gap-1" aria-hidden>
-            {Array.from({ length: 5 }, (_, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "h-[3px] w-full rounded-full transition-colors duration-300",
-                  i < run.stepsDone
-                    ? done
-                      ? "bg-settled"
-                      : "bg-brand"
-                    : "bg-border",
-                )}
-              />
-            ))}
-          </div>
-          <span className="sr-only">
-            {run.stepsDone} of 5 steps complete
-          </span>
-        </div>
-
-        <span className="hidden shrink-0 items-center gap-1.5 text-[13px] font-medium text-text-faint transition-colors duration-300 group-hover:text-brand lg:flex">
-          <span className="w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:w-[3.25rem] group-hover:opacity-100">
-            Open
-          </span>
-          <ArrowRight className="size-4 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5" />
+        {/* One status treatment, not a dot and a word. Coloured only when it
+            means something: green finished, amber your move. */}
+        <span
+          className={cn(
+            "hidden shrink-0 text-[13px] sm:block",
+            state.text,
+            run.state === "awaiting_you" && "font-medium",
+          )}
+        >
+          {state.label}
         </span>
+
+        <ArrowRight className="size-4 shrink-0 text-border-strong transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5 group-hover:text-brand" />
       </Link>
     </li>
   );

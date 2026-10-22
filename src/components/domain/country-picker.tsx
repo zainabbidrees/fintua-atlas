@@ -32,12 +32,6 @@ export function CountryPicker({
   onSelect: (country: Country) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const [term, setTerm] = React.useState("");
-  const results = React.useMemo(() => searchCountries(term), [term]);
-
-  React.useEffect(() => {
-    if (!open) setTerm("");
-  }, [open]);
 
   return (
     <div>
@@ -65,6 +59,35 @@ export function CountryPicker({
         </PopoverTrigger>
 
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+          {/* Unmounted on close, so the query resets without an effect. */}
+          <Results
+            selectedCode={value?.code ?? null}
+            placeholder={placeholder}
+            onPick={(country) => {
+              onSelect(country);
+              setOpen(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function Results({
+  selectedCode,
+  placeholder,
+  onPick,
+}: {
+  selectedCode: string | null;
+  placeholder: string;
+  onPick: (country: Country) => void;
+}) {
+  const [term, setTerm] = React.useState("");
+  const results = React.useMemo(() => searchCountries(term), [term]);
+
+  return (
+    <>
           <div className="flex items-center gap-2 border-b border-border px-3">
             <Search className="size-4 shrink-0 text-text-faint" />
             <Input
@@ -82,15 +105,12 @@ export function CountryPicker({
                 <button
                   type="button"
                   role="option"
-                  aria-selected={value?.code === country.code}
-                  onClick={() => {
-                    onSelect(country);
-                    setOpen(false);
-                  }}
+                  aria-selected={selectedCode === country.code}
+                  onClick={() => onPick(country)}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
                     "hover:bg-surface-sunken",
-                    value?.code === country.code && "bg-brand-quiet text-brand",
+                    selectedCode === country.code && "bg-brand-quiet text-brand",
                   )}
                 >
                   <span aria-hidden className="text-base leading-none">
@@ -106,8 +126,6 @@ export function CountryPicker({
               </li>
             )}
           </ul>
-        </PopoverContent>
-      </Popover>
-    </div>
+    </>
   );
 }
