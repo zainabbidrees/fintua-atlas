@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Brand mark on the deep ground, as the supplied artwork presents it. -->
+  <rect width="64" height="64" rx="13" fill="#2B0A4D" />
+  <g transform="translate(13 13) scale(0.8636)" fill="#FFFFFF">
+    <path d="M0 0 H44 V44 L36 36 V8 H8 Z" />
+    <path d="M1 17 H26 V42 L18 34 V25 H8 Z" />
+  </g>
+</svg>
