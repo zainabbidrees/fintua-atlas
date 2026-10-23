@@ -43,7 +43,7 @@ export function RulesScreen({
                 {countryName}
               </h1>
               <p className="mt-0.5 text-sm text-text-muted">
-                Step 3 of 5 · Rules &amp; rates
+                Step 3 of 5 · Specs &amp; Datasets
               </p>
             </div>
             <Button variant="secondary" size="sm">
@@ -148,12 +148,12 @@ export function RulesScreen({
             >
               {r.openItems === 0 ? (
                 <Link href={`/countries/${countryCode}/build`}>
-                  Continue to Build
+                  Continue to SQL Review
                   <ArrowRight />
                 </Link>
               ) : (
                 <span>
-                  Continue to Build
+                  Continue to SQL Review
                   <ArrowRight />
                 </span>
               )}

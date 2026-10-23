@@ -62,7 +62,7 @@ export function ApprovalScreen({
                 {countryName}
               </h1>
               <p className="mt-0.5 text-sm text-text-muted">
-                Step 5 of 5 · Approval
+                Step 5 of 5 · Approval &amp; Publish
               </p>
             </div>
             <Button variant="secondary" size="sm">

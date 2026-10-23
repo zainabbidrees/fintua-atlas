@@ -41,7 +41,7 @@ export function ReturnsScreen({
               <h1 className="text-[22px] font-semibold tracking-tight text-text">
                 {countryName}
               </h1>
-              <p className="mt-0.5 text-sm text-text-muted">Step 2 of 5 · Returns</p>
+              <p className="mt-0.5 text-sm text-text-muted">Step 2 of 5 · Return Types</p>
             </div>
             <Button variant="secondary" size="sm">
               {copy.page.saveDraft}
@@ -98,12 +98,12 @@ export function ReturnsScreen({
             >
               {r.allSettled && !r.anyRunning ? (
                 <Link href={`/countries/${countryCode}/rules`}>
-                  Continue to Rules &amp; rates
+                  Continue to Specs &amp; Datasets
                   <ArrowRight />
                 </Link>
               ) : (
                 <span>
-                  Continue to Rules &amp; rates
+                  Continue to Specs &amp; Datasets
                   <ArrowRight />
                 </span>
               )}

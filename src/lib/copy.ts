@@ -15,8 +15,14 @@ import type { DocumentKind, SourceKind } from "./types";
 export const copy = {
   page: {
     title: "Onboard country",
-    step: "Step 1 of 5 · Scope",
-    stepsLabel: ["Scope", "Returns", "Rules & rates", "Build", "Approval"],
+    step: "Step 1 of 5 · Initiation",
+    stepsLabel: [
+      "Initiation",
+      "Return Types",
+      "Specs & Datasets",
+      "SQL Review",
+      "Approval & Publish",
+    ],
     saveDraft: "Save draft",
     back: "Back",
     continue: "Continue",
@@ -26,7 +32,7 @@ export const copy = {
     done: "Scope confirmed",
     doneBody:
       "{count} filing obligations confirmed for {country}, each with supporting evidence. Each is now worked through individually.",
-    doneNext: "Continue to Returns",
+    doneNext: "Continue to Return Types",
     doneReview: "Return to scope",
   },
 

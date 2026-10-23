@@ -110,16 +110,17 @@ export function CountryList() {
       ) : (
         <>
           {/* Full table above lg; stacked rows below, where columns cannot fit. */}
-          <table className="hidden w-full border-collapse text-left lg:table">
+          <table className="hidden w-full table-fixed border-collapse text-left lg:table">
             <thead>
               <tr className="border-b border-border">
-                <Th>Jurisdiction</Th>
-                <Th className="w-32">Status</Th>
-                <Th className="w-36">Stage</Th>
-                <Th className="w-28">Obligations</Th>
-                <Th className="w-20">Review</Th>
-                <Th className="w-40">Owner</Th>
-                <Th className="w-[17rem]">Last activity</Th>
+                <Th className="w-[13rem]">Jurisdiction</Th>
+                <Th className="w-[7.5rem]">Status</Th>
+                <Th className="w-[9.5rem]">Stage</Th>
+                <Th className="w-[6.5rem]">Obligations</Th>
+                <Th className="w-[5rem]">Review</Th>
+                <Th className="w-[9rem]">Owner</Th>
+                {/* No width: absorbs whatever is left. */}
+                <Th>Last activity</Th>
                 <th className="w-6" />
               </tr>
             </thead>
@@ -213,9 +214,11 @@ function Row({ run, index }: { run: CountryRun; index: number }) {
       </Td>
 
       <Td>
-        <span className="text-[13px] text-text">{run.step}</span>
-        <span className="ml-1.5 text-[13px] tabular-nums text-text-faint">
-          {run.stepsDone}/5
+        <span className="block truncate whitespace-nowrap">
+          <span className="text-[13px] text-text">{run.step}</span>
+          <span className="ml-1.5 text-[13px] tabular-nums text-text-faint">
+            {run.stepsDone}/5
+          </span>
         </span>
       </Td>
 

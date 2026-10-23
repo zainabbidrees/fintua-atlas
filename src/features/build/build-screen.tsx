@@ -69,7 +69,7 @@ export function BuildScreen({
               <h1 className="text-[22px] font-semibold tracking-tight text-text">
                 {countryName}
               </h1>
-              <p className="mt-0.5 text-sm text-text-muted">Step 4 of 5 · Build</p>
+              <p className="mt-0.5 text-sm text-text-muted">Step 4 of 5 · SQL Review</p>
             </div>
             <Button variant="secondary" size="sm">
               {copy.page.saveDraft}
@@ -170,12 +170,12 @@ export function BuildScreen({
             >
               {phase === "applied" ? (
                 <Link href={`/countries/${countryCode}/approval`}>
-                  Continue to Approval
+                  Continue to Approval &amp; Publish
                   <ArrowRight />
                 </Link>
               ) : (
                 <span>
-                  Continue to Approval
+                  Continue to Approval &amp; Publish
                   <ArrowRight />
                 </span>
               )}
