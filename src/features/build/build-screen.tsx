@@ -54,7 +54,7 @@ export function BuildScreen({
 
   return (
     <div className="pb-24">
-      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-10">
+      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-8">
         <div className="mx-auto w-full max-w-5xl">
           <Link
             href={`/countries/${countryCode}/rules`}
@@ -84,7 +84,7 @@ export function BuildScreen({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl px-6 py-10 sm:px-10">
+      <div className="mx-auto w-full max-w-5xl px-6 py-10 sm:px-8">
         {/* Honest about ownership, and switchable so both sides are reviewable. */}
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-xl bg-surface px-4 py-3">
           <p className="text-[13px] text-text-muted">
@@ -152,7 +152,7 @@ export function BuildScreen({
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-6 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-10">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-6 py-3 sm:px-8 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href={`/countries/${countryCode}/rules`}>{copy.page.back}</Link>
           </Button>
