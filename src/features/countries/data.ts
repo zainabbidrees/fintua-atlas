@@ -21,9 +21,16 @@ export interface CountryRun {
   stepsDone: number;
   filingsConfirmed: number;
   filingsFound: number;
+  /**
+   * Items waiting on a person right now. The most actionable number on the
+   * page, so it gets its own column and is left blank at zero — an empty cell
+   * reads faster than a nought.
+   */
+  review: number;
   version: string;
   owner: { name: string; initials: string };
-  updated: string;
+  /** What moved, not just when. "Updated 2 hours ago" tells you nothing. */
+  lastActivity: { text: string; at: string };
   state: RunState;
 }
 
@@ -35,9 +42,10 @@ export const RUNS: CountryRun[] = [
     stepsDone: 1,
     filingsConfirmed: 1,
     filingsFound: 5,
+    review: 2,
     version: "v0.1",
     owner: { name: "Annelies Vermeulen", initials: "AV" },
-    updated: "2 hours ago",
+    lastActivity: { text: "Marco Rossi confirmed the VAT Return", at: "2 hours ago" },
     state: "in_progress",
   },
   {
@@ -47,9 +55,10 @@ export const RUNS: CountryRun[] = [
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
+    review: 1,
     version: "v0.1",
     owner: { name: "Marco Rossi", initials: "MR" },
-    updated: "Yesterday",
+    lastActivity: { text: "Priya Shah applied SQL to test", at: "Yesterday" },
     state: "awaiting_you",
   },
   {
@@ -59,9 +68,10 @@ export const RUNS: CountryRun[] = [
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
+    review: 0,
     version: "v0.1",
     owner: { name: "Teodora Ilić", initials: "TI" },
-    updated: "4 days ago",
+    lastActivity: { text: "Marco Rossi approved at first level", at: "4 days ago" },
     state: "awaiting_approval",
   },
   {
@@ -71,9 +81,10 @@ export const RUNS: CountryRun[] = [
     stepsDone: 3,
     filingsConfirmed: 6,
     filingsFound: 6,
+    review: 0,
     version: "v0.3",
     owner: { name: "Marta Kowalczyk", initials: "MK" },
-    updated: "11 Oct 2026",
+    lastActivity: { text: "Priya Shah applied SQL to test", at: "11 Oct 2026" },
     state: "testing",
   },
   {
@@ -83,9 +94,13 @@ export const RUNS: CountryRun[] = [
     stepsDone: 2,
     filingsConfirmed: 3,
     filingsFound: 7,
+    review: 3,
     version: "v0.1",
     owner: { name: "Søren Dahlgaard", initials: "SD" },
-    updated: "6 Oct 2026",
+    lastActivity: {
+      text: "Agent flagged 3 unmapped transaction types",
+      at: "6 Oct 2026",
+    },
     state: "in_progress",
   },
   {
@@ -95,9 +110,10 @@ export const RUNS: CountryRun[] = [
     stepsDone: 5,
     filingsConfirmed: 4,
     filingsFound: 4,
+    review: 0,
     version: "v1.2",
     owner: { name: "Niamh Brennan", initials: "NB" },
-    updated: "12 Jun 2026",
+    lastActivity: { text: "Niamh Brennan published v1.2", at: "12 Jun 2026" },
     state: "live",
   },
   {
@@ -107,9 +123,10 @@ export const RUNS: CountryRun[] = [
     stepsDone: 5,
     filingsConfirmed: 5,
     filingsFound: 5,
+    review: 0,
     version: "v1.2",
     owner: { name: "Niamh Brennan", initials: "NB" },
-    updated: "2 Apr 2026",
+    lastActivity: { text: "Niamh Brennan published v1.2", at: "2 Apr 2026" },
     state: "live",
   },
 ];
@@ -134,7 +151,7 @@ export const STATE_META: Record<
   live: { label: "Live", dot: "bg-settled", text: "text-settled" },
 };
 
-/** Total filings already live in Comply, across every published country. */
+/** Total obligations already live in Comply, across every published country. */
 export function filingsLive(runs: CountryRun[]): number {
   return runs
     .filter((r) => r.state === "live")
