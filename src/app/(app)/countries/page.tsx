@@ -1,51 +1,47 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AttentionPanel } from "@/features/countries/attention-panel";
 import { CountryList } from "@/features/countries/country-list";
-import { RUNS, spell } from "@/features/countries/data";
+import { RUNS, filingsLive } from "@/features/countries/data";
 
+/**
+ * A portal index, not a landing page.
+ *
+ * An earlier pass had an editorial header here — eyebrow, two-tone display
+ * headline, a paragraph explaining what the product does. That came from
+ * copying the surface of two marketing references rather than their
+ * principles. Someone opening this screen for the twentieth time today needs
+ * the work and the way in, not the pitch.
+ */
 export default function CountriesPage() {
   const live = RUNS.filter((r) => r.state === "live").length;
+  const obligations = filingsLive(RUNS);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10 lg:py-14">
-      {/* Editorial header: eyebrow, two-tone headline, supporting text pushed right. */}
-      <header className="grid gap-x-12 gap-y-6 [&>*]:min-w-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+    <div className="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10">
+      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div>
-          <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-text-faint">
-            <span aria-hidden className="size-1 rounded-full bg-brand" />
-            Coverage
-          </p>
-
-          <h1 className="mt-4 text-[clamp(1.9rem,4vw,2.6rem)] font-semibold leading-[1.1] tracking-tight">
-            <span className="text-text">{spell(RUNS.length)} jurisdictions.</span>
-            <br />
-            <span className="text-text-faint">
-              {spell(live)} live in Comply.
-            </span>
+          <h1 className="text-[20px] font-semibold tracking-tight text-text">
+            Countries
           </h1>
+          <p className="mt-0.5 text-[13px] text-text-muted">
+            <span className="tabular-nums">{RUNS.length}</span> jurisdictions ·{" "}
+            <span className="tabular-nums">{live}</span> live in Comply ·{" "}
+            <span className="tabular-nums">{obligations}</span> obligations
+            filing
+          </p>
         </div>
 
-        <div className="flex flex-col items-start gap-5 lg:pt-14">
-          <p className="max-w-[46ch] text-sm leading-relaxed text-text-muted">
-            Each jurisdiction is researched, reviewed by a domain specialist
-            and approved at two levels before it files anything. Open one to see
-            its current stage and outstanding items.
-          </p>
-          <Button variant="primary" asChild>
-            <Link href="/countries/new">
-              <Plus />
-              Onboard country
-            </Link>
-          </Button>
-        </div>
+        <Button variant="primary" asChild>
+          <Link href="/countries/new">
+            <Plus />
+            Onboard country
+          </Link>
+        </Button>
       </header>
 
-      {/* Asymmetric split: the list carries the weight, the panel holds the right. */}
-      <div className="mt-14 grid gap-x-12 gap-y-10 [&>*]:min-w-0 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
+      <div className="mt-7">
         <CountryList />
-        <AttentionPanel />
       </div>
     </div>
   );

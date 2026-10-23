@@ -153,11 +153,18 @@ function Row({ run, index }: { run: CountryRun; index: number }) {
           </p>
         </div>
 
+        {/* Owner is back now the row is light enough to carry it. Without it
+            the full-width portal row leaves a long dead gap that makes the
+            line hard to track across. */}
+        <span className="hidden w-40 shrink-0 truncate text-[13px] text-text-faint lg:block">
+          {run.owner.name}
+        </span>
+
         {/* One status treatment, not a dot and a word. Coloured only when it
             means something: green finished, amber your move. */}
         <span
           className={cn(
-            "hidden shrink-0 text-[13px] sm:block",
+            "hidden w-28 shrink-0 text-[13px] sm:block",
             state.text,
             run.state === "awaiting_you" && "font-medium",
           )}
