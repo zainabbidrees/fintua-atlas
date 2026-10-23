@@ -193,7 +193,7 @@ export interface ObligationRun {
   findings: Finding[];
 }
 
-/* ── Step 3: Rules & rates ───────────────────────────────────────────────
+/* ── Step 3: Specs & datasets ────────────────────────────────────────────
  *
  * The datasets Comply consumes. Unlike step 2 this genuinely is tabular —
  * rules are rows with consistent columns and experts read down them — so it
@@ -202,11 +202,25 @@ export interface ObligationRun {
  * The risk here is different too. A wrong rate is visible; a wrong box mapping
  * produces a return that looks correct and is not. So coverage gaps matter
  * more than a tidy row count.
+ *
+ * The six datasets are not independent, which is the whole shape of this
+ * step: a rule cites a rate code and a box name, and neither exists until the
+ * returns and the form have been settled. So they are worked in three ordered
+ * stages rather than as six peer tabs — you cannot map to a box you have not
+ * declared.
  */
 
-export type DatasetId = "rates" | "sales" | "purchases" | "vies";
+export type DatasetId =
+  | "returns"
+  | "boxes"
+  | "rates"
+  | "sales"
+  | "purchases"
+  | "vies";
 
 export const DATASET_LABEL: Record<DatasetId, string> = {
+  returns: "Return details",
+  boxes: "Form boxes",
   rates: "Rates",
   sales: "Sale rules",
   purchases: "Purchase rules",
@@ -220,25 +234,48 @@ export interface Cell {
   original?: string;
 }
 
+/** The passage behind a row, carried through from research in step 2. */
+export interface Citation {
+  /** What the expert reads, e.g. "fisconetplus.be". */
+  label: string;
+  url: string;
+  /** Section or article, when the agent could pin one down. */
+  locator?: string;
+}
+
 export interface RuleRow {
   id: string;
   cells: Record<string, Cell>;
   /** Set when the row needs a human decision before it can ship. */
   issue?: string;
+  /** Absent when the agent produced the row from inference rather than a text. */
+  citation?: Citation;
+  /** Rows a human added by hand carry no agent provenance. */
+  addedByHand?: boolean;
 }
+
+/** How a cell is edited. Text unless stated. */
+export type ColumnKind = "text" | "select" | "date" | "flag";
 
 export interface RuleColumn {
   key: string;
   label: string;
+  kind?: ColumnKind;
+  /** The choices, for a "select" column. */
+  options?: string[];
   /** Codes and percentages align and compare better in mono. */
   mono?: boolean;
   editable?: boolean;
+  /** Empty blocks the stage. Marked on the header, not with an asterisk. */
+  required?: boolean;
   /** Tailwind width class for the column. */
   width?: string;
 }
 
 export interface Dataset {
   id: DatasetId;
+  /** One line on what the dataset is for, shown above the table. */
+  purpose: string;
   columns: RuleColumn[];
   rows: RuleRow[];
   /**
@@ -247,6 +284,50 @@ export interface Dataset {
    */
   uncovered: string[];
 }
+
+/**
+ * The three ordered parts of step 3.
+ *
+ * Named for what they establish rather than for the tables they contain, so
+ * the order reads as a consequence rather than as an arbitrary sequence.
+ */
+export type SpecStageId = "returns" | "form" | "mapping";
+
+export interface SpecStage {
+  id: SpecStageId;
+  label: string;
+  /** What this part settles. */
+  purpose: string;
+  /** Why it has to come before the next one. */
+  unlocks: string;
+  datasets: DatasetId[];
+}
+
+export const SPEC_STAGES: SpecStage[] = [
+  {
+    id: "returns",
+    label: "Returns",
+    purpose: "What Comply has to file for this country, and on what cycle.",
+    unlocks: "Every box on the form belongs to one of these returns.",
+    datasets: ["returns"],
+  },
+  {
+    id: "form",
+    label: "Form & rates",
+    purpose:
+      "The vocabulary the rules are written in: each box on the return, and each rate in force.",
+    unlocks: "A rule can only target a box and a rate declared here.",
+    datasets: ["boxes", "rates"],
+  },
+  {
+    id: "mapping",
+    label: "Rules & mapping",
+    purpose:
+      "Where each transaction lands — the part that decides whether a return is right.",
+    unlocks: "",
+    datasets: ["sales", "purchases", "vies"],
+  },
+];
 
 /* ── Step 4: Build ───────────────────────────────────────────────────────
  *

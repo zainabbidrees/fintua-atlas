@@ -40,15 +40,18 @@ export const copy = {
   },
 
   country: {
-    /** "Jurisdiction" rather than "country": it also covers territories and
-        protocols that aren't countries but do have their own VAT regime. */
-    label: "Jurisdiction",
-    placeholder: "Search jurisdictions…",
-    empty: "Select a jurisdiction to begin research.",
-    changeWarningTitle: "Change jurisdiction?",
+    /** "Country" throughout, matching the step's own name and the portal it
+        is reached from. The list does carry territories and protocols with
+        their own VAT regime — Northern Ireland, Monaco — which "jurisdiction"
+        covered more exactly, at the cost of being the one word on the step
+        that nothing else in the product used. */
+    label: "Country",
+    placeholder: "Search countries…",
+    empty: "Select a country to begin research.",
+    changeWarningTitle: "Change country?",
     changeWarningBody:
       "Research for {current} will be discarded and restarted for {next}.",
-    changeConfirm: "Change jurisdiction",
+    changeConfirm: "Change country",
     changeCancel: "Keep {current}",
   },
 
@@ -79,12 +82,12 @@ export const copy = {
     failed:
       "Research for {country} could not be completed. Retry, or supply the material yourself below.",
     retry: "Retry research",
-    /** Shown before a jurisdiction is chosen, so the expert can see what this
+    /** Shown before a country is chosen, so the expert can see what this
         step will produce before committing to one. */
     includeLabel: "Carry {name} into the next step",
     pendingHeading: "Filing obligations",
     pendingHint:
-      "Each obligation identified for the jurisdiction appears here, with the source it was drawn from.",
+      "Each obligation identified for the country appears here, with the source it was drawn from.",
   },
 
   sources: {
@@ -135,7 +138,7 @@ export const copy = {
 
   removeReason: {
     title: "Reason for removal",
-    hint: "Retained with the jurisdiction record for audit purposes.",
+    hint: "Retained with the country record for audit purposes.",
     placeholder: "e.g. superseded by the 2026 circular",
     confirm: "Remove",
     cancel: "Cancel",

@@ -38,7 +38,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "DE",
     name: "Germany",
-    step: "Returns",
+    step: "Return Types",
     stepsDone: 1,
     filingsConfirmed: 1,
     filingsFound: 5,
@@ -51,7 +51,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "IT",
     name: "Italy",
-    step: "Approval",
+    step: "Approval & Publish",
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
@@ -64,7 +64,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "HU",
     name: "Hungary",
-    step: "Approval",
+    step: "Approval & Publish",
     stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 4,
@@ -77,7 +77,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "PL",
     name: "Poland",
-    step: "Build",
+    step: "SQL Review",
     stepsDone: 3,
     filingsConfirmed: 6,
     filingsFound: 6,
@@ -90,7 +90,7 @@ export const RUNS: CountryRun[] = [
   {
     code: "RO",
     name: "Romania",
-    step: "Rules & rates",
+    step: "Specs & Datasets",
     stepsDone: 2,
     filingsConfirmed: 3,
     filingsFound: 7,

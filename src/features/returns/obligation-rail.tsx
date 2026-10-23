@@ -1,6 +1,5 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { ObligationRun } from "@/lib/types";
 
@@ -77,17 +76,6 @@ export function ObligationRail({
                     </span>
                   </span>
 
-                  <span className="mt-0.5 shrink-0">
-                    {running ? (
-                      <Loader2 className="size-3.5 animate-spin text-text-faint" />
-                    ) : todo > 0 ? (
-                      <span className="grid size-5 place-items-center rounded-full bg-attention text-[11px] font-semibold tabular-nums text-on-brand">
-                        {todo}
-                      </span>
-                    ) : settled ? (
-                      <Check className="size-4 text-settled" />
-                    ) : null}
-                  </span>
                 </span>
 
                 {running && (

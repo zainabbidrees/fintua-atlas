@@ -18,30 +18,32 @@ export default function CountriesPage() {
   const obligations = filingsLive(RUNS);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-6 py-8 sm:px-12">
-      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div>
-          <h1 className="text-[20px] font-semibold tracking-tight text-text">
-            Countries
-          </h1>
-          <p className="mt-0.5 text-[13px] text-text-muted">
-            <span className="tabular-nums">{RUNS.length}</span> jurisdictions ·{" "}
-            <span className="tabular-nums">{live}</span> live in Comply ·{" "}
-            <span className="tabular-nums">{obligations}</span> obligations
-            filing
-          </p>
+    <div className="px-6 py-8 sm:px-12">
+      <div className="mx-auto w-full max-w-[1600px]">
+        <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div>
+            <h1 className="text-[20px] font-semibold tracking-tight text-text">
+              Countries
+            </h1>
+            <p className="mt-0.5 text-[13px] text-text-muted">
+              <span className="tabular-nums">{RUNS.length}</span> jurisdictions ·{" "}
+              <span className="tabular-nums">{live}</span> live in Comply ·{" "}
+              <span className="tabular-nums">{obligations}</span> obligations
+              filing
+            </p>
+          </div>
+
+          <Button variant="primary" asChild>
+            <Link href="/countries/new">
+              <Plus />
+              Onboard country
+            </Link>
+          </Button>
+        </header>
+
+        <div className="mt-7">
+          <CountryList />
         </div>
-
-        <Button variant="primary" asChild>
-          <Link href="/countries/new">
-            <Plus />
-            Onboard country
-          </Link>
-        </Button>
-      </header>
-
-      <div className="mt-7">
-        <CountryList />
       </div>
     </div>
   );

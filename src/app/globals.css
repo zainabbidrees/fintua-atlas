@@ -26,6 +26,9 @@
   --surface: oklch(100% 0 0);
   --surface-sunken: oklch(97.5% 0.004 272);
   --border: oklch(92% 0.004 272);
+  /* The one flat grey control fill, specified as a hex by design. */
+  --control: #efefef;
+  --control-hover: #e4e4e4;
   --border-strong: oklch(86% 0.008 272);
   --text: oklch(25% 0.02 272);
   --text-muted: oklch(50% 0.012 272);
@@ -70,6 +73,8 @@
   --color-surface: var(--surface);
   --color-surface-sunken: var(--surface-sunken);
   --color-border: var(--border);
+  --color-control: var(--control);
+  --color-control-hover: var(--control-hover);
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);

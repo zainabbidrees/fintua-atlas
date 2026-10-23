@@ -143,9 +143,9 @@ export function SetupScreen() {
             )}
           </section>
 
-          {/* Before a jurisdiction is chosen, both downstream blocks are shown
+          {/* Before a country is chosen, both downstream blocks are shown
               inert rather than hidden — the expert can see what this step will
-              ask of them before committing to a jurisdiction. */}
+              ask of them before committing to a country. */}
           {!s.country && (
             <div aria-disabled className="select-none">
               <PendingBlock

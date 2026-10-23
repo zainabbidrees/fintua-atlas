@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { obligationsFor } from "@/lib/mock/obligations";
+import { completedFindingsFor, obligationsFor } from "@/lib/mock/obligations";
 import type { Finding, ObligationRun } from "@/lib/types";
 
 /**
@@ -21,6 +21,33 @@ export function useReturns(countryCode: string) {
 
   const selected =
     obligations.find((o) => o.id === selectedId) ?? obligations[0];
+
+  /**
+   * A running agent finishes on its own while the specialist works elsewhere.
+   * Without this the obligation researches forever and the step can never be
+   * completed — the one case the parallel-agent mock has to be able to show.
+   */
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setObligations((all) => {
+        if (!all.some((o) => o.agent === "running")) return all;
+
+        return all.map((o) => {
+          if (o.agent !== "running") return o;
+          const progress = Math.min(100, o.progress + 12);
+          if (progress < 100) return { ...o, progress };
+          return {
+            ...o,
+            agent: "ready" as const,
+            progress: 100,
+            findings: completedFindingsFor(o.id),
+          };
+        });
+      });
+    }, 900);
+
+    return () => clearInterval(id);
+  }, []);
 
   const patch = React.useCallback(
     (findingId: string, change: Partial<Finding>) => {

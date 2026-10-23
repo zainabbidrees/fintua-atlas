@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { TriangleAlert } from "lucide-react";
+import { ChevronDown, Minus, Trash2, TriangleAlert } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/cn";
-import type { Dataset, RuleRow } from "@/lib/types";
+import type { Dataset, RuleColumn, RuleRow } from "@/lib/types";
 
 /**
  * A quiet editable table.
@@ -16,34 +17,46 @@ import type { Dataset, RuleRow } from "@/lib/types";
  *
  * Editing happens in place. Click a cell, type, Enter or blur commits, Escape
  * cancels. No edit mode, no per-row save button, no asterisks on required
- * fields — the dev prototype had all three.
+ * fields — the dev prototype had all three. A required column is marked once,
+ * in its header, and only complains when the cell is actually empty.
  */
 export function RuleTable({
   dataset,
   onEdit,
   onResolve,
+  onDelete,
 }: {
   dataset: Dataset;
   onEdit: (rowId: string, key: string, value: string) => void;
   onResolve: (rowId: string) => void;
+  onDelete: (rowId: string) => void;
 }) {
   return (
     <div className="-mx-2 overflow-x-auto px-2">
-      <table className="w-full min-w-[40rem] border-collapse text-left">
+      <table className="w-full min-w-[64rem] border-collapse text-left">
         <thead>
-          <tr className="border-b border-border">
+          <tr className="border-b border-border align-bottom">
             {dataset.columns.map((col) => (
               <th
                 key={col.key}
                 scope="col"
                 className={cn(
-                  "pb-2.5 pr-6 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint last:pr-0",
+                  "pb-2.5 pr-4 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint",
                   col.width,
                 )}
               >
                 {col.label}
               </th>
             ))}
+            <th
+              scope="col"
+              className="w-32 pb-2.5 pr-4 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint"
+            >
+              Source
+            </th>
+            <th scope="col" className="w-10 pb-2.5">
+              <span className="sr-only">Row actions</span>
+            </th>
           </tr>
         </thead>
 
@@ -56,6 +69,7 @@ export function RuleTable({
               dataset={dataset}
               onEdit={(key, value) => onEdit(r.id, key, value)}
               onResolve={() => onResolve(r.id)}
+              onDelete={() => onDelete(r.id)}
             />
           ))}
         </tbody>
@@ -70,13 +84,17 @@ function Row({
   dataset,
   onEdit,
   onResolve,
+  onDelete,
 }: {
   row: RuleRow;
   index: number;
   dataset: Dataset;
   onEdit: (key: string, value: string) => void;
   onResolve: () => void;
+  onDelete: () => void;
 }) {
+  const span = dataset.columns.length + 2;
+
   return (
     <>
       <tr
@@ -84,40 +102,52 @@ function Row({
           "rise group border-b border-border align-top last:border-0",
           row.issue && "bg-attention-quiet/40",
         )}
-        style={{ "--index": index } as React.CSSProperties}
+        style={{ "--index": Math.min(index, 8) } as React.CSSProperties}
       >
-        {dataset.columns.map((col) => {
-          const cell = row.cells[col.key];
-          if (!cell) return <td key={col.key} />;
+        {dataset.columns.map((col) => (
+          <td key={col.key} className="py-1 pr-4">
+            <CellControl
+              column={col}
+              row={row}
+              onCommit={(v) => onEdit(col.key, v)}
+            />
+          </td>
+        ))}
 
-          return (
-            <td key={col.key} className="py-1 pr-6 last:pr-0">
-              {col.editable ? (
-                <EditableCell
-                  value={cell.value}
-                  original={cell.original}
-                  mono={col.mono}
-                  label={`${col.label} for ${row.cells[dataset.columns[0].key]?.value ?? "row"}`}
-                  onCommit={(v) => onEdit(col.key, v)}
-                />
-              ) : (
-                <span
-                  className={cn(
-                    "block py-2 text-[14px] text-text",
-                    col.mono && "font-mono tabular-nums",
-                  )}
-                >
-                  {cell.value}
-                </span>
-              )}
-            </td>
-          );
-        })}
+        <td className="py-1 pr-4">
+          {row.citation ? (
+            <a
+              href={row.citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={row.citation.locator}
+              className="mt-2 inline-flex max-w-full items-center rounded-md border border-border bg-surface-sunken px-1.5 py-0.5 text-[12px] text-text-muted transition-colors hover:border-border-strong hover:text-brand"
+            >
+              <span className="truncate">{row.citation.label}</span>
+            </a>
+          ) : (
+            <span className="mt-2 inline-flex items-center gap-1 py-0.5 text-[12px] text-text-faint">
+              <Minus className="size-3" />
+              {row.addedByHand ? "Added by hand" : "No citation"}
+            </span>
+          )}
+        </td>
+
+        <td className="py-1">
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Delete row"
+            className="mt-1 grid size-7 place-items-center rounded-md text-text-faint opacity-0 transition-[opacity,color,background-color] hover:bg-risk-quiet hover:text-risk focus-visible:opacity-100 group-hover:opacity-100"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </td>
       </tr>
 
       {row.issue && (
         <tr className="border-b border-border bg-attention-quiet/40 last:border-0">
-          <td colSpan={dataset.columns.length} className="pb-3 pr-6">
+          <td colSpan={span} className="pb-3 pr-4">
             <p className="flex max-w-[70ch] items-start gap-2 text-[13px] leading-relaxed text-attention-text">
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
               {row.issue}
@@ -127,12 +157,93 @@ function Row({
               onClick={onResolve}
               className="ml-5.5 mt-2 text-[13px] font-medium text-attention-text underline-offset-4 transition-colors hover:text-text hover:underline"
             >
-              Mapping is correct as shown
+              Settled — carry this row forward
             </button>
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+function CellControl({
+  column,
+  row,
+  onCommit,
+}: {
+  column: RuleColumn;
+  row: RuleRow;
+  onCommit: (value: string) => void;
+}) {
+  const cell = row.cells[column.key];
+  const value = cell?.value ?? "";
+  const missing = Boolean(column.required) && !value.trim();
+  const label = `${column.label} for ${row.cells[Object.keys(row.cells)[0]]?.value || "new row"}`;
+
+  if (!column.editable) {
+    return (
+      <span
+        className={cn(
+          "block py-2 text-[14px] text-text",
+          column.mono && "font-mono tabular-nums",
+        )}
+      >
+        {value || "—"}
+      </span>
+    );
+  }
+
+  if (column.kind === "flag") {
+    return (
+      <span className="flex items-center py-2.5 pl-2">
+        <Checkbox
+          checked={value === "yes"}
+          aria-label={label}
+          onCheckedChange={(next) => onCommit(next ? "yes" : "no")}
+        />
+      </span>
+    );
+  }
+
+  if (column.kind === "select") {
+    return (
+      <span className="relative block">
+        <select
+          value={value}
+          aria-label={label}
+          onChange={(e) => onCommit(e.target.value)}
+          className={cn(
+            "w-full appearance-none rounded-md border border-transparent bg-transparent py-2 pl-2 pr-6 text-[14px] text-text",
+            "transition-colors hover:border-border-strong hover:bg-surface focus:border-brand focus:bg-surface focus:outline-none",
+            column.mono && "font-mono tabular-nums",
+            missing && "border-risk-edge bg-risk-quiet text-risk",
+          )}
+        >
+          <option value="">{column.required ? "Choose…" : "—"}</option>
+          {(column.options ?? []).map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          aria-hidden
+          className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-text-faint opacity-0 transition-opacity group-hover:opacity-100"
+        />
+      </span>
+    );
+  }
+
+  return (
+    <EditableCell
+      value={value}
+      original={cell?.original}
+      mono={column.mono}
+      date={column.kind === "date"}
+      missing={missing}
+      label={label}
+      onCommit={onCommit}
+    />
   );
 }
 
@@ -144,12 +255,16 @@ function EditableCell({
   value,
   original,
   mono,
+  date,
+  missing,
   label,
   onCommit,
 }: {
   value: string;
   original?: string;
   mono?: boolean;
+  date?: boolean;
+  missing?: boolean;
   label: string;
   onCommit: (value: string) => void;
 }) {
@@ -159,7 +274,7 @@ function EditableCell({
   function commit() {
     setEditing(false);
     const next = draft.trim();
-    if (next && next !== value) onCommit(next);
+    if (next !== value) onCommit(next);
     else setDraft(value);
   }
 
@@ -167,6 +282,7 @@ function EditableCell({
     return (
       <input
         autoFocus
+        type={date ? "date" : "text"}
         aria-label={label}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -191,7 +307,7 @@ function EditableCell({
   return (
     <button
       type="button"
-      aria-label={`${label}: ${value}. Click to edit.`}
+      aria-label={`${label}: ${value || "empty"}. Click to edit.`}
       onClick={() => {
         setDraft(value);
         setEditing(true);
@@ -200,9 +316,10 @@ function EditableCell({
         "flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-left text-[14px] text-text",
         "border border-transparent transition-colors hover:border-border-strong hover:bg-surface",
         mono && "font-mono tabular-nums",
+        missing && "border-risk-edge bg-risk-quiet text-risk",
       )}
     >
-      <span className="truncate">{value}</span>
+      <span className="truncate">{value || (missing ? "Needed" : "—")}</span>
       {original && (
         <span
           aria-hidden

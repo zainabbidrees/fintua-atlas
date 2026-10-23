@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
  */
 const button = cva(
   [
-    "inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap",
+    "inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap",
     "transition-[background-color,border-color,color,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
     // Tactile: the control gives under the press, so the action feels registered.
     "active:scale-[0.985] motion-reduce:active:scale-100",
@@ -22,6 +22,9 @@ const button = cva(
         primary: "bg-brand text-on-brand hover:bg-brand-hover",
         secondary:
           "border border-border-strong bg-surface text-text hover:bg-surface-sunken",
+        /* A flat grey fill, for a standing action that is neither the primary
+           move nor a quiet one — "Save draft" sits beside the page title. */
+        filled: "bg-control text-text hover:bg-control-hover",
         ghost: "text-text-muted hover:bg-surface-sunken hover:text-text",
         danger:
           "border border-risk-edge bg-surface text-risk hover:bg-risk-quiet",

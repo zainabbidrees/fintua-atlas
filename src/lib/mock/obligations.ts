@@ -44,6 +44,15 @@ const DIRECTIVE: Evidence = {
     "Every taxable person identified for VAT purposes shall submit a recapitulative statement of the acquirers identified for VAT purposes to whom he has supplied goods.",
 };
 
+const LISTING: Evidence = {
+  sourceTitle: "Annual client listing",
+  publisher: "Belgian Federal Public Service Finance",
+  url: "https://finances.belgium.be/en/enterprises/vat/annual-client-listing",
+  locator: "Filing calendar",
+  quote:
+    "The listing of Belgian customers holding a VAT identification number must be filed by 31 March of the year following the calendar year to which it relates.",
+};
+
 const COMMENTARY: Evidence = {
   sourceTitle: "Belgian SAF-T: anticipated requirements",
   publisher: "Vandeputte & Partners (commentary)",
@@ -185,6 +194,43 @@ const SAFT_FINDINGS: Finding[] = [
   },
 ];
 
+const LISTING_FINDINGS: Finding[] = [
+  {
+    id: "be-annual-freq",
+    group: "filing",
+    label: "Filing frequency",
+    value: "Annual",
+    evidence: LISTING,
+    state: "corroborated",
+  },
+  {
+    id: "be-annual-deadline",
+    group: "filing",
+    label: "Filing deadline",
+    value: "31 March",
+    detail: "For the preceding calendar year",
+    evidence: LISTING,
+    state: "corroborated",
+  },
+  {
+    id: "be-annual-channel",
+    group: "filing",
+    label: "Submission channel",
+    value: "Intervat — XML upload",
+    evidence: INTERVAT,
+    state: "corroborated",
+  },
+  {
+    id: "be-annual-threshold",
+    group: "rules",
+    label: "Reporting threshold",
+    value: "EUR 250 per customer per year",
+    detail: "Customers below the threshold are left out of the listing",
+    evidence: LISTING,
+    state: "corroborated",
+  },
+];
+
 export const BE_OBLIGATIONS: ObligationRun[] = [
   {
     id: "be-vat",
@@ -225,4 +271,14 @@ export function obligationsFor(countryCode: string): ObligationRun[] {
   return countryCode === "BE"
     ? BE_OBLIGATIONS
     : BE_OBLIGATIONS.map((o) => ({ ...o, localName: null }));
+}
+
+/**
+ * What an obligation's agent returns once it finishes.
+ *
+ * The mock starts one obligation mid-research so the parallel case is visible;
+ * this is what it lands on, so the run actually completes instead of spinning.
+ */
+export function completedFindingsFor(obligationId: string): Finding[] {
+  return obligationId === "be-annual" ? LISTING_FINDINGS : [];
 }

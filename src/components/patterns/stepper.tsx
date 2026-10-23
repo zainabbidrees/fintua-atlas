@@ -29,10 +29,10 @@ export function Stepper({
         const locked = i > currentIndex;
 
         return (
-          <li key={step.id} className="flex min-w-0 flex-1 items-center gap-1.5">
+          <li key={step.id} className="flex items-center gap-1.5">
             <div
               className={cn(
-                "flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors",
+                "flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors",
                 current && "border-brand-edge bg-brand-quiet",
                 done && "border-transparent bg-surface-sunken",
                 locked && "border-transparent",
@@ -50,7 +50,7 @@ export function Stepper({
               </span>
               <span
                 className={cn(
-                  "truncate text-[13px]",
+                  "whitespace-nowrap text-[13px]",
                   current && "font-semibold text-brand",
                   done && "font-medium text-text-muted",
                   locked && "text-text-faint",

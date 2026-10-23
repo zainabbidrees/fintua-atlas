@@ -20,29 +20,28 @@ export function ReturnsSkeleton() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-12">
-        <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
-          <div className="space-y-2">
-            {[0, 1, 2, 3].map((i) => (
-              <span key={i} className="block h-14 rounded-xl bg-border/50" />
-            ))}
-          </div>
-
-          <div>
-            <span className="block h-5 w-36 rounded bg-border" />
-            <div className="mt-6 overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="px-6 py-10 sm:px-12">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+            <div className="space-y-2">
               {[0, 1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-4 border-b border-border px-5 py-5 last:border-0"
-                >
-                  <span className="h-3 w-32 shrink-0 rounded bg-border" />
-                  <span
-                    className="h-3 rounded bg-border/60"
-                    style={{ width: `${54 - i * 8}%` }}
-                  />
-                </div>
+                <span key={i} className="block h-14 rounded-xl bg-border/50" />
               ))}
+            </div>
+
+            <div>
+              <span className="block h-5 w-36 rounded bg-border" />
+              <div className="mt-6 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="space-y-2 bg-surface px-5 py-4">
+                    <span className="block h-3 w-24 rounded bg-border" />
+                    <span
+                      className="block h-3 rounded bg-border/60"
+                      style={{ width: `${62 - i * 8}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

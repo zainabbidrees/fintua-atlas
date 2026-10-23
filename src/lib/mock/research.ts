@@ -68,7 +68,7 @@ export async function* researchCountry(
 ): AsyncGenerator<ResearchEvent> {
   const country = findCountry(countryCode);
   if (!country) {
-    yield { type: "error", message: "Jurisdiction not recognised." };
+    yield { type: "error", message: "Country not recognised." };
     return;
   }
 
