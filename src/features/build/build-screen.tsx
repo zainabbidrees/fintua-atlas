@@ -55,13 +55,13 @@ export function BuildScreen({
   return (
     <div className="pb-24">
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
-        <div className="mx-auto w-full max-w-5xl">
+        <div className="mx-auto w-full max-w-[1600px]">
           <Link
             href={`/countries/${countryCode}/rules`}
             className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
           >
             <ArrowLeft className="size-3.5" />
-            Rules &amp; rates
+            Specs &amp; Datasets
           </Link>
 
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
@@ -69,90 +69,91 @@ export function BuildScreen({
               <h1 className="text-[22px] font-semibold tracking-tight text-text">
                 {countryName}
               </h1>
-              <p className="mt-0.5 text-sm text-text-muted">Step 4 of 5 · SQL Review</p>
             </div>
-            <Button variant="secondary" size="sm">
+            <Button variant="filled" size="sm">
               {copy.page.saveDraft}
             </Button>
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="min-w-[34rem]">
+            <div className="min-w-max">
               <Stepper steps={STEPS} currentIndex={3} completedCount={3} />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl px-6 py-10 sm:px-12">
-        {/* Honest about ownership, and switchable so both sides are reviewable. */}
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-xl bg-surface px-4 py-3">
-          <p className="text-[13px] text-text-muted">
-            {asDeveloper
-              ? "Viewing as Priya Shah · Fintua developer"
-              : "This step is applied by a Fintua developer. You have read access."}
-          </p>
-          <button
-            type="button"
-            onClick={() => setAsDeveloper((d) => !d)}
-            className="text-[13px] font-medium text-text-muted underline-offset-4 transition-colors hover:text-brand hover:underline"
-          >
-            {asDeveloper ? "View as tax expert" : "View as developer"}
-          </button>
+      <div className="px-6 py-8 sm:px-12">
+        <div className="mx-auto w-full max-w-[1600px]">
+          {/* Honest about ownership, and switchable so both sides are reviewable. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-xl bg-surface px-4 py-3">
+            <p className="text-[13px] text-text-muted">
+              {asDeveloper
+                ? "Viewing as Priya Shah · Fintua developer"
+                : "This step is applied by a Fintua developer. You have read access."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setAsDeveloper((d) => !d)}
+              className="text-[13px] font-medium text-text-muted underline-offset-4 transition-colors hover:text-brand hover:underline"
+            >
+              {asDeveloper ? "View as tax expert" : "View as developer"}
+            </button>
+          </div>
+
+          <section className="mt-8">
+            <h2 className="text-[17px] font-semibold tracking-tight text-text">
+              What will be applied
+            </h2>
+            <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-text-muted">
+              Generated from the rules approved in the previous step.{" "}
+              <span className="tabular-nums">{statements}</span> files, each
+              linted and dry-run against a copy of the test database and rolled
+              back.
+              {warnings > 0 && (
+                <>
+                  {" "}
+                  <span className="text-attention-text">
+                    <span className="tabular-nums">{warnings}</span> raised a
+                    warning that does not block the run.
+                  </span>
+                </>
+              )}
+            </p>
+          </section>
+
+          <div className="mt-8 space-y-10">
+            {GROUPS.map((group) => {
+              const rows = artifacts.filter((a) => a.group === group);
+              if (rows.length === 0) return null;
+
+              return (
+                <section key={group}>
+                  <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
+                    {ARTIFACT_GROUP_LABEL[group]}
+                  </h3>
+                  <ul className="mt-1 border-t border-border">
+                    {rows.map((artifact, i) => (
+                      <ArtifactRow key={artifact.id} artifact={artifact} index={i} />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+
+          <ApplyPanel
+            phase={phase}
+            appliedAt={appliedAt}
+            canApply={asDeveloper}
+            onApply={apply}
+            onReapply={() => setPhase("ready")}
+          />
         </div>
-
-        <section className="mt-8">
-          <h2 className="text-[17px] font-semibold tracking-tight text-text">
-            What will be applied
-          </h2>
-          <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-text-muted">
-            Generated from the rules approved in the previous step.{" "}
-            <span className="tabular-nums">{statements}</span> files, each
-            linted and dry-run against a copy of the test database and rolled
-            back.
-            {warnings > 0 && (
-              <>
-                {" "}
-                <span className="text-attention-text">
-                  <span className="tabular-nums">{warnings}</span> raised a
-                  warning that does not block the run.
-                </span>
-              </>
-            )}
-          </p>
-        </section>
-
-        <div className="mt-8 space-y-10">
-          {GROUPS.map((group) => {
-            const rows = artifacts.filter((a) => a.group === group);
-            if (rows.length === 0) return null;
-
-            return (
-              <section key={group}>
-                <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
-                  {ARTIFACT_GROUP_LABEL[group]}
-                </h3>
-                <ul className="mt-1 border-t border-border">
-                  {rows.map((artifact, i) => (
-                    <ArtifactRow key={artifact.id} artifact={artifact} index={i} />
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
-        </div>
-
-        <ApplyPanel
-          phase={phase}
-          appliedAt={appliedAt}
-          canApply={asDeveloper}
-          onApply={apply}
-          onReapply={() => setPhase("ready")}
-        />
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-6 py-3 sm:px-12 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href={`/countries/${countryCode}/rules`}>{copy.page.back}</Link>
           </Button>
@@ -163,23 +164,19 @@ export function BuildScreen({
                 Apply to test before requesting approval
               </span>
             )}
-            <Button
-              variant="primary"
-              disabled={phase !== "applied"}
-              asChild={phase === "applied"}
-            >
-              {phase === "applied" ? (
+            {phase === "applied" ? (
+              <Button variant="primary" asChild>
                 <Link href={`/countries/${countryCode}/approval`}>
                   Continue to Approval &amp; Publish
                   <ArrowRight />
                 </Link>
-              ) : (
-                <span>
-                  Continue to Approval &amp; Publish
-                  <ArrowRight />
-                </span>
-              )}
-            </Button>
+              </Button>
+            ) : (
+              <Button variant="primary" disabled>
+                Continue to Approval &amp; Publish
+                <ArrowRight />
+              </Button>
+            )}
           </div>
         </div>
       </div>
