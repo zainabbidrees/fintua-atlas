@@ -26,7 +26,7 @@ export function ReturnsScreen({
 
   return (
     <div className="pb-24">
-      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-8">
+      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-6xl">
           <Link
             href="/countries"
@@ -56,7 +56,7 @@ export function ReturnsScreen({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-12">
         {/* Asymmetric: the rail navigates, the findings carry the work. */}
         <div className="grid gap-x-10 gap-y-8 [&>*]:min-w-0 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:items-start">
           <ObligationRail
@@ -72,7 +72,7 @@ export function ReturnsScreen({
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-3 sm:px-8 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-3 sm:px-12 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href="/countries/new">{copy.page.back}</Link>
           </Button>

@@ -46,7 +46,7 @@ export function ApprovalScreen({
 
   return (
     <div className="pb-24">
-      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-8">
+      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-4xl">
           <Link
             href={`/countries/${countryCode}/build`}
@@ -78,7 +78,7 @@ export function ApprovalScreen({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-8">
+      <div className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-12">
         {/* What is being signed for. Belgium has no prior version, so there is
             nothing to diff — saying so beats showing an empty comparison. */}
         <section>
@@ -271,7 +271,7 @@ export function ApprovalScreen({
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 px-6 py-3 sm:px-8 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 px-6 py-3 sm:px-12 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href={`/countries/${countryCode}/build`}>{copy.page.back}</Link>
           </Button>

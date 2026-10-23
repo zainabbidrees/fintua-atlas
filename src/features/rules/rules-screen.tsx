@@ -27,7 +27,7 @@ export function RulesScreen({
 
   return (
     <div className="pb-24">
-      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-8">
+      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-5xl">
           <Link
             href={`/countries/${countryCode}/returns`}
@@ -59,7 +59,7 @@ export function RulesScreen({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl px-6 py-10 sm:px-8">
+      <div className="mx-auto w-full max-w-5xl px-6 py-10 sm:px-12">
         {/* Same underline rail as the Countries filters, so the two read as
             one system rather than two tab styles. */}
         <div className="flex items-center justify-between gap-x-6 border-b border-border pb-4">
@@ -128,7 +128,7 @@ export function RulesScreen({
       </div>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-6 py-3 sm:px-8 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-6 py-3 sm:px-12 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href={`/countries/${countryCode}/returns`}>{copy.page.back}</Link>
           </Button>

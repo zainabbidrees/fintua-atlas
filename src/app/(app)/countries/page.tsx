@@ -18,7 +18,7 @@ export default function CountriesPage() {
   const obligations = filingsLive(RUNS);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-6 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-[1600px] px-6 py-8 sm:px-12">
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div>
           <h1 className="text-[20px] font-semibold tracking-tight text-text">

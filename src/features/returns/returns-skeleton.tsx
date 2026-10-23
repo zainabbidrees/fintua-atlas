@@ -7,7 +7,7 @@
 export function ReturnsSkeleton() {
   return (
     <div className="pb-24" aria-busy>
-      <div className="border-b border-border bg-surface px-6 pt-8 sm:px-8">
+      <div className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-6xl">
           <span className="block h-3 w-20 rounded bg-border" />
           <span className="mt-4 block h-6 w-40 rounded bg-border" />
@@ -20,7 +20,7 @@ export function ReturnsSkeleton() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-12">
         <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
           <div className="space-y-2">
             {[0, 1, 2, 3].map((i) => (
