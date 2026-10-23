@@ -20,6 +20,15 @@ authority, and no filing here should be relied on.
 | SQL Review | Checks the generated queries before they run |
 | Approval & Publish | Signs off, with a log of everything a human overruled |
 
+## Documentation
+
+| File | What it holds |
+|---|---|
+| [`design.md`](design.md) | The design language — colour, type, layout, components, vocabulary |
+| [`docs/decisions/deviations.md`](docs/decisions/deviations.md) | Where the build departs from the Lovable prototype, and why |
+| [`docs/decisions/assumptions.md`](docs/decisions/assumptions.md) | What was inferred where no user story exists, plus what is not yet built |
+| [`CLAUDE.md`](CLAUDE.md) | Working rules for agents and contributors |
+
 ## Design principles
 
 **The answer and its evidence live together.** Every finding shows the source it
