@@ -13,7 +13,7 @@ export const BE_DECISIONS: DecisionRecord[] = [
     id: "d-saft",
     kind: "removed",
     subject: "SAF-T",
-    step: "Set up",
+    step: "Select Country",
     reason:
       "No SAF-T mandate is in force in Belgium. The 2019 commentary described a proposal that was never enacted.",
     by: "Marco Rossi",
@@ -23,7 +23,7 @@ export const BE_DECISIONS: DecisionRecord[] = [
     id: "d-rates",
     kind: "corrected",
     subject: "Reduced rates — VAT Return",
-    step: "Returns",
+    step: "Return Types",
     reason:
       "Mapped from Royal Decree No 20, Tables A and B. The agent could not retrieve the decree itself.",
     by: "Marco Rossi",
@@ -33,7 +33,7 @@ export const BE_DECISIONS: DecisionRecord[] = [
     id: "d-rc",
     kind: "resolved",
     subject: "Reverse charge — construction",
-    step: "Rules & rates",
+    step: "Specs & Datasets",
     reason:
       "Box 45 confirmed with local counsel. Box 47 applies only to exempt supplies, not to reverse-charged work.",
     by: "Marco Rossi",
@@ -43,7 +43,7 @@ export const BE_DECISIONS: DecisionRecord[] = [
     id: "d-margin",
     kind: "dismissed",
     subject: "Margin scheme — second-hand goods",
-    step: "Rules & rates",
+    step: "Specs & Datasets",
     reason: "Out of scope for this registration; no second-hand trading.",
     by: "Marco Rossi",
     at: "22 Oct, 16:14",

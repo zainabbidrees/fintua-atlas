@@ -18,9 +18,9 @@ import type { DocumentKind, SourceKind } from "./types";
 export const copy = {
   page: {
     title: "Onboard country",
-    step: "Step 1 of 5 · Set up",
+    step: "Step 1 of 5 · Select Country",
     stepsLabel: [
-      "Set up",
+      "Select Country",
       "Return Types",
       "Specs & Datasets",
       "SQL Review",
@@ -32,11 +32,11 @@ export const copy = {
     blockedNeedsCheck: "{count} obligation requires review",
     blockedNeedsCheckPlural: "{count} obligations require review",
     blockedNoFilings: "At least one obligation must be confirmed",
-    done: "Set up complete",
+    done: "Selection complete",
     doneBody:
       "{count} filing obligations confirmed for {country}, each with supporting evidence. Each is now worked through individually.",
     doneNext: "Continue to Return Types",
-    doneReview: "Return to set up",
+    doneReview: "Return to selection",
   },
 
   country: {
@@ -79,6 +79,11 @@ export const copy = {
     failed:
       "Research for {country} could not be completed. Retry, or supply the material yourself below.",
     retry: "Retry research",
+    /** Shown before a jurisdiction is chosen, so the expert can see what this
+        step will produce before committing to one. */
+    pendingHeading: "Filing obligations",
+    pendingHint:
+      "Each obligation identified for the jurisdiction appears here, with the source it was drawn from.",
   },
 
   sources: {
@@ -107,6 +112,7 @@ export const copy = {
     notePlaceholder: "Optional — e.g. supersedes the version published online",
     save: "Add document",
     cancel: "Cancel",
+    pendingHint: "Attach a document or a source URL to supplement the research.",
   },
 
   duplicate: {

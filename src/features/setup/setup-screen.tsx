@@ -74,7 +74,7 @@ export function SetupScreen() {
     <div className="pb-20">
       {/* Header band — sits on the sunken surface so the working area reads as paper. */}
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-full max-w-4xl">
           <Link
             href="/countries"
             className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
@@ -103,154 +103,180 @@ export function SetupScreen() {
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="min-w-[34rem]">
+            <div className="min-w-max">
               <Stepper steps={STEPS} currentIndex={0} completedCount={0} />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-3xl px-8">
-        <section className="mt-8 rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-raised)]">
-          <CountryPicker
-            value={s.country}
-            label={copy.country.label}
-            placeholder={copy.country.placeholder}
-            onSelect={s.selectCountry}
-          />
-          {s.phase === "empty" && (
-            <p className="mt-3 text-sm text-text-muted">{copy.country.empty}</p>
+      <div className="px-6 py-10 sm:px-12">
+        <div className="mx-auto w-full max-w-4xl">
+          <section className="mt-8 rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-raised)]">
+            <CountryPicker
+              value={s.country}
+              label={copy.country.label}
+              placeholder={copy.country.placeholder}
+              onSelect={s.selectCountry}
+            />
+            {s.phase === "empty" && (
+              <p className="mt-3 text-sm text-text-muted">{copy.country.empty}</p>
+            )}
+          </section>
+
+          {/* Before a jurisdiction is chosen, both downstream blocks are shown
+              inert rather than hidden — the expert can see what this step will
+              ask of them before committing to a jurisdiction. */}
+          {!s.country && (
+            <div aria-disabled className="select-none">
+              <section className="mt-5 rounded-xl border border-border bg-surface-sunken/60 p-5">
+                <h2 className="text-[15px] font-semibold text-text-faint">
+                  {copy.filings.pendingHeading}
+                </h2>
+                <p className="mt-1 text-sm text-text-faint">{copy.filings.pendingHint}</p>
+              </section>
+
+              <section className="mt-5 rounded-xl border border-border bg-surface-sunken/60 p-5">
+                <h2 className="text-[15px] font-semibold text-text-faint">
+                  {copy.documents.heading}
+                </h2>
+                <p className="mt-1 text-sm text-text-faint">{copy.documents.pendingHint}</p>
+              </section>
+            </div>
           )}
-        </section>
 
-        {researching && s.country && (
-          <section className="mt-5 rounded-xl border border-brand-edge bg-brand-quiet/50 p-5">
-            <h2 className="text-[15px] font-semibold text-text">
-              {fill(copy.research.runningTitle, { country: s.country.name })}
-            </h2>
-            <p className="mt-1 text-sm text-text-muted">{copy.research.runningHint}</p>
-            <LiveTrail entries={s.trail} label={copy.research.trailLabel} className="mt-4" />
-          </section>
-        )}
-
-        {(s.phase === "nothing_found" || s.phase === "failed") && s.country && (
-          <section className="mt-5 rounded-xl border border-attention-edge bg-attention-quiet p-5">
-            <p className="text-sm leading-relaxed text-text">
-              {s.phase === "failed"
-                ? fill(copy.filings.failed, { country: s.country.name })
-                : fill(copy.filings.noneFound, { country: s.country.name })}
-            </p>
-            <Button size="sm" className="mt-3" onClick={s.retry}>
-              <RotateCcw />
-              {copy.filings.retry}
-            </Button>
-          </section>
-        )}
-
-        {hasResults && s.country && (
-          <section className="mt-8">
-            <div className="flex items-baseline justify-between gap-4">
-              <h2 className="text-[17px] font-semibold tracking-tight text-text">
-                {fill(copy.filings.heading, {
-                  country: s.country.name,
-                  count: s.filings.length,
-                })}
+          {researching && s.country && (
+            <section className="mt-5 rounded-xl border border-brand-edge bg-brand-quiet/50 p-5">
+              <h2 className="text-[15px] font-semibold text-text">
+                {fill(copy.research.runningTitle, { country: s.country.name })}
               </h2>
-              <p
-                className={
-                  s.needsCheck === 0
-                    ? "text-sm font-medium text-settled"
-                    : "text-sm font-medium text-attention-text"
-                }
-              >
-                {s.needsCheck === 0
-                  ? fill(copy.filings.summaryAllClear, { count: s.filings.length })
-                  : fill(
-                      s.needsCheck === 1
-                        ? copy.filings.summaryMixed
-                        : copy.filings.summaryMixedPlural,
-                      { solid: s.filings.length - s.needsCheck, checks: s.needsCheck },
-                    )}
+              <p className="mt-1 text-sm text-text-muted">{copy.research.runningHint}</p>
+              <LiveTrail entries={s.trail} label={copy.research.trailLabel} className="mt-4" />
+            </section>
+          )}
+
+          {(s.phase === "nothing_found" || s.phase === "failed") && s.country && (
+            <section className="mt-5 rounded-xl border border-attention-edge bg-attention-quiet p-5">
+              <p className="text-sm leading-relaxed text-text">
+                {s.phase === "failed"
+                  ? fill(copy.filings.failed, { country: s.country.name })
+                  : fill(copy.filings.noneFound, { country: s.country.name })}
               </p>
-            </div>
+              <Button size="sm" className="mt-3" onClick={s.retry}>
+                <RotateCcw />
+                {copy.filings.retry}
+              </Button>
+            </section>
+          )}
 
-            <div className="mt-4 space-y-3">
-              {s.filings.map((filing) => (
-                <FilingCard
-                  key={filing.id}
-                  filing={filing}
-                  onKeep={s.keepFiling}
-                  onRemove={setFilingToRemove}
-                />
-              ))}
-            </div>
+          {hasResults && s.country && (
+            <section className="mt-8">
+              <div className="flex items-baseline justify-between gap-4">
+                <h2 className="text-[17px] font-semibold tracking-tight text-text">
+                  {fill(copy.filings.heading, {
+                    country: s.country.name,
+                    count: s.filings.length,
+                  })}
+                </h2>
+                <p
+                  className={
+                    s.needsCheck === 0
+                      ? "text-sm font-medium text-settled"
+                      : "text-sm font-medium text-attention-text"
+                  }
+                >
+                  {s.needsCheck === 0
+                    ? fill(copy.filings.summaryAllClear, { count: s.filings.length })
+                    : fill(
+                        s.needsCheck === 1
+                          ? copy.filings.summaryMixed
+                          : copy.filings.summaryMixedPlural,
+                        { solid: s.filings.length - s.needsCheck, checks: s.needsCheck },
+                      )}
+                </p>
+              </div>
 
-            <div className="mt-5 rounded-xl border border-border bg-surface p-4">
-              <label className="text-sm font-medium text-text">
-                {copy.filings.searchMore}
-              </label>
-              <div className="mt-2 flex max-w-md gap-2">
-                <Input
-                  value={term}
-                  onChange={(e) => {
-                    setTerm(e.target.value);
-                    s.clearSearchMessage();
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && term.trim()) {
+              <div className="mt-4 space-y-3">
+                {s.filings.map((filing) => (
+                  <FilingCard
+                    key={filing.id}
+                    filing={filing}
+                    onKeep={s.keepFiling}
+                    onRemove={setFilingToRemove}
+                  />
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-xl border border-border bg-surface p-4">
+                <label className="text-sm font-medium text-text">
+                  {copy.filings.searchMore}
+                </label>
+                <div className="mt-2 flex max-w-md gap-2">
+                  <Input
+                    value={term}
+                    onChange={(e) => {
+                      setTerm(e.target.value);
+                      s.clearSearchMessage();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && term.trim()) {
+                        void s.addFiling(term);
+                        setTerm("");
+                      }
+                    }}
+                    placeholder={copy.filings.searchMorePlaceholder}
+                  />
+                  <Button
+                    disabled={!term.trim() || s.searching}
+                    onClick={() => {
                       void s.addFiling(term);
                       setTerm("");
-                    }
-                  }}
-                  placeholder={copy.filings.searchMorePlaceholder}
-                />
-                <Button
-                  disabled={!term.trim() || s.searching}
-                  onClick={() => {
-                    void s.addFiling(term);
-                    setTerm("");
-                  }}
-                >
-                  <Search />
-                  {copy.filings.searchMoreAction}
-                </Button>
+                    }}
+                  >
+                    <Search />
+                    {copy.filings.searchMoreAction}
+                  </Button>
+                </div>
+                {s.searchMessage && (
+                  <p className="mt-2 text-sm text-text-muted">{s.searchMessage}</p>
+                )}
               </div>
-              {s.searchMessage && (
-                <p className="mt-2 text-sm text-text-muted">{s.searchMessage}</p>
-              )}
+            </section>
+          )}
+
+          {s.sources.length > 0 && (
+            <div className="mt-6">
+              <SourcePanel sources={s.sources} filings={s.filings} onRemove={setSourceToRemove} />
             </div>
-          </section>
-        )}
+          )}
 
-        {s.sources.length > 0 && (
-          <div className="mt-6">
-            <SourcePanel sources={s.sources} filings={s.filings} onRemove={setSourceToRemove} />
-          </div>
-        )}
-
-        {s.country && (
-          <div className="mt-6">
-            <AddFileOrLink
-              heading={copy.documents.heading}
-              hint={copy.documents.hint}
-              chooseLabel={copy.documents.dropAction}
-              linkPlaceholder={copy.documents.linkPlaceholder}
-              linkInvalidMessage={copy.documents.linkInvalid}
-              accept={ACCEPTED_FILE_TYPES.join(",")}
-              onFile={handleFile}
-              onLink={(url) => setPendingFile({ name: new URL(url).hostname, size: 0 })}
-            />
-            {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
-            <DocumentList documents={s.documents} onRemove={s.removeDocument} />
-          </div>
-        )}
+          {s.country && (
+            <div className="mt-6">
+              <AddFileOrLink
+                heading={copy.documents.heading}
+                hint={copy.documents.hint}
+                chooseLabel={copy.documents.dropAction}
+                linkPlaceholder={copy.documents.linkPlaceholder}
+                linkInvalidMessage={copy.documents.linkInvalid}
+                accept={ACCEPTED_FILE_TYPES.join(",")}
+                onFile={handleFile}
+                onLink={(url) => setPendingFile({ name: new URL(url).hostname, size: 0 })}
+              />
+              {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
+              <DocumentList documents={s.documents} onRemove={s.removeDocument} />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur md:left-72">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 py-3 sm:px-12 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href="/countries">{copy.page.back}</Link>
+            <Link href="/countries">
+              <ArrowLeft />
+              {copy.page.back}
+            </Link>
           </Button>
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
             {hasResults && s.needsCheck > 0 && (
@@ -375,33 +401,35 @@ function SetupComplete({
   onBack: () => void;
 }) {
   return (
-    <div className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col justify-center px-8 py-16">
-      <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-raised)]">
-        <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-settled-quiet">
-          <Check className="size-6 text-settled" />
-        </span>
+    <div className="flex min-h-[100dvh] flex-col justify-center px-6 py-16 sm:px-12">
+      <div className="mx-auto w-full max-w-2xl">
+        <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-raised)]">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-settled-quiet">
+            <Check className="size-6 text-settled" />
+          </span>
 
-        <h1 className="mt-5 text-[22px] font-semibold tracking-tight text-text">
-          {copy.page.done}
-        </h1>
-        <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-text-muted">
-          {fill(copy.page.doneBody, { count, country: countryName })}
-        </p>
+          <h1 className="mt-5 text-[22px] font-semibold tracking-tight text-text">
+            {copy.page.done}
+          </h1>
+          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-text-muted">
+            {fill(copy.page.doneBody, { count, country: countryName })}
+          </p>
 
-        <div className="mt-7">
-          <StepMarks total={STEPS.length} completed={1} label="Step 1 of 5 complete" />
-        </div>
+          <div className="mt-7">
+            <StepMarks total={STEPS.length} completed={1} label="Step 1 of 5 complete" />
+          </div>
 
-        <div className="mt-8 flex items-center justify-center gap-2">
-          <Button variant="ghost" onClick={onBack}>
-            {copy.page.doneReview}
-          </Button>
-          <Button variant="primary" size="lg" asChild>
-            <Link href={`/countries/${countryCode}/returns`}>
-              {copy.page.doneNext}
-              <ArrowRight />
-            </Link>
-          </Button>
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <Button variant="ghost" onClick={onBack}>
+              {copy.page.doneReview}
+            </Button>
+            <Button variant="primary" size="lg" asChild>
+              <Link href={`/countries/${countryCode}/returns`}>
+                {copy.page.doneNext}
+                <ArrowRight />
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -39,7 +39,7 @@ export function CountryPicker({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           className={cn(
-            "mt-1.5 flex h-10 w-full max-w-sm items-center justify-between gap-2 rounded-md",
+            "mt-1.5 flex h-10 w-full items-center justify-between gap-2 rounded-md",
             "border border-border-strong bg-surface px-3 text-sm",
             "hover:bg-surface-sunken",
             "focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/25",
