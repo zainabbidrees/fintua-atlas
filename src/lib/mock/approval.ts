@@ -13,7 +13,7 @@ export const BE_DECISIONS: DecisionRecord[] = [
     id: "d-saft",
     kind: "removed",
     subject: "SAF-T",
-    step: "Scope",
+    step: "Set up",
     reason:
       "No SAF-T mandate is in force in Belgium. The 2019 commentary described a proposal that was never enacted.",
     by: "Marco Rossi",

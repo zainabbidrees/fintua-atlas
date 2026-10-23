@@ -5,9 +5,12 @@
  * working notes. Precise where the profession is precise — obligation,
  * rationale, corroborated, intra-Community, taxable person, secondary source —
  * and plain everywhere else. Two failure modes to avoid: implementation
- * vocabulary that leaked out of the codebase ("Initiation", "Deep Search",
- * "T1/T2/T3"), and consumer-app chattiness that reads as beneath the reader
- * ("Know something we missed?", "look solid").
+ * vocabulary that leaked out of the codebase ("Deep Search", "T1/T2/T3"), and
+ * consumer-app chattiness that reads as beneath the reader ("Know something we
+ * missed?", "look solid").
+ *
+ * The five step names are the exception: they match the prototype verbatim, so
+ * the team reads one set of names across both.
  */
 
 import type { DocumentKind, SourceKind } from "./types";
@@ -15,9 +18,9 @@ import type { DocumentKind, SourceKind } from "./types";
 export const copy = {
   page: {
     title: "Onboard country",
-    step: "Step 1 of 5 · Initiation",
+    step: "Step 1 of 5 · Set up",
     stepsLabel: [
-      "Initiation",
+      "Set up",
       "Return Types",
       "Specs & Datasets",
       "SQL Review",
@@ -29,11 +32,11 @@ export const copy = {
     blockedNeedsCheck: "{count} obligation requires review",
     blockedNeedsCheckPlural: "{count} obligations require review",
     blockedNoFilings: "At least one obligation must be confirmed",
-    done: "Scope confirmed",
+    done: "Set up complete",
     doneBody:
       "{count} filing obligations confirmed for {country}, each with supporting evidence. Each is now worked through individually.",
     doneNext: "Continue to Return Types",
-    doneReview: "Return to scope",
+    doneReview: "Return to set up",
   },
 
   country: {
