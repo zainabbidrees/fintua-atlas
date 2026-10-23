@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, RotateCcw, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ListChecks,
+  Paperclip,
+  RotateCcw,
+  Search,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddFileOrLink } from "@/components/patterns/add-file-or-link";
@@ -34,11 +42,23 @@ export function SetupScreen() {
   } | null>(null);
   const [fileError, setFileError] = React.useState<string | null>(null);
   const [term, setTerm] = React.useState("");
+  /** Tracked as exclusions, so anything newly found is carried by default. */
+  const [excluded, setExcluded] = React.useState<ReadonlySet<string>>(new Set());
   const [finished, setFinished] = React.useState(false);
 
   const researching = s.phase === "researching";
   const hasResults = s.phase === "found" && s.filings.length > 0;
-  const canContinue = hasResults && s.needsCheck === 0;
+  const carriedCount = s.filings.filter((f) => !excluded.has(f.id)).length;
+  const canContinue = hasResults && s.needsCheck === 0 && carriedCount > 0;
+
+  function setCarried(filing: Filing, carried: boolean) {
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      if (carried) next.delete(filing.id);
+      else next.add(filing.id);
+      return next;
+    });
+  }
 
   function handleFile(file: File) {
     setFileError(null);
@@ -94,10 +114,9 @@ export function SetupScreen() {
                 <h1 className="text-[22px] font-semibold tracking-tight text-text">
                   {s.country ? s.country.name : copy.page.title}
                 </h1>
-                <p className="mt-0.5 text-sm text-text-muted">{copy.page.step}</p>
               </div>
             </div>
-            <Button variant="secondary" size="sm">
+            <Button variant="filled" size="sm">
               {copy.page.saveDraft}
             </Button>
           </div>
@@ -129,19 +148,16 @@ export function SetupScreen() {
               ask of them before committing to a jurisdiction. */}
           {!s.country && (
             <div aria-disabled className="select-none">
-              <section className="mt-5 rounded-xl border border-border bg-surface-sunken/60 p-5">
-                <h2 className="text-[15px] font-semibold text-text-faint">
-                  {copy.filings.pendingHeading}
-                </h2>
-                <p className="mt-1 text-sm text-text-faint">{copy.filings.pendingHint}</p>
-              </section>
-
-              <section className="mt-5 rounded-xl border border-border bg-surface-sunken/60 p-5">
-                <h2 className="text-[15px] font-semibold text-text-faint">
-                  {copy.documents.heading}
-                </h2>
-                <p className="mt-1 text-sm text-text-faint">{copy.documents.pendingHint}</p>
-              </section>
+              <PendingBlock
+                icon={ListChecks}
+                heading={copy.filings.pendingHeading}
+                hint={copy.filings.pendingHint}
+              />
+              <PendingBlock
+                icon={Paperclip}
+                heading={copy.documents.heading}
+                hint={copy.documents.pendingHint}
+              />
             </div>
           )}
 
@@ -178,13 +194,7 @@ export function SetupScreen() {
                     count: s.filings.length,
                   })}
                 </h2>
-                <p
-                  className={
-                    s.needsCheck === 0
-                      ? "text-sm font-medium text-settled"
-                      : "text-sm font-medium text-attention-text"
-                  }
-                >
+                <p className="text-sm text-text-muted">
                   {s.needsCheck === 0
                     ? fill(copy.filings.summaryAllClear, { count: s.filings.length })
                     : fill(
@@ -201,6 +211,8 @@ export function SetupScreen() {
                   <FilingCard
                     key={filing.id}
                     filing={filing}
+                    selected={!excluded.has(filing.id)}
+                    onSelectedChange={setCarried}
                     onKeep={s.keepFiling}
                     onRemove={setFilingToRemove}
                   />
@@ -280,7 +292,7 @@ export function SetupScreen() {
           </Button>
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
             {hasResults && s.needsCheck > 0 && (
-              <span className="text-sm text-attention-text">
+              <span className="text-sm text-text-muted">
                 {fill(
                   s.needsCheck === 1
                     ? copy.page.blockedNeedsCheck
@@ -289,7 +301,7 @@ export function SetupScreen() {
                 )}
               </span>
             )}
-            {s.phase === "found" && s.filings.length === 0 && (
+            {s.phase === "found" && (s.filings.length === 0 || carriedCount === 0) && (
               <span className="text-sm text-text-muted">{copy.page.blockedNoFilings}</span>
             )}
             <Button
@@ -433,5 +445,35 @@ function SetupComplete({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * What this step will ask for, shown before a country is chosen.
+ *
+ * Each block carries the mark of the thing it will hold, and the mark sits on
+ * the text's optical centre rather than its first line, so the two blocks read
+ * as a pair of shelves waiting to be filled.
+ */
+function PendingBlock({
+  icon: Icon,
+  heading,
+  hint,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  heading: string;
+  hint: string;
+}) {
+  return (
+    <section className="mt-5 flex items-center gap-4 rounded-xl border border-border bg-surface-sunken/60 p-5">
+      <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-surface">
+        <Icon className="size-[18px] text-text-faint" />
+      </span>
+
+      <div className="min-w-0">
+        <h2 className="text-[15px] font-semibold text-text-faint">{heading}</h2>
+        <p className="mt-1 text-sm text-text-faint">{hint}</p>
+      </div>
+    </section>
   );
 }

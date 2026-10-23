@@ -81,6 +81,7 @@ export const copy = {
     retry: "Retry research",
     /** Shown before a jurisdiction is chosen, so the expert can see what this
         step will produce before committing to one. */
+    includeLabel: "Carry {name} into the next step",
     pendingHeading: "Filing obligations",
     pendingHint:
       "Each obligation identified for the jurisdiction appears here, with the source it was drawn from.",
