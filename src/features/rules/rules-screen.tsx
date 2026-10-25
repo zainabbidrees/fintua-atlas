@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Stepper } from "@/components/patterns/stepper";
+import { UploadBar } from "@/components/patterns/upload-bar";
+import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { copy } from "@/lib/copy";
 import { DATASET_LABEL, type Dataset } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -28,6 +30,13 @@ export function RulesScreen({
   const last = r.stageIndex === r.stages.length - 1;
   const next = r.stages[r.stageIndex + 1];
 
+  /* Figures for the summary strip above the table: how many rows, how many the
+     agent sourced from research — a citation, the honest stand-in for a
+     confidence score rather than a percentage — and how many still need a
+     person before the part can ship. */
+  const sourced = current.rows.filter((row) => row.citation).length;
+  const toSettle = r.openIn(current);
+
   return (
     <div className="pb-24">
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
@@ -41,7 +50,7 @@ export function RulesScreen({
           </Link>
 
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-            <h1 className="text-[22px] font-semibold tracking-tight text-text">
+            <h1 className="text-[22px] font-medium tracking-tight text-heading">
               {countryName}
             </h1>
             <Button variant="filled" size="sm">
@@ -59,18 +68,25 @@ export function RulesScreen({
 
       <div className="px-6 py-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
-          {/* Asymmetric: the spine carries the order, the table carries the work. */}
-          <div className="grid gap-x-10 gap-y-8 [&>*]:min-w-0 lg:grid-cols-[minmax(0,13.5rem)_minmax(0,1fr)] lg:items-start">
-            <StageRail
-              stages={r.stages}
-              stageIndex={r.stageIndex}
-              openIn={r.openInStage}
-              reachable={r.reachable}
-              onSelect={r.goToStage}
-            />
+          {/* Asymmetric: the spine carries the order, the table carries the
+              work. A hairline down the content's edge sets the rail apart as
+              its own panel — where you are, not what you are doing. */}
+          <div className="grid gap-x-6 gap-y-8 [&>*]:min-w-0 lg:grid-cols-[minmax(0,13.5rem)_minmax(0,1fr)] lg:items-stretch">
+            {/* The rail lives in its own panel: a full-height stroke on its
+                right edge sets it apart from the work, while the nav inside
+                stays sticky. */}
+            <div className="lg:border-r lg:border-border-strong lg:pr-6">
+              <StageRail
+                stages={r.stages}
+                stageIndex={r.stageIndex}
+                openIn={r.openInStage}
+                reachable={r.reachable}
+                onSelect={r.goToStage}
+              />
+            </div>
 
             <section key={stage.id} className="rise">
-              <h2 className="text-[20px] font-semibold tracking-tight text-text">
+              <h2 className="text-[20px] font-medium tracking-tight text-heading">
                 {stage.label}
               </h2>
               <p className="mt-1.5 max-w-[66ch] text-[14px] leading-relaxed text-text-muted">
@@ -133,21 +149,22 @@ export function RulesScreen({
                 {current.purpose}
               </p>
 
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[13px] text-text-muted">
-                  <span data-numeric>{current.rows.length}</span>{" "}
-                  {current.rows.length === 1 ? "row" : "rows"}
-                  {r.openIn(current) > 0 && (
-                    <span className="text-attention-text">
-                      {" · "}
-                      <span data-numeric>{r.openIn(current)}</span> to settle
-                    </span>
-                  )}
-                </p>
-                <Button size="sm" variant="secondary" onClick={() => r.addRow(current.id)}>
-                  <Plus />
-                  Add row
-                </Button>
+              {/* A compact stats strip, not a sentence: three figures read at a
+                  glance, with colour only on the one that means a person is
+                  still needed. */}
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                    <Stat
+                      label={current.rows.length === 1 ? "row" : "rows"}
+                      value={current.rows.length}
+                    />
+                    <Stat label="from research" value={sourced} />
+                    <Stat label="to settle" value={toSettle} attention={toSettle > 0} />
+                  </div>
+                  {/* Jumps to the first row still holding up the stage. */}
+                  <JumpToReview count={toSettle} verb="settle" />
+                </div>
               </div>
 
               <div className="mt-3">
@@ -156,8 +173,13 @@ export function RulesScreen({
                   onEdit={(rowId, key, value) => r.edit(current.id, rowId, key, value)}
                   onResolve={(rowId) => r.resolve(current.id, rowId)}
                   onDelete={(rowId) => r.deleteRow(current.id, rowId)}
+                  onAdd={() => r.addRow(current.id)}
                 />
               </div>
+
+              {/* Supporting material for this dataset — a spec or an example
+                  export to map the rules against. */}
+              <UploadBar className="mt-6" />
 
               {/* The quiet failure mode of this step: a transaction type with no
                   rule files silently and wrongly. Surfaced rather than counted. */}
@@ -169,10 +191,23 @@ export function RulesScreen({
                 />
               )}
 
-              {stage.unlocks && (
-                <p className="mt-10 border-t border-border pt-5 text-[13px] leading-relaxed text-text-faint">
-                  {stage.unlocks}
-                </p>
+              {/* The forward link in the chain: names the next part and why
+                  this one has to come first, so the order reads as a dependency
+                  rather than a set of tabs. */}
+              {next && stage.unlocks && (
+                <div className="mt-10 border-t border-border pt-5">
+                  <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
+                    Next part
+                  </p>
+                  <p className="mt-2 flex items-start gap-2 text-[13px] leading-relaxed text-text-muted">
+                    <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-text-faint" />
+                    <span>
+                      <span className="font-medium text-text">{next.label}</span>
+                      {" — "}
+                      {stage.unlocks}
+                    </span>
+                  </p>
+                </div>
               )}
             </section>
           </div>
@@ -232,6 +267,43 @@ export function RulesScreen({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * One figure in the summary strip — the value carries the weight, the label
+ * sits quiet beside it. Colour appears only when something waits on a person,
+ * so "to settle" is the single stat that can draw the eye.
+ */
+function Stat({
+  label,
+  value,
+  attention,
+}: {
+  label: string;
+  value: number;
+  attention?: boolean;
+}) {
+  return (
+    <span className="flex items-baseline gap-1.5">
+      <span
+        data-numeric
+        className={cn(
+          "text-[15px] font-medium",
+          attention ? "text-attention-text" : "text-text",
+        )}
+      >
+        {value}
+      </span>
+      <span
+        className={cn(
+          "text-[13px]",
+          attention ? "text-attention-text" : "text-text-faint",
+        )}
+      >
+        {label}
+      </span>
+    </span>
   );
 }
 

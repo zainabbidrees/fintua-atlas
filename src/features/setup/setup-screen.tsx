@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddFileOrLink } from "@/components/patterns/add-file-or-link";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
+import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { LiveTrail } from "@/components/patterns/live-trail";
 import { PickOne } from "@/components/patterns/pick-one";
 import { StepMarks, Stepper } from "@/components/patterns/stepper";
@@ -111,7 +112,7 @@ export function SetupScreen() {
                 </span>
               )}
               <div>
-                <h1 className="text-[22px] font-semibold tracking-tight text-text">
+                <h1 className="text-[22px] font-medium tracking-tight text-heading">
                   {s.country ? s.country.name : copy.page.title}
                 </h1>
               </div>
@@ -163,7 +164,7 @@ export function SetupScreen() {
 
           {researching && s.country && (
             <section className="mt-5 rounded-xl border border-brand-edge bg-brand-quiet/50 p-5">
-              <h2 className="text-[15px] font-semibold text-text">
+              <h2 className="text-[15px] font-medium text-heading">
                 {fill(copy.research.runningTitle, { country: s.country.name })}
               </h2>
               <p className="mt-1 text-sm text-text-muted">{copy.research.runningHint}</p>
@@ -188,7 +189,7 @@ export function SetupScreen() {
           {hasResults && s.country && (
             <section className="mt-8">
               <div className="flex items-baseline justify-between gap-4">
-                <h2 className="text-[17px] font-semibold tracking-tight text-text">
+                <h2 className="text-[17px] font-medium tracking-tight text-heading">
                   {fill(copy.filings.heading, {
                     country: s.country.name,
                     count: s.filings.length,
@@ -205,6 +206,14 @@ export function SetupScreen() {
                       )}
                 </p>
               </div>
+
+              {/* A shortcut straight to the obligations that still block the
+                  step, so they are not hunted for by scrolling. */}
+              {s.needsCheck > 0 && (
+                <div className="mt-4">
+                  <JumpToReview count={s.needsCheck} verb="review" />
+                </div>
+              )}
 
               <div className="mt-4 space-y-3">
                 {s.filings.map((filing) => (
@@ -224,28 +233,35 @@ export function SetupScreen() {
                   {copy.filings.searchMore}
                 </label>
                 <div className="mt-2 flex max-w-md gap-2">
-                  <Input
-                    value={term}
-                    onChange={(e) => {
-                      setTerm(e.target.value);
-                      s.clearSearchMessage();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && term.trim()) {
-                        void s.addFiling(term);
-                        setTerm("");
-                      }
-                    }}
-                    placeholder={copy.filings.searchMorePlaceholder}
-                  />
+                  <div className="relative flex-1">
+                    <Search
+                      aria-hidden
+                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
+                    />
+                    <Input
+                      value={term}
+                      onChange={(e) => {
+                        setTerm(e.target.value);
+                        s.clearSearchMessage();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && term.trim()) {
+                          void s.addFiling(term);
+                          setTerm("");
+                        }
+                      }}
+                      placeholder={copy.filings.searchMorePlaceholder}
+                      className="h-10 pl-9 text-sm shadow-[var(--shadow-raised)]"
+                    />
+                  </div>
                   <Button
+                    className="h-10"
                     disabled={!term.trim() || s.searching}
                     onClick={() => {
                       void s.addFiling(term);
                       setTerm("");
                     }}
                   >
-                    <Search />
                     {copy.filings.searchMoreAction}
                   </Button>
                 </div>
@@ -420,7 +436,7 @@ function SetupComplete({
             <Check className="size-6 text-settled" />
           </span>
 
-          <h1 className="mt-5 text-[22px] font-semibold tracking-tight text-text">
+          <h1 className="mt-5 text-[22px] font-medium tracking-tight text-heading">
             {copy.page.done}
           </h1>
           <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-text-muted">
@@ -471,7 +487,7 @@ function PendingBlock({
       </span>
 
       <div className="min-w-0">
-        <h2 className="text-[15px] font-semibold text-text-faint">{heading}</h2>
+        <h2 className="text-[15px] font-medium text-text-faint">{heading}</h2>
         <p className="mt-1 text-sm text-text-faint">{hint}</p>
       </div>
     </section>

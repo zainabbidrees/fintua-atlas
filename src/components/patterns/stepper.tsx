@@ -40,7 +40,7 @@ export function Stepper({
             >
               <span
                 className={cn(
-                  "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                  "flex size-5 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold",
                   done && "bg-settled text-on-brand",
                   current && "bg-brand text-on-brand",
                   locked && "border border-border-strong text-text-faint",

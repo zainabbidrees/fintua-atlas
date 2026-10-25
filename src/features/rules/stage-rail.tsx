@@ -28,12 +28,8 @@ export function StageRail({
 }) {
   return (
     <nav aria-label="Parts of this step" className="lg:sticky lg:top-8">
-      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
+      <p className="text-[13px] font-semibold tracking-tight text-text">
         Specs &amp; datasets
-      </p>
-      <p className="mt-1 text-[13px] text-text-muted">
-        Part <span data-numeric>{stageIndex + 1}</span> of{" "}
-        <span data-numeric>{stages.length}</span>
       </p>
 
       <ol className="mt-5 flex gap-x-2 overflow-x-auto pb-2 lg:block lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -75,7 +71,7 @@ export function StageRail({
               >
                 <span
                   className={cn(
-                    "relative z-10 mt-px grid size-[26px] shrink-0 place-items-center rounded-full border text-[11px] font-semibold transition-colors",
+                    "relative z-10 mt-px grid size-[26px] shrink-0 place-items-center rounded-full border text-[12px] font-semibold transition-colors",
                     done && "border-settled bg-settled text-on-brand",
                     current && "border-brand bg-brand text-on-brand",
                     !done && !current && "border-border-strong bg-canvas text-text-faint",
@@ -109,7 +105,7 @@ export function StageRail({
                     )}
                   >
                     {locked
-                      ? "Opens when the part above is settled"
+                      ? `Opens after ${stages[i - 1]?.label ?? "the previous part"}`
                       : open > 0
                         ? `${open} to settle`
                         : done

@@ -49,7 +49,7 @@ export function SourcePanel({
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm font-medium text-text hover:text-brand hover:underline"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-text underline decoration-border-strong underline-offset-2 transition-colors hover:text-brand hover:decoration-brand"
                 >
                   {source.title}
                   <ArrowUpRight className="size-3.5 shrink-0 text-text-faint" />
@@ -80,7 +80,7 @@ export function SourcePanel({
                 variant="ghost"
                 onClick={() => onRemove(source)}
                 aria-label={`${copy.sources.remove} ${source.title}`}
-                className="shrink-0 text-text-faint opacity-0 hover:text-risk focus-visible:opacity-100 group-hover:opacity-100"
+                className="shrink-0 text-text-faint transition-colors hover:text-risk"
               >
                 <Trash2 />
               </Button>

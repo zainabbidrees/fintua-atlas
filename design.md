@@ -43,7 +43,7 @@ reasoning is the expertise Fintua sells and the audit defence it promises. It is
 why step 5 can show what a human overruled.
 
 **Keep tax words, drop computer words.** Specialist terms stay where users need
-them — *jurisdiction*, *obligation*, *corroborated*, *nil return*. What goes is
+them — *jurisdiction*, *obligation*, *nil return*. What goes is
 vocabulary that exists only because a programmer needed a name.
 
 **One way to say no.** The prototype had a checkbox *and* a delete button per
@@ -190,10 +190,11 @@ once.
 
 The register sits in the middle: not baby language, not jargon for its own sake.
 *Jurisdiction* rather than *country*, because it covers territories and protocols
-that are not countries but do have their own VAT regime. *Corroborated* rather
-than *verified*, because it means specifically that more than one independent
-source agrees — it is an evidential standard, not a confidence score and not a
-claim that a human checked.
+that are not countries but do have their own VAT regime. For the state where more
+than one independent source agrees, the UI says *cross-checked* — a common word
+anyone reads at once — rather than *corroborated* (accurate but a glossary term)
+or *verified* (which would imply a human checked). The underlying `FindingState`
+id stays `corroborated`; only the label a user sees changed.
 
 ## 10. Accessibility
 

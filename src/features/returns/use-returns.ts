@@ -63,23 +63,52 @@ export function useReturns(countryCode: string) {
     [],
   );
 
-  const confirm = React.useCallback(
-    (findingId: string) => patch(findingId, { state: "confirmed", concern: undefined }),
-    [patch],
-  );
+  /** Did acting on `changedId` clear the whole of the open return? */
+  const clearsOpenReturn = (changedId: string) => {
+    const open = obligations.find((o) => o.id === selectedId);
+    if (!open) return false;
+    return open.findings.every((f) =>
+      f.id === changedId
+        ? true
+        : f.state === "confirmed" || f.state === "edited",
+    );
+  };
+
+  /** The next return still waiting, in order — where the sequence sends you. */
+  const nextOpenReturn = () =>
+    obligations.find(
+      (o) =>
+        o.id !== selectedId &&
+        o.findings.length > 0 &&
+        !o.findings.every(
+          (f) => f.state === "confirmed" || f.state === "edited",
+        ),
+    )?.id ?? null;
+
+  /** Clearing the last value in a return moves you straight to the next one, so
+      you are never left on a finished return wondering why you can't proceed. */
+  const advanceIfCleared = (changedId: string) => {
+    if (!clearsOpenReturn(changedId)) return;
+    const next = nextOpenReturn();
+    if (next) setSelectedId(next);
+  };
+
+  const confirm = (findingId: string) => {
+    patch(findingId, { state: "confirmed", concern: undefined });
+    advanceIfCleared(findingId);
+  };
 
   /** Keeps the agent's original value alongside the correction and its reason. */
-  const edit = React.useCallback(
-    (finding: Finding, value: string, reason: string) =>
-      patch(finding.id, {
-        state: "edited",
-        value,
-        concern: undefined,
-        originalValue: finding.originalValue ?? finding.value,
-        editReason: reason,
-      }),
-    [patch],
-  );
+  const edit = (finding: Finding, value: string, reason: string) => {
+    patch(finding.id, {
+      state: "edited",
+      value,
+      concern: undefined,
+      originalValue: finding.originalValue ?? finding.value,
+      editReason: reason,
+    });
+    advanceIfCleared(finding.id);
+  };
 
   /** Accepts every finding the agent corroborated, leaving the flagged ones. */
   const confirmCorroborated = React.useCallback((obligationId: string) => {

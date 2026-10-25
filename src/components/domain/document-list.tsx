@@ -24,7 +24,7 @@ export function DocumentList({
 
   return (
     <section className="mt-4">
-      <h3 className="text-sm font-semibold text-text">{copy.documents.yours}</h3>
+      <h3 className="text-sm font-medium text-heading">{copy.documents.yours}</h3>
       <ul className="mt-2 space-y-2">
         {documents.map((doc) => (
           <li
@@ -56,7 +56,7 @@ export function DocumentList({
               variant="ghost"
               onClick={() => onRemove(doc)}
               aria-label={`Remove ${doc.fileName}`}
-              className="shrink-0 text-text-faint opacity-0 hover:text-risk focus-visible:opacity-100 group-hover:opacity-100"
+              className="shrink-0 text-text-faint transition-colors hover:text-risk"
             >
               <Trash2 />
             </Button>

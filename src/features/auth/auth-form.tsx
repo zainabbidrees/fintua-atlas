@@ -32,7 +32,7 @@ export function AuthForm() {
       </div>
 
       <h1
-        className="rise mt-9 text-[22px] font-semibold tracking-tight text-text"
+        className="rise mt-9 text-[22px] font-medium tracking-tight text-heading"
         style={{ "--index": 1 } as React.CSSProperties}
       >
         Sign in

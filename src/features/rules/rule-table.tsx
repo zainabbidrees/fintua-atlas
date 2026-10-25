@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Minus, Trash2, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/cn";
 import type { Dataset, RuleColumn, RuleRow } from "@/lib/types";
@@ -25,12 +25,16 @@ export function RuleTable({
   onEdit,
   onResolve,
   onDelete,
+  onAdd,
 }: {
   dataset: Dataset;
   onEdit: (rowId: string, key: string, value: string) => void;
   onResolve: (rowId: string) => void;
   onDelete: (rowId: string) => void;
+  onAdd: () => void;
 }) {
+  /* Columns + Source + the actions column. */
+  const span = dataset.columns.length + 2;
   return (
     <div className="-mx-2 overflow-x-auto px-2">
       <table className="w-full min-w-[64rem] border-collapse text-left">
@@ -41,7 +45,7 @@ export function RuleTable({
                 key={col.key}
                 scope="col"
                 className={cn(
-                  "pb-2.5 pr-4 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint",
+                  "pb-2.5 pr-4 text-[12px] font-medium uppercase tracking-[0.08em] text-text-faint",
                   col.width,
                 )}
               >
@@ -50,7 +54,7 @@ export function RuleTable({
             ))}
             <th
               scope="col"
-              className="w-32 pb-2.5 pr-4 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint"
+              className="w-32 pb-2.5 pr-4 text-[12px] font-medium uppercase tracking-[0.08em] text-text-faint"
             >
               Source
             </th>
@@ -72,6 +76,21 @@ export function RuleTable({
               onDelete={() => onDelete(r.id)}
             />
           ))}
+
+          {/* Adding a row is part of the table, not a control floating above it:
+              the last line is itself the way to extend the list. */}
+          <tr>
+            <td colSpan={span} className="pt-1">
+              <button
+                type="button"
+                onClick={onAdd}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-left text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-sunken hover:text-brand"
+              >
+                <Plus className="size-4 text-text-faint" strokeWidth={2} />
+                Add a rule row
+              </button>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -98,6 +117,7 @@ function Row({
   return (
     <>
       <tr
+        data-review-item={row.issue ? "" : undefined}
         className={cn(
           "rise group border-b border-border align-top last:border-0",
           row.issue && "bg-attention-quiet/40",
@@ -138,7 +158,7 @@ function Row({
             type="button"
             onClick={onDelete}
             aria-label="Delete row"
-            className="mt-1 grid size-7 place-items-center rounded-md text-text-faint opacity-0 transition-[opacity,color,background-color] hover:bg-risk-quiet hover:text-risk focus-visible:opacity-100 group-hover:opacity-100"
+            className="mt-1 grid size-7 place-items-center rounded-md text-text-faint transition-colors hover:bg-risk-quiet hover:text-risk focus-visible:bg-risk-quiet focus-visible:text-risk"
           >
             <Trash2 className="size-3.5" />
           </button>
@@ -155,8 +175,9 @@ function Row({
             <button
               type="button"
               onClick={onResolve}
-              className="ml-5.5 mt-2 text-[13px] font-medium text-attention-text underline-offset-4 transition-colors hover:text-text hover:underline"
+              className="ml-5.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-attention-edge bg-surface px-2.5 py-1 text-[13px] font-medium text-attention-text transition-colors hover:bg-attention-quiet active:scale-[0.98]"
             >
+              <Check className="size-3.5" />
               Settled — carry this row forward
             </button>
           </td>
@@ -228,7 +249,7 @@ function CellControl({
         </select>
         <ChevronDown
           aria-hidden
-          className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-text-faint opacity-0 transition-opacity group-hover:opacity-100"
+          className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-text-faint"
         />
       </span>
     );

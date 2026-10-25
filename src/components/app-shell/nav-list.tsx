@@ -34,7 +34,7 @@ export function NavList({ activePath }: { activePath: string | null }) {
               <Icon className="size-[18px] shrink-0" strokeWidth={1.75} />
               <span className="flex-1">{label}</span>
               {count && (
-                <span className="rounded-full bg-brand px-1.5 py-0.5 text-[11px] font-semibold text-on-brand">
+                <span className="rounded-full bg-brand px-1.5 py-0.5 text-[12px] font-semibold text-on-brand">
                   {count}
                 </span>
               )}

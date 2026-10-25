@@ -19,6 +19,10 @@ export const COUNTRIES: Country[] = [
   { code: "AT", name: "Austria", flag: "🇦🇹" },
   { code: "IE", name: "Ireland", flag: "🇮🇪" },
   { code: "SE", name: "Sweden", flag: "🇸🇪" },
+  { code: "AU", name: "Australia", flag: "🇦🇺" },
+  { code: "CZ", name: "Czechia", flag: "🇨🇿" },
+  { code: "DK", name: "Denmark", flag: "🇩🇰" },
+  { code: "GR", name: "Greece", flag: "🇬🇷" },
   { code: "XX", name: "Testland (forces a failure)", flag: "🏴" },
 ];
 

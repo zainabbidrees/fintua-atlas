@@ -22,7 +22,7 @@ export default function CountriesPage() {
       <div className="mx-auto w-full max-w-[1600px]">
         <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <div>
-            <h1 className="text-[20px] font-semibold tracking-tight text-text">
+            <h1 className="text-[20px] font-medium tracking-tight text-heading">
               Countries
             </h1>
             <p className="mt-0.5 text-[13px] text-text-muted">

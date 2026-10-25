@@ -1,14 +1,17 @@
 "use client";
 
+import { Check, Lock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { ObligationRun } from "@/lib/types";
 
 /**
- * The obligations carried through from scope, each with its own agent.
+ * The return types, worked as a gated sequence.
  *
- * They run in parallel, so this rail is both a navigator and a status board:
- * one obligation can still be researching while the specialist works another.
- * Nothing here waits on anything else.
+ * Each return is a step on a spine: the ones you've cleared are ticked, the one
+ * you're on is live, and the rest are locked until you clear it. A progress bar
+ * at the top says how far through the country you are. This is a deliberate
+ * change from working them in parallel — the sequence keeps the specialist on
+ * one return at a time and makes "what's left" unmistakable.
  */
 export function ObligationRail({
   obligations,
@@ -23,77 +26,132 @@ export function ObligationRail({
   outstanding: (o: ObligationRun) => number;
   isSettled: (o: ObligationRun) => boolean;
 }) {
-  return (
-    <nav aria-label="Obligations" className="lg:sticky lg:top-8">
-      <p className="px-1 text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
-        Obligations
-      </p>
+  const total = obligations.length;
+  const clearedCount = obligations.filter(isSettled).length;
+  /* The step you're on: the first that isn't cleared. Everything after it is
+     locked; -1 means the whole country is done. */
+  const currentIndex = obligations.findIndex((o) => !isSettled(o));
 
-      <ul className="mt-3 space-y-1">
-        {obligations.map((o) => {
-          const active = o.id === selectedId;
-          const todo = outstanding(o);
+  return (
+    <nav aria-label="Return types" className="lg:sticky lg:top-8">
+      <div className="px-1">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-[13px] font-semibold tracking-tight text-text">
+            Return types
+          </p>
+          <p className="text-[12px] tabular-nums text-text-faint">
+            <span className="font-medium text-text-muted">{clearedCount}</span> of{" "}
+            {total} cleared
+          </p>
+        </div>
+
+        {/* How far through the country's returns the specialist is. */}
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken ring-1 ring-inset ring-border">
+          <div
+            className="h-full rounded-full bg-settled transition-[width] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            style={{ width: `${(clearedCount / total) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      <ol className="mt-5">
+        {obligations.map((o, i) => {
           const settled = isSettled(o);
+          const current = i === currentIndex;
+          const locked = !settled && !current;
+          const clickable = settled || current;
+          /* Emphasis follows what's open on the right; the node still marks the
+             current step even when a cleared step is being reviewed. */
+          const active = o.id === selectedId;
+          const isLast = i === total - 1;
           const running = o.agent === "running";
+          const todo = outstanding(o);
+          const toConfirm = o.findings.filter(
+            (f) => f.state === "corroborated",
+          ).length;
+
+          const sub = settled
+            ? "Confirmed"
+            : current
+              ? running
+                ? "Researching…"
+                : todo > 0
+                  ? `${todo} to review`
+                  : `${toConfirm} to confirm`
+              : "Locked";
 
           return (
-            <li key={o.id}>
+            <li key={o.id} className="flex gap-3">
+              {/* Node + spine. The segment below a cleared node is green, so
+                  the line fills as the sequence is worked. */}
+              <div className="flex flex-col items-center">
+                <span
+                  className={cn(
+                    "grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold ring-inset transition-colors",
+                    settled && "bg-settled text-on-brand",
+                    current && "bg-brand text-on-brand ring-4 ring-brand-quiet",
+                    locked && "bg-surface-sunken text-text-faint ring-1 ring-border",
+                  )}
+                >
+                  {settled ? (
+                    <Check className="size-3.5" />
+                  ) : current && running ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : locked ? (
+                    <Lock className="size-3" />
+                  ) : (
+                    i + 1
+                  )}
+                </span>
+                {!isLast && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "my-1 w-px flex-1 rounded-full",
+                      settled ? "bg-settled" : "bg-border",
+                    )}
+                  />
+                )}
+              </div>
+
+              {/* The step itself. Locked steps can't be opened. */}
               <button
                 type="button"
-                onClick={() => onSelect(o.id)}
-                aria-current={active ? "true" : undefined}
+                onClick={() => clickable && onSelect(o.id)}
+                disabled={!clickable}
+                aria-current={current ? "step" : undefined}
                 className={cn(
-                  "group relative w-full rounded-xl px-3.5 py-3 text-left transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                  active ? "bg-surface" : "hover:bg-surface/70",
+                  "mb-4 min-w-0 flex-1 rounded-xl px-3 py-2.5 text-left ring-1 ring-inset",
+                  "transition-[background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                  active &&
+                    "bg-surface ring-brand-edge shadow-[var(--shadow-raised)]",
+                  clickable &&
+                    !active &&
+                    "ring-transparent hover:bg-surface hover:ring-border hover:shadow-[var(--shadow-raised)] active:scale-[0.99]",
+                  locked && "cursor-not-allowed ring-transparent",
                 )}
               >
                 <span
-                  aria-hidden
                   className={cn(
-                    "absolute inset-y-2 left-0 w-[2px] origin-center rounded-full bg-brand transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                    active ? "scale-y-100" : "scale-y-0",
+                    "block truncate text-[14px] font-medium tracking-tight",
+                    locked ? "text-text-faint" : "text-text",
                   )}
-                />
-
-                <span className="flex items-start justify-between gap-3">
-                  <span className="min-w-0">
-                    <span
-                      className={cn(
-                        "block truncate text-[14px] font-medium tracking-tight",
-                        active ? "text-text" : "text-text-muted",
-                      )}
-                    >
-                      {o.name}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-text-faint">
-                      {running
-                        ? "Researching…"
-                        : todo > 0
-                          ? `${todo} to review`
-                          : settled
-                            ? "Confirmed"
-                            : `${o.findings.length} findings`}
-                    </span>
-                  </span>
-
+                >
+                  {o.name}
                 </span>
-
-                {running && (
-                  <span
-                    aria-hidden
-                    className="mt-2.5 block h-[3px] overflow-hidden rounded-full bg-border"
-                  >
-                    <span
-                      className="block h-full rounded-full bg-brand transition-[width] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
-                      style={{ width: `${o.progress}%` }}
-                    />
-                  </span>
-                )}
+                <span
+                  className={cn(
+                    "mt-0.5 block truncate text-[12px]",
+                    current && todo > 0 ? "text-attention-text" : "text-text-faint",
+                  )}
+                >
+                  {sub}
+                </span>
               </button>
             </li>
           );
         })}
-      </ul>
+      </ol>
     </nav>
   );
 }

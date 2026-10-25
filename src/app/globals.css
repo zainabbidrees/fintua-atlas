@@ -11,28 +11,35 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Brand — a blue-violet sitting deliberately between the two.
-     Hue 272: blue is ~260, violet ~290. Moderate chroma reads considered,
-     not vivid. */
-  --brand: oklch(52% 0.18 272);
-  --brand-hover: oklch(45% 0.19 272);
-  --brand-quiet: oklch(96% 0.02 272);
-  --brand-edge: oklch(89% 0.05 272);
+  /* Brand — a violet ramp (#1B0A2E → #EDE3FC). The core action colour is the
+     #7B3FD6 step, taken a shade deeper so white type clears AA on the fill. */
+  --brand: oklch(50% 0.21 293); /* ≈ #7B3FD6, deepened for contrast */
+  --brand-hover: oklch(42% 0.19 294); /* ≈ #542394 */
+  --brand-quiet: oklch(96% 0.025 293); /* tinted background — never a fill */
+  --brand-edge: oklch(88% 0.06 293); /* ≈ #CDB2F6, border on a tinted surface */
   --on-brand: oklch(99% 0 0);
 
-  /* Neutrals carry a trace of the brand hue, so greys belong to the same
-     system rather than looking borrowed. */
-  --canvas: oklch(99% 0.002 272);
-  --surface: oklch(100% 0 0);
-  --surface-sunken: oklch(97.5% 0.004 272);
-  --border: oklch(92% 0.004 272);
-  /* The one flat grey control fill, specified as a hex by design. */
-  --control: #efefef;
-  --control-hover: #e4e4e4;
-  --border-strong: oklch(86% 0.008 272);
-  --text: oklch(25% 0.02 272);
-  --text-muted: oklch(50% 0.012 272);
-  --text-faint: oklch(65% 0.01 272);
+  /* Neutrals. The page sits on the lightest neutral grey and the strokes are
+     kept light, so the violet reads as accent against a clean canvas rather
+     than tinting the whole surface. */
+  --canvas: #fcfcfc; /* the page — lightest grey, no tint */
+  --surface: oklch(100% 0 0); /* white cards lift off the grey canvas */
+  --surface-sunken: oklch(96.5% 0.014 294);
+  --border: #efefef; /* the hairline stroke, light and neutral */
+  /* The one flat control fill, a lavender-grey to match. */
+  --control: #e8e2f4;
+  --control-hover: #ddd4ef;
+  --border-strong: #e2e2e2; /* a touch stronger than --border, still neutral */
+
+  /* Text ladder — hierarchy is carried by COLOUR, not weight. Three clearly
+     stepped violets: a rich near-#1B0A2E for primary, a mid violet for
+     secondary, a soft violet for tertiary. */
+  --text: oklch(24% 0.07 296);
+  --text-muted: oklch(46% 0.06 295);
+  --text-faint: oklch(62% 0.04 294);
+  /* Titles read as the brand violet itself, so a heading announces itself by
+     hue instead of by going bold. */
+  --heading: oklch(34% 0.15 295);
 
   /* Semantic — the only other colours in the system. Muted on purpose. */
   --attention: oklch(72% 0.14 70); /* needs a human decision */
@@ -47,19 +54,21 @@
   --settled: oklch(58% 0.11 155); /* confirmed — used sparingly */
   --settled-quiet: oklch(97% 0.025 155);
 
-  /* Deep brand surfaces — the app's spine of colour: sidebar and auth panel. */
-  --deep: oklch(26% 0.09 275);
-  --deep-raised: oklch(31% 0.1 274);
-  --deep-border: oklch(37% 0.09 274);
-  --deep-text: oklch(88% 0.025 275);
-  --deep-text-faint: oklch(70% 0.03 275);
+  /* Deep brand surfaces — the app's spine of colour: sidebar and auth panel.
+     The darkest two steps of the ramp, #1B0A2E into #35145C. */
+  --deep: oklch(22% 0.1 298);
+  --deep-raised: oklch(28% 0.12 296);
+  --deep-border: oklch(35% 0.11 296);
+  --deep-text: oklch(90% 0.03 293);
+  --deep-text-faint: oklch(74% 0.05 293);
   --on-deep: oklch(99% 0 0);
 
   --radius: 0.625rem;
 
-  /* Barely-there. A hairline border does most of the separation work. */
-  --shadow-raised: 0 1px 2px oklch(25% 0.02 272 / 0.05);
-  --shadow-overlay: 0 8px 28px oklch(25% 0.02 272 / 0.12);
+  /* Barely-there, tinted to the violet hue. A hairline border does most of
+     the separation work. */
+  --shadow-raised: 0 1px 2px oklch(24% 0.07 296 / 0.06);
+  --shadow-overlay: 0 8px 28px oklch(24% 0.07 296 / 0.14);
 }
 
 @theme inline {
@@ -79,6 +88,7 @@
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-text-faint: var(--text-faint);
+  --color-heading: var(--heading);
 
   --color-deep: var(--deep);
   --color-deep-raised: var(--deep-raised);
@@ -121,11 +131,14 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Headings sit tighter than body text — Mona Sans opens up at larger sizes. */
+  /* Headings sit tighter than body text — Mona Sans opens up at larger sizes.
+     They also carry the brand violet by default: hierarchy is signalled by
+     hue, so a heading need not go heavy to stand apart. */
   h1,
   h2,
   h3 {
     letter-spacing: -0.015em;
+    color: var(--heading);
   }
 
   /* Numbers that sit in columns must align. */

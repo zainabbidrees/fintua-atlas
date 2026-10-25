@@ -3,15 +3,24 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Search, SearchX, X } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronLeft, ChevronRight, Search, SearchX, X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { copy, fill } from "@/lib/copy";
+import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
+import { UploadBar } from "@/components/patterns/upload-bar";
+import { RowActions } from "./row-actions";
+import { EditCountryDialog } from "./edit-country-dialog";
 import {
   FILTERS,
   RUNS,
   STATE_META,
-  type CountryRun,
+  makeDuplicate,
+  withIds,
+  type CountryRow,
   type FilterId,
 } from "./data";
+import { findCountry } from "@/lib/mock/countries";
 
 /**
  * The full picture, as a table.
@@ -35,10 +44,22 @@ export function CountryList() {
   const [filter, setFilter] = React.useState<FilterId>("all");
   const [term, setTerm] = React.useState("");
 
+  /* The rows are held here so the per-row actions have something to change.
+     A real backend replaces this with the service layer; the fixtures seed
+     it, each given a stable id so a duplicate can share a code without
+     colliding as a key. */
+  const [all, setAll] = React.useState<CountryRow[]>(() => withIds(RUNS));
+
+  /* The two row dialogs. Null is closed; a row is the one being acted on. */
+  const [editing, setEditing] = React.useState<CountryRow | null>(null);
+  const [removing, setRemoving] = React.useState<CountryRow | null>(null);
+
+  const [page, setPage] = React.useState(1);
+
   const matchesFilter = FILTERS.find((f) => f.id === filter)!.match;
   const query = term.trim().toLowerCase();
 
-  const rows = RUNS.filter(
+  const rows = all.filter(
     (r) =>
       matchesFilter(r) &&
       (!query ||
@@ -46,9 +67,50 @@ export function CountryList() {
         r.code.toLowerCase() === query),
   );
 
+  /* The set is short today, but a live deployment carries every jurisdiction a
+     client files in, so the table pages rather than growing without end. A
+     filter or search change drops the viewer back to the first page. */
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const current = Math.min(page, totalPages);
+  const start = (current - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+  const firstShown = rows.length === 0 ? 0 : start + 1;
+  const lastShown = Math.min(start + PAGE_SIZE, rows.length);
+
   function reset() {
     setFilter("all");
     setTerm("");
+    setPage(1);
+  }
+
+  function saveEdit(id: string, patch: Partial<CountryRow>) {
+    setAll((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    toast(fill(copy.countries.edited, { country: patch.name ?? "" }));
+  }
+
+  function duplicate(run: CountryRow) {
+    const name = `${run.name}${copy.countries.duplicateSuffix}`;
+    const copyRow = makeDuplicate(
+      run,
+      name,
+      fill(copy.countries.duplicatedFrom, { source: run.name }),
+    );
+    /* Dropped in directly below its source, where the eye expects it. */
+    setAll((rs) => {
+      const at = rs.findIndex((r) => r.id === run.id);
+      const next = [...rs];
+      next.splice(at + 1, 0, copyRow);
+      return next;
+    });
+    toast(fill(copy.countries.duplicated, { country: name }));
+  }
+
+  function remove(id: string, name: string, reason: string) {
+    setAll((rs) => rs.filter((r) => r.id !== id));
+    toast(fill(copy.countries.removed, { country: name }), {
+      description: fill(copy.countries.removedReason, { reason }),
+    });
   }
 
   return (
@@ -56,42 +118,60 @@ export function CountryList() {
       {/* Below sm the control and the search cannot share a row without the
           control being clipped mid-segment, so they stack. */}
       <div className="flex flex-col items-start gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-x-6">
-        {/* A segmented control, not underlined text. These are filters over the
-            table rather than navigation, and as bare words with a hairline rule
-            they read as a caption — nothing about them says "press me". A
-            sunken track with a raised active segment says it without a label. */}
+        {/* Discrete filter chips, not one segmented track. The track made every
+            option but the active one read as a caption — bare words on an inert
+            strip, nothing saying "press me". Each chip now carries its own
+            border and surface so it looks pressable, with room to breathe
+            between them; selection is the brand tint, the system's one colour
+            for a chosen state. */}
         <nav
           aria-label="Filter jurisdictions"
-          className="flex h-8 min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg bg-surface-sunken p-0.5 ring-1 ring-inset ring-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {FILTERS.map(({ id, label, match }) => {
-            const count = RUNS.filter(match).length;
+            const count = all.filter(match).length;
             const active = filter === id;
-            /* The one count that means someone is waiting on this user keeps
-               its colour unselected — the whole point of the bar is to show
-               that without being clicked. */
             const urgent = id === "needs_you" && count > 0;
+            /* A dot only where a filter maps to one status colour — amber
+               waiting, green live. "All" and "In progress" map to no single
+               status, so a grey dot there would be noise, not a legend. */
+            const dot =
+              id === "needs_you"
+                ? "bg-attention"
+                : id === "live"
+                  ? "bg-settled"
+                  : null;
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => setFilter(id)}
+                onClick={() => {
+                  setFilter(id);
+                  setPage(1);
+                }}
                 aria-pressed={active}
                 className={cn(
-                  "shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors",
+                  "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-[13px] font-medium",
+                  "transition-[color,background-color,border-color,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.97]",
                   active
-                    ? "bg-surface text-text shadow-[var(--shadow-raised)] ring-1 ring-inset ring-border"
-                    : "text-text-muted hover:text-text",
+                    ? "border-brand-edge bg-brand-quiet text-brand"
+                    : "border-border bg-surface text-text-muted hover:border-border-strong hover:text-text",
                 )}
               >
+                {dot && (
+                  <span
+                    aria-hidden
+                    className={cn("size-1.5 shrink-0 rounded-full", dot)}
+                  />
+                )}
                 {label}
                 <span
                   className={cn(
-                    "ml-1.5 tabular-nums",
-                    urgent
-                      ? "text-attention-text"
-                      : active
-                        ? "text-text-muted"
+                    "tabular-nums",
+                    active
+                      ? "text-brand/70"
+                      : urgent
+                        ? "text-attention-text"
                         : "text-text-faint",
                   )}
                 >
@@ -102,22 +182,25 @@ export function CountryList() {
           })}
         </nav>
 
-        {/* A real field: bordered, the same 32px as the segmented control
-            beside it, and clearable. As a borderless input it read as stray
-            placeholder text and sat 4px short of its neighbour. */}
-        <div className="relative w-full shrink-0 sm:w-56">
+        {/* A prominent search field: taller than the filter rail beside it, a
+            clear leading magnifier, and lifted off the canvas with a hairline
+            border and the faintest shadow. Clearable. */}
+        <div className="relative w-full shrink-0 sm:w-72">
           <Search
             aria-hidden
-            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-text-faint"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
           />
           <input
             type="search"
             value={term}
-            onChange={(e) => setTerm(e.target.value)}
+            onChange={(e) => {
+              setTerm(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search jurisdictions"
             aria-label="Search jurisdictions"
             className={cn(
-              "h-8 w-full rounded-lg border border-border-strong bg-surface pl-8 pr-8 text-[13px] text-text",
+              "h-10 w-full rounded-lg border border-border-strong bg-surface pl-9 pr-9 text-[14px] text-text shadow-[var(--shadow-raised)]",
               "placeholder:text-text-faint",
               "focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/25",
               /* The native widget is unstyleable and duplicates the button. */
@@ -127,11 +210,14 @@ export function CountryList() {
           {term && (
             <button
               type="button"
-              onClick={() => setTerm("")}
+              onClick={() => {
+                setTerm("");
+                setPage(1);
+              }}
               aria-label="Clear search"
-              className="absolute right-1.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-md text-text-faint transition-colors hover:bg-surface-sunken hover:text-text"
+              className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-faint transition-colors hover:bg-surface-sunken hover:text-text"
             >
-              <X className="size-3.5" />
+              <X className="size-4" />
             </button>
           )}
         </div>
@@ -151,43 +237,145 @@ export function CountryList() {
                 shadow rather than a border: a collapsed-border table drops the
                 border on a stuck thead. */}
             <thead className="sticky top-0 z-10">
+              {/* Widths are shares of the table, summing to 100%, so the
+                  columns spread across the whole width instead of bunching at
+                  the left with one column absorbing the slack. */}
               <tr>
-                <Th className="w-[10.5rem]">Jurisdiction</Th>
-                <Th className="w-[6.5rem]">Status</Th>
+                <Th className="w-[16%]">Jurisdiction</Th>
+                <Th className="w-[11%]">Status</Th>
                 {/* Fits "Approval & Publish 4/5", the longest stage. A clipped
                     enum loses its meaning; a clipped sentence still reads, so
                     the activity column is the one that gives way. */}
-                <Th className="w-[10rem]">Stage</Th>
-                {/* Counts align right, under their own digits. Ragged-left
-                    under the two longest labels in the row, they read as
-                    stranded fragments and squeezed the middle of the bar. */}
-                <Th className="w-[6.5rem] text-right">Obligations</Th>
-                <Th className="w-[5rem] text-right">Review</Th>
-                {/* Wide enough for the longest name in the set; the activity
-                    column absorbs the difference and truncates with a title. */}
-                <Th className="w-[9.25rem]">Owner</Th>
-                {/* No width: absorbs whatever is left. */}
-                <Th>Last activity</Th>
-                <th className="w-6 bg-canvas shadow-[inset_0_-1px_0_var(--border)]" />
+                <Th className="w-[15%]">Stage</Th>
+                {/* Counts align right, under their own digits. */}
+                <Th className="w-[9%] text-right">Obligations</Th>
+                <Th className="w-[7%] text-right">Review</Th>
+                <Th className="w-[14%]">Owner</Th>
+                {/* The widest share: two lines of activity, truncated with a title. */}
+                <Th className="w-[24%]">Last activity</Th>
+                <th className="w-[4%] bg-canvas shadow-[inset_0_-1px_0_var(--border)]">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((run, i) => (
-                <Row key={run.code} run={run} index={i} />
+              {pageRows.map((run, i) => (
+                <Row
+                  key={run.id}
+                  run={run}
+                  index={i}
+                  onEdit={setEditing}
+                  onDuplicate={duplicate}
+                  onRemove={setRemoving}
+                />
               ))}
             </tbody>
           </table>
 
           <ul className="lg:hidden">
-            {rows.map((run, i) => (
-              <CompactRow key={run.code} run={run} index={i} />
+            {pageRows.map((run, i) => (
+              <CompactRow
+                key={run.id}
+                run={run}
+                index={i}
+                onEdit={setEditing}
+                onDuplicate={duplicate}
+                onRemove={setRemoving}
+              />
             ))}
           </ul>
+
+          {/* A footer the table can end on, rather than trailing off into blank
+              space: it states what you're looking at and pages the rest. */}
+          <nav
+            aria-label="Pagination"
+            className="mt-4 flex flex-col items-start gap-3 border-t border-border pt-4 text-[13px] sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="text-text-muted">
+              Showing{" "}
+              <span className="font-medium tabular-nums text-text">
+                {firstShown}&ndash;{lastShown}
+              </span>{" "}
+              of{" "}
+              <span className="font-medium tabular-nums text-text">
+                {rows.length}
+              </span>{" "}
+              jurisdictions
+            </p>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage(current - 1)}
+                disabled={current === 1}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium transition-colors",
+                  "text-text-muted hover:bg-surface-sunken hover:text-text",
+                  "disabled:pointer-events-none disabled:opacity-40",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30",
+                )}
+              >
+                <ChevronLeft className="size-4" />
+                Previous
+              </button>
+
+              <span className="px-2 tabular-nums text-text-muted">
+                Page {current} of {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPage(current + 1)}
+                disabled={current === totalPages}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium transition-colors",
+                  "text-text-muted hover:bg-surface-sunken hover:text-text",
+                  "disabled:pointer-events-none disabled:opacity-40",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30",
+                )}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          </nav>
         </>
       )}
+
+      {/* Supporting material for the jurisdiction list — a file or a link that
+          the table above doesn't already hold. */}
+      <UploadBar className="mt-6" />
+
+      <EditCountryDialog
+        run={editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+        onSave={saveEdit}
+      />
+
+      {/* Removal keeps its why — the same pattern the obligation list uses. */}
+      <ConfirmWithReason
+        open={removing !== null}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title={fill(copy.countries.removeTitle, { country: removing?.name ?? "" })}
+        hint={copy.countries.removeHint}
+        placeholder={copy.countries.removePlaceholder}
+        confirmLabel={copy.countries.removeConfirm}
+        cancelLabel={fill(copy.countries.removeCancel, {
+          country: removing?.name ?? "",
+        })}
+        onConfirm={(reason) =>
+          removing && remove(removing.id, removing.name, reason)
+        }
+      />
     </div>
   );
 }
+
+type RowHandlers = {
+  onEdit: (run: CountryRow) => void;
+  onDuplicate: (run: CountryRow) => void;
+  onRemove: (run: CountryRow) => void;
+};
 
 function Th({
   children,
@@ -200,7 +388,7 @@ function Th({
     <th
       scope="col"
       className={cn(
-        "bg-canvas py-2.5 pr-5 text-[11px] font-medium uppercase tracking-[0.07em] text-text-faint",
+        "bg-canvas py-2.5 pr-5 text-[12px] font-medium text-text-faint",
         /* A label that wraps turns the bar into two ragged rows. */
         "whitespace-nowrap",
         "shadow-[inset_0_-1px_0_var(--border)]",
@@ -212,11 +400,18 @@ function Th({
   );
 }
 
-function Row({ run, index }: { run: CountryRun; index: number }) {
+function Row({
+  run,
+  index,
+  onEdit,
+  onDuplicate,
+  onRemove,
+}: { run: CountryRow; index: number } & RowHandlers) {
   const router = useRouter();
   const state = STATE_META[run.state];
   const done = run.state === "live";
   const href = `/countries/${run.code}/returns`;
+  const flag = findCountry(run.code)?.flag;
 
   return (
     <tr
@@ -231,22 +426,23 @@ function Row({ run, index }: { run: CountryRun; index: number }) {
       className="rise group cursor-pointer border-b border-border last:border-0"
       style={{ "--index": index } as React.CSSProperties}
     >
-      <Td className="relative">
-        <span
-          aria-hidden
-          className="absolute inset-y-0 -left-2 w-[2px] origin-top scale-y-0 bg-brand transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-y-100"
-        />
+      <Td>
         <span className="flex items-center gap-3">
           <span
             aria-hidden
             className={cn(
-              "grid size-8 shrink-0 place-items-center rounded-lg font-mono text-[12px] font-semibold transition-colors duration-300",
-              done
-                ? "bg-settled-quiet text-settled"
-                : "bg-surface-sunken text-text-muted group-hover:bg-brand group-hover:text-on-brand",
+              "grid size-8 shrink-0 place-items-center rounded-lg transition-colors duration-300",
+              flag
+                ? "bg-surface-sunken text-[17px] leading-8"
+                : cn(
+                    "font-mono text-[12px] font-semibold",
+                    done
+                      ? "bg-settled-quiet text-settled"
+                      : "bg-surface-sunken text-text-muted group-hover:bg-brand group-hover:text-on-brand",
+                  ),
             )}
           >
-            {run.code}
+            {flag ?? run.code}
           </span>
           <Link
             href={href}
@@ -307,11 +503,18 @@ function Row({ run, index }: { run: CountryRun; index: number }) {
         </span>
       </Td>
 
-      <Td className="pr-0">
-        <ChevronRight
-          aria-hidden
-          className="size-4 text-border-strong transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5 group-hover:text-brand"
-        />
+      {/* Centred in its own narrow column, so the control reads as a tidy
+          trailing slot with even breathing room — not a chip flush to the
+          table's edge. */}
+      <Td className="px-0 text-center">
+        <div className="flex justify-center">
+          <RowActions
+            run={run}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onRemove={onRemove}
+          />
+        </div>
       </Td>
     </tr>
   );
@@ -337,27 +540,49 @@ function Td({
 }
 
 /** Below lg the columns cannot fit, so the same fields stack. */
-function CompactRow({ run, index }: { run: CountryRun; index: number }) {
+function CompactRow({
+  run,
+  index,
+  onEdit,
+  onDuplicate,
+  onRemove,
+}: { run: CountryRow; index: number } & RowHandlers) {
   const state = STATE_META[run.state];
   const done = run.state === "live";
+  const flag = findCountry(run.code)?.flag;
 
   return (
     <li
-      className="rise border-b border-border last:border-0"
+      /* The menu is a sibling of the link, not nested inside it — an anchor
+         can't hold a button — so it sits in the row's top-right corner. */
+      className="rise relative border-b border-border last:border-0"
       style={{ "--index": index } as React.CSSProperties}
     >
+      <div className="absolute right-0 top-3 z-10">
+        <RowActions
+          run={run}
+          onEdit={onEdit}
+          onDuplicate={onDuplicate}
+          onRemove={onRemove}
+        />
+      </div>
       <Link
         href={`/countries/${run.code}/returns`}
-        className="flex items-start gap-3 py-4 transition-colors hover:bg-surface"
+        className="flex items-start gap-3 py-4 pr-9 transition-colors hover:bg-surface"
       >
         <span
           aria-hidden
           className={cn(
-            "grid size-8 shrink-0 place-items-center rounded-lg font-mono text-[12px] font-semibold",
-            done ? "bg-settled-quiet text-settled" : "bg-surface-sunken text-text-muted",
+            "grid size-8 shrink-0 place-items-center rounded-lg",
+            flag
+              ? "bg-surface-sunken text-[17px] leading-8"
+              : cn(
+                  "font-mono text-[12px] font-semibold",
+                  done ? "bg-settled-quiet text-settled" : "bg-surface-sunken text-text-muted",
+                ),
           )}
         >
-          {run.code}
+          {flag ?? run.code}
         </span>
 
         <span className="min-w-0 flex-1">

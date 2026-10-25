@@ -76,22 +76,22 @@ export function SourceBlock({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "group/source flex h-full items-center gap-3 rounded-lg border border-border bg-surface-sunken p-3 transition-colors hover:border-border-strong hover:bg-surface",
+        "group/source flex h-full items-center gap-3 rounded-lg border border-border bg-[#fefefe] p-3 transition-colors hover:border-border-strong hover:bg-surface",
         className,
       )}
     >
       <SourceMark extension={extension} host={host} />
 
       <span className="min-w-0 flex-1 self-center">
-        <span className="flex items-center gap-0.5 text-sm font-medium text-text transition-colors group-hover/source:text-brand">
+        <span className="flex items-center gap-1 text-[15px] font-medium text-text transition-colors group-hover/source:text-brand">
           <span className="truncate">{title}</span>
-          <ArrowUpRight className="size-3.5 shrink-0" />
+          <ArrowUpRight className="size-4 shrink-0" />
         </span>
 
         {/* Stacked, not joined by a middot: two short lines fit the column and
             cost no height — the mark beside them is already two lines tall. */}
         {lines.map((line) => (
-          <span key={line} className="mt-0.5 block truncate text-xs text-text-muted" data-numeric>
+          <span key={line} className="mt-0.5 block truncate text-[13px] text-text-muted" data-numeric>
             {line}
           </span>
         ))}

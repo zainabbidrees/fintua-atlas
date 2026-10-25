@@ -149,33 +149,33 @@ const BOXES: Dataset = {
     { key: "required", label: "Mandatory", kind: "flag", editable: true, width: "w-28" },
   ],
   rows: [
-    row("b-00", { box: "grid_00", label: "Sales at 0%", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
-    row("b-01", { box: "grid_01", label: "Sales at 6%", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
-    row("b-02", { box: "grid_02", label: "Sales at 12%", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
-    row("b-03", { box: "grid_03", label: "Sales at 21%", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
-    row("b-44", { box: "grid_44", label: "Services to EU taxable persons", type: "Numeric", required: "no" }, { citation: EURLEX }),
+    row("b-00", { box: "[00]", label: "Sales at 0%", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
+    row("b-01", { box: "[01]", label: "Sales at 6%", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
+    row("b-02", { box: "[02]", label: "Sales at 12%", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
+    row("b-03", { box: "[03]", label: "Sales at 21%", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
+    row("b-44", { box: "[44]", label: "Services to EU taxable persons", type: "Numeric", required: "no" }, { citation: EURLEX }),
     row(
       "b-45",
-      { box: "grid_45", label: "Sales under domestic reverse charge", type: "Numeric", required: "no" },
+      { box: "[45]", label: "Sales under domestic reverse charge", type: "Numeric", required: "no" },
       { citation: CIRCULAR },
     ),
-    row("b-46", { box: "grid_46", label: "Intra-Community supplies of goods", type: "Numeric", required: "no" }, { citation: EURLEX }),
-    row("b-47", { box: "grid_47", label: "Other exempt sales and exports", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
-    row("b-54", { box: "grid_54", label: "VAT due on grids 01, 02 and 03", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
+    row("b-46", { box: "[46]", label: "Intra-Community supplies of goods", type: "Numeric", required: "no" }, { citation: EURLEX }),
+    row("b-47", { box: "[47]", label: "Other exempt sales and exports", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
+    row("b-54", { box: "[54]", label: "VAT due on grids 01, 02 and 03", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
     row(
       "b-56",
-      { box: "grid_56", label: "VAT due on reverse-charge purchases", type: "Numeric", required: "yes" },
+      { box: "[56]", label: "VAT due on reverse-charge purchases", type: "Numeric", required: "yes" },
       {
         issue:
-          "The explanatory notes put reverse-charge VAT in grid 56; the Intervat schema the agent read puts it in grid 55. One of the two is out of date.",
+          "Schema check against the Intervat XSD: 1 box short, 1 spare. The XSD requires [55] for reverse-charge VAT, which the extracted set is missing; [56], declared from the explanatory notes, isn't in the XSD. A return built on [56] would be rejected on submission. Confirm which box Belgium files on.",
       },
     ),
-    row("b-59", { box: "grid_59", label: "Deductible VAT", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
-    row("b-81", { box: "grid_81", label: "Purchases of goods for resale", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
-    row("b-82", { box: "grid_82", label: "Purchases of services and other goods", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
-    row("b-83", { box: "grid_83", label: "Purchases of capital goods", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
-    row("b-86", { box: "grid_86", label: "Intra-Community acquisitions", type: "Numeric", required: "no" }, { citation: EURLEX }),
-    row("b-87", { box: "grid_87", label: "Other purchases under reverse charge", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
+    row("b-59", { box: "[59]", label: "Deductible VAT", type: "Numeric", required: "yes" }, { citation: CIRCULAR }),
+    row("b-81", { box: "[81]", label: "Purchases of goods for resale", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
+    row("b-82", { box: "[82]", label: "Purchases of services and other goods", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
+    row("b-83", { box: "[83]", label: "Purchases of capital goods", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
+    row("b-86", { box: "[86]", label: "Intra-Community acquisitions", type: "Numeric", required: "no" }, { citation: EURLEX }),
+    row("b-87", { box: "[87]", label: "Other purchases under reverse charge", type: "Numeric", required: "no" }, { citation: CIRCULAR }),
   ],
   uncovered: [],
 };
@@ -261,6 +261,15 @@ const RATES: Dataset = {
 
 const SALE_KINDS = ["Domestic", "Intra-EU B2B", "Export", "Reverse charge"];
 
+/**
+ * What the supply is, independent of its rate. The Belgian return already
+ * splits purchases this way in its own grids — 81 goods, 82 services, 83
+ * capital — and the cross-border sale rows are goods- or services-specific,
+ * so the classification is a real column rather than a label bolted on.
+ * "Goods/services" covers the domestic rate families, which carry both.
+ */
+const SUPPLY_CLASSES = ["Goods", "Services", "Goods/services", "Capital goods"];
+
 const SALES: Dataset = {
   id: "sales",
   purpose:
@@ -276,6 +285,15 @@ const SALES: Dataset = {
       required: true,
       width: "w-40",
     },
+    {
+      key: "class",
+      label: "Classification",
+      kind: "select",
+      options: SUPPLY_CLASSES,
+      editable: true,
+      required: true,
+      width: "w-48",
+    },
     { key: "rate", label: "Rate code", mono: true, editable: true, required: true, width: "w-24" },
     { key: "base", label: "Base box", mono: true, editable: true, required: true, width: "w-28" },
     { key: "vat", label: "VAT box", mono: true, editable: true, width: "w-28" },
@@ -287,9 +305,10 @@ const SALES: Dataset = {
       {
         rule: "S-01",
         kind: "Domestic",
+        class: "Goods/services",
         rate: "S",
-        base: "grid_03",
-        vat: "grid_54",
+        base: "[03]",
+        vat: "[54]",
         condition: "",
       },
       { citation: CIRCULAR },
@@ -299,9 +318,10 @@ const SALES: Dataset = {
       {
         rule: "S-02",
         kind: "Domestic",
+        class: "Goods/services",
         rate: "R12",
-        base: "grid_02",
-        vat: "grid_54",
+        base: "[02]",
+        vat: "[54]",
         condition: "",
       },
       { citation: CIRCULAR },
@@ -311,9 +331,10 @@ const SALES: Dataset = {
       {
         rule: "S-03",
         kind: "Domestic",
+        class: "Goods/services",
         rate: "R6",
-        base: "grid_01",
-        vat: "grid_54",
+        base: "[01]",
+        vat: "[54]",
         condition: "",
       },
       { citation: CIRCULAR },
@@ -323,8 +344,9 @@ const SALES: Dataset = {
       {
         rule: "S-04",
         kind: "Intra-EU B2B",
+        class: "Goods",
         rate: "Z",
-        base: "grid_46",
+        base: "[46]",
         vat: "",
         condition: "Buyer VAT number validated in VIES",
       },
@@ -335,8 +357,9 @@ const SALES: Dataset = {
       {
         rule: "S-05",
         kind: "Export",
+        class: "Goods",
         rate: "Z",
-        base: "grid_47",
+        base: "[47]",
         vat: "",
         condition: "Proof of export held",
       },
@@ -347,8 +370,9 @@ const SALES: Dataset = {
       {
         rule: "S-06",
         kind: "Reverse charge",
+        class: "Services",
         rate: "RC",
-        base: "grid_45",
+        base: "[45]",
         vat: "",
         condition: "",
       },
@@ -378,6 +402,15 @@ const PURCHASES: Dataset = {
       required: true,
       width: "w-44",
     },
+    {
+      key: "class",
+      label: "Classification",
+      kind: "select",
+      options: SUPPLY_CLASSES,
+      editable: true,
+      required: true,
+      width: "w-48",
+    },
     { key: "rate", label: "Rate code", mono: true, editable: true, required: true, width: "w-24" },
     { key: "base", label: "Base box", mono: true, editable: true, required: true, width: "w-28" },
     { key: "vat", label: "Deductible box", mono: true, editable: true, width: "w-32" },
@@ -389,9 +422,10 @@ const PURCHASES: Dataset = {
       {
         rule: "P-01",
         kind: "Domestic",
+        class: "Goods",
         rate: "S",
-        base: "grid_81",
-        vat: "grid_59",
+        base: "[81]",
+        vat: "[59]",
         deductible: "100%",
       },
       { citation: CIRCULAR },
@@ -401,9 +435,10 @@ const PURCHASES: Dataset = {
       {
         rule: "P-02",
         kind: "Domestic",
+        class: "Services",
         rate: "S",
-        base: "grid_82",
-        vat: "grid_59",
+        base: "[82]",
+        vat: "[59]",
         deductible: "100%",
       },
       { citation: CIRCULAR },
@@ -413,9 +448,10 @@ const PURCHASES: Dataset = {
       {
         rule: "P-03",
         kind: "Domestic",
+        class: "Capital goods",
         rate: "S",
-        base: "grid_83",
-        vat: "grid_59",
+        base: "[83]",
+        vat: "[59]",
         deductible: "100%",
       },
       { citation: CIRCULAR },
@@ -425,9 +461,10 @@ const PURCHASES: Dataset = {
       {
         rule: "P-04",
         kind: "Intra-EU acquisition",
+        class: "Goods",
         rate: "S",
-        base: "grid_86",
-        vat: "grid_59",
+        base: "[86]",
+        vat: "[59]",
         deductible: "100%",
       },
       {
@@ -441,9 +478,10 @@ const PURCHASES: Dataset = {
       {
         rule: "P-05",
         kind: "Import",
+        class: "Goods",
         rate: "S",
-        base: "grid_87",
-        vat: "grid_59",
+        base: "[87]",
+        vat: "[59]",
         deductible: "100%",
       },
       { citation: CIRCULAR },
@@ -468,14 +506,14 @@ const VIES: Dataset = {
       {
         field: "CustomerVATNumber",
         source: "buyer.vat_id",
-        box: "grid_46",
+        box: "[46]",
         note: "Prefixed with the country code",
       },
       { citation: INTERVAT },
     ),
     row(
       "v-total",
-      { field: "TotalValue", source: "totals.net", box: "grid_46", note: "Net of VAT, in euro" },
+      { field: "TotalValue", source: "totals.net", box: "[46]", note: "Net of VAT, in euro" },
       { citation: INTERVAT },
     ),
     row(

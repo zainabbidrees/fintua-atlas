@@ -3,7 +3,7 @@
  *
  * Register: the language a practising indirect-tax specialist uses in their own
  * working notes. Precise where the profession is precise — obligation,
- * rationale, corroborated, intra-Community, taxable person, secondary source —
+ * rationale, intra-Community, taxable person, secondary source —
  * and plain everywhere else. Two failure modes to avoid: implementation
  * vocabulary that leaked out of the codebase ("Deep Search", "T1/T2/T3"), and
  * consumer-app chattiness that reads as beneath the reader ("Know something we
@@ -64,10 +64,11 @@ export const copy = {
 
   filings: {
     heading: "{count} filing obligations identified",
-    /** "Corroborated" is the evidential standard, not a mood. */
-    summaryAllClear: "All {count} corroborated",
-    summaryMixed: "{solid} corroborated · {checks} requires review",
-    summaryMixedPlural: "{solid} corroborated · {checks} require review",
+    /** "Cross-checked": the agent found the same value in more than one
+        source. Plain label for the evidential standard "corroborated". */
+    summaryAllClear: "All {count} cross-checked",
+    summaryMixed: "{solid} cross-checked · {checks} requires review",
+    summaryMixedPlural: "{solid} cross-checked · {checks} require review",
     localNameMissing: "—",
     whyLabel: "Rationale",
     foundOnLabel: "Source",
@@ -119,6 +120,15 @@ export const copy = {
     pendingHint: "Attach a document or a source URL to supplement the research.",
   },
 
+  /** The slim upload bar that sits under a listing. */
+  uploadBar: {
+    label: "Add supporting material",
+    attach: "Attach a file",
+    linkPlaceholder: "Paste a link…",
+    add: "Add",
+    linkInvalid: "Not a valid web address.",
+  },
+
   duplicate: {
     title: "Duplicate source",
     body: "{name} corresponds to a document already retrieved from {publisher}.",
@@ -142,6 +152,75 @@ export const copy = {
     placeholder: "e.g. superseded by the 2026 circular",
     confirm: "Remove",
     cancel: "Cancel",
+  },
+
+  /** Step 4 — SQL Review. The cross-field validation of the calculated boxes:
+      a linted file proves syntax, not that the sum is right. Each identity is
+      reconciled against a real period, and anything that does not reconcile —
+      or leans on a box the schema never defined — is held for a decision. */
+  validation: {
+    title: "Cross-field validation",
+    purpose:
+      "Each calculated box is reconciled against {period}, not just linted. A box that does not add up — or an identity that references a field the schema never defined — is held here for a decision rather than applied in silence.",
+    identityLabel: "Identity",
+    expectedLabel: "Expected",
+    actualLabel: "Computed",
+    reconciles: "Reconciles",
+    mismatch: "Does not reconcile",
+    schema: "Schema mismatch",
+    noValue: "Cannot be computed",
+    accept: "Accept anyway",
+    reasonLabel: "Why this is acceptable",
+    reasonPlaceholder: "e.g. box 62 is filed manually this period, pending the 2026 schema update",
+    confirm: "Record decision",
+    cancel: "Cancel",
+    accepted: "Accepted · {reason}",
+    undo: "Undo",
+    allClear: "All {count} calculated boxes reconcile",
+    blocked: "{count} calculated box needs a decision before this can be applied",
+    blockedPlural: "{count} calculated boxes need a decision before this can be applied",
+  },
+
+  /** The per-row actions on the Countries index, and their two dialogs. */
+  countries: {
+    rowActions: "Actions for {country}",
+    open: "Open",
+    edit: "Edit details",
+    duplicate: "Duplicate",
+    remove: "Remove",
+
+    /* Toasts after an action. Short — they confirm, they don't explain. */
+    edited: "{country} updated",
+    duplicated: "{country} started",
+    removed: "{country} removed",
+    removedReason: "Reason: {reason}",
+
+    /* A duplicate is named for its source and shows where it came from. */
+    duplicateSuffix: " (copy)",
+    duplicatedFrom: "Duplicated from {source}",
+
+    /* The edit dialog. */
+    editTitle: "Edit {country}",
+    editHint:
+      "What the index shows for this country. The work inside each stage is edited there, not here.",
+    nameLabel: "Name",
+    statusLabel: "Status",
+    stageLabel: "Stage",
+    ownerLabel: "Owner",
+    ownerPlaceholder: "Full name",
+    obligationsLabel: "Obligations",
+    confirmedLabel: "Confirmed",
+    foundLabel: "Found",
+    save: "Save changes",
+    cancel: "Cancel",
+
+    /* The remove dialog reuses the reason pattern — removal keeps its why. */
+    removeTitle: "Remove {country}?",
+    removeHint:
+      "The onboarding is removed from the index. The reason is kept with the country record for audit purposes.",
+    removePlaceholder: "e.g. onboarding opened in error, duplicate of an existing record",
+    removeConfirm: "Remove",
+    removeCancel: "Keep {country}",
   },
 } as const;
 

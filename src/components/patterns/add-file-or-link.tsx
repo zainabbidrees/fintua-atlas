@@ -59,7 +59,7 @@ export function AddFileOrLink({
 
   return (
     <section className={className}>
-      <h3 className="text-sm font-semibold text-text">{heading}</h3>
+      <h3 className="text-sm font-medium text-heading">{heading}</h3>
 
       <div
         onDragOver={(e) => {

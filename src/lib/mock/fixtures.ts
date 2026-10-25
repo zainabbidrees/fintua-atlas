@@ -100,7 +100,7 @@ export const BE_FILINGS: Filing[] = [
     foundOn: BLOG,
     certainty: "needs_check",
     uncertainty:
-      "Identified only in secondary commentary from 2019, with no corroboration from the tax authority. Applicability to Belgium is unconfirmed.",
+      "Identified only in secondary commentary from 2019, with nothing from the tax authority to confirm it. Applicability to Belgium is unconfirmed.",
     origin: "found",
   },
 ];

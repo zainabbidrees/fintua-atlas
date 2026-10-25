@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { Stepper } from "@/components/patterns/stepper";
+import { UploadBar } from "@/components/patterns/upload-bar";
 import { copy } from "@/lib/copy";
 import { DECISION_KIND_LABEL } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -58,7 +59,7 @@ export function ApprovalScreen({
 
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-[22px] font-semibold tracking-tight text-text">
+              <h1 className="text-[22px] font-medium tracking-tight text-heading">
                 {countryName}
               </h1>
             </div>
@@ -80,7 +81,7 @@ export function ApprovalScreen({
           {/* What is being signed for. Belgium has no prior version, so there is
               nothing to diff — saying so beats showing an empty comparison. */}
           <section>
-            <h2 className="text-[17px] font-semibold tracking-tight text-text">
+            <h2 className="text-[17px] font-medium tracking-tight text-heading">
               Publishing {a.version} of {countryName}
             </h2>
             <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-text-muted">
@@ -101,7 +102,7 @@ export function ApprovalScreen({
           </section>
 
           <section className="mt-9">
-            <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
+            <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
               Readiness
             </h3>
             <ul className="mt-2 border-t border-border">
@@ -132,7 +133,7 @@ export function ApprovalScreen({
 
           {/* The reason every earlier step asked for a rationale. */}
           <section className="mt-9">
-            <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
+            <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
               What a human overruled
             </h3>
             <p className="mt-2 max-w-[64ch] text-[13px] leading-relaxed text-text-muted">
@@ -166,13 +167,13 @@ export function ApprovalScreen({
 
           <section className="mt-9">
             <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-              <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
+              <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
                 Approvals
               </h3>
               <button
                 type="button"
                 onClick={() => a.setAsApprover((v) => !v)}
-                className="text-[13px] font-medium text-text-muted underline-offset-4 transition-colors hover:text-brand hover:underline"
+                className="text-[13px] font-medium text-brand underline decoration-brand/40 underline-offset-2 transition-colors hover:decoration-brand"
               >
                 {a.asApprover
                   ? "Viewing as Elena Fischer · second-level approver"
@@ -266,6 +267,10 @@ export function ApprovalScreen({
               above in the relevant step, then request approval again.
             </p>
           )}
+
+          {/* Supporting material for the sign-off — a counsel note or evidence
+              an approver wants on the record with their decision. */}
+          <UploadBar className="mt-9" />
         </div>
       </div>
 

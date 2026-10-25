@@ -1,4 +1,4 @@
-import type { BuildArtifact } from "../types";
+import type { BuildArtifact, CrossFieldCheck } from "../types";
 
 /**
  * Generated from the datasets approved in step 3, using the same Belgian box
@@ -59,10 +59,11 @@ VALUES ('BE', 'BE-VAT', '01', 'Sales at 6%',               'decimal', FALSE),
        ('BE', 'BE-VAT', '46', 'Intra-Community supplies',  'decimal', FALSE),
        ('BE', 'BE-VAT', '47', 'Exports outside the EU',    'decimal', FALSE),
        ('BE', 'BE-VAT', '54', 'VAT due on sales',          'decimal', TRUE),
-       ('BE', 'BE-VAT', '59', 'Deductible VAT',            'decimal', FALSE);`,
+       ('BE', 'BE-VAT', '59', 'Deductible VAT',            'decimal', FALSE),
+       ('BE', 'BE-VAT', '71', 'VAT payable to the State',  'decimal', TRUE);`,
     checks: [
       { label: "Lint", state: "pass", detail: "No issues" },
-      { label: "Dry run", state: "pass", detail: "1 statement · 7 rows · rolled back" },
+      { label: "Dry run", state: "pass", detail: "1 statement · 8 rows · rolled back" },
       { label: "References", state: "pass", detail: "return_type BE-VAT exists" },
     ],
   },
@@ -102,8 +103,76 @@ WHERE v.country_code = 'BE'
       { label: "Rates", state: "pass", detail: "Matches the approved rate table" },
     ],
   },
+  {
+    id: "a-calc-net",
+    group: "calculations",
+    fileName: "021_calc_box_71.sql",
+    summary:
+      "Derives box 71, the net VAT payable to the State, as box 54 less the deductible VAT in box 59.",
+    sql: `UPDATE return_values v
+SET box_71 = GREATEST(
+      ROUND(COALESCE(v.box_54, 0) - COALESCE(v.box_59, 0), 2), 0)
+WHERE v.country_code = 'BE'
+  AND v.return_type  = 'BE-VAT';`,
+    checks: [
+      { label: "Lint", state: "pass", detail: "No issues" },
+      { label: "Dry run", state: "pass", detail: "1 statement · 0 rows · rolled back" },
+      { label: "References", state: "pass", detail: "box_54 and box_59 exist" },
+    ],
+  },
 ];
 
 export function artifactsFor(_countryCode: string): BuildArtifact[] {
   return BE_ARTIFACTS;
+}
+
+/**
+ * The period the calculated boxes are reconciled against — a real filed return
+ * carries more weight than synthetic values, so the check reads as evidence
+ * rather than a unit test.
+ */
+export const BE_RECONCILE_PERIOD = "a sampled Q3 2025 return";
+
+/**
+ * Cross-field validation for Belgium. The first two identities reconcile; the
+ * third is the quiet failure this step exists to catch — a correction box the
+ * research implied but the approved schema never defined, so the identity
+ * cannot be generated and the return would file with an unmapped adjustment.
+ */
+export const BE_CROSS_FIELD: CrossFieldCheck[] = [
+  {
+    id: "cf-54",
+    box: "54",
+    boxLabel: "VAT due on sales",
+    identity: "0.06·B01 + 0.12·B02 + 0.21·B03",
+    substituted: "0.06·€12,400.00 + 0.12·€3,000.00 + 0.21·€48,250.00",
+    expected: "€11,236.50",
+    actual: "€11,236.50",
+    state: "ok",
+  },
+  {
+    id: "cf-71",
+    box: "71",
+    boxLabel: "VAT payable to the State",
+    identity: "B54 − B59",
+    substituted: "€11,236.50 − €4,118.00",
+    expected: "€7,118.50",
+    actual: "€7,118.50",
+    state: "ok",
+  },
+  {
+    id: "cf-62",
+    box: "62",
+    boxLabel: "Adjustments in favour of the State",
+    identity: "B54 + B62",
+    substituted: "€11,236.50 + B62",
+    expected: "€11,236.50 + B62",
+    actual: null,
+    state: "schema",
+    note: "Box 62 is referenced by the correction rule but is not in the approved box set for BE-VAT, so the identity cannot be built.",
+  },
+];
+
+export function crossFieldFor(_countryCode: string): CrossFieldCheck[] {
+  return BE_CROSS_FIELD;
 }

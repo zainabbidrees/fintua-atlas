@@ -369,6 +369,39 @@ export interface BuildArtifact {
 
 export type BuildPhase = "ready" | "applying" | "applied" | "failed";
 
+/* ── Step 4: Cross-field validation ──────────────────────────────────────
+ *
+ * A linted, dry-run calculation file is syntactically sound; it is not proof
+ * the sum is right. A calculated box is only trustworthy once the identity it
+ * encodes is reconciled against real figures — box 54 really is the VAT on
+ * boxes 01, 02 and 03 for a representative period. This is the check the step
+ * is named for.
+ *
+ * Two ways it fails, and both must reach a person rather than apply silently:
+ * the figures do not reconcile ("mismatch"), or the identity leans on a box
+ * the approved schema never defined ("schema") — the quiet error the spec
+ * calls out, a return that looks complete and is not.
+ */
+export type ReconcileState = "ok" | "mismatch" | "schema";
+
+export interface CrossFieldCheck {
+  id: string;
+  /** The calculated box this identity derives, e.g. "54". */
+  box: string;
+  boxLabel: string;
+  /** The identity in the team's shorthand, e.g. "0.06·B01 + 0.12·B02 + 0.21·B03". */
+  identity: string;
+  /** The same identity with the period's figures substituted in. */
+  substituted: string;
+  /** What the identity should produce, formatted. */
+  expected: string;
+  /** What the generated SQL actually produces — null when it cannot be computed. */
+  actual: string | null;
+  state: ReconcileState;
+  /** What went wrong, in words — shown on a clash. */
+  note?: string;
+}
+
 /* ── Step 5: Approval ────────────────────────────────────────────────────
  *
  * The production gate. Two levels, a comment required on every decision, and

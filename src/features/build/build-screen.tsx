@@ -5,11 +5,13 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Stepper } from "@/components/patterns/stepper";
+import { UploadBar } from "@/components/patterns/upload-bar";
 import { copy } from "@/lib/copy";
-import { artifactsFor } from "@/lib/mock/build";
+import { artifactsFor, crossFieldFor, BE_RECONCILE_PERIOD } from "@/lib/mock/build";
 import { ARTIFACT_GROUP_LABEL, type ArtifactGroup, type BuildPhase } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { ArtifactRow } from "./artifact-row";
+import { ValidationPanel } from "./validation-panel";
 
 const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 const GROUPS: ArtifactGroup[] = ["schema", "boxes", "calculations"];
@@ -22,10 +24,20 @@ export function BuildScreen({
   countryName: string;
 }) {
   const artifacts = React.useMemo(() => artifactsFor(countryCode), [countryCode]);
+  const checks = React.useMemo(() => crossFieldFor(countryCode), [countryCode]);
   const [phase, setPhase] = React.useState<BuildPhase>("ready");
   const [appliedAt, setAppliedAt] = React.useState<string | null>(null);
   /** This step belongs to a developer; everyone else sees it read-only. */
   const [asDeveloper, setAsDeveloper] = React.useState(false);
+  /** checkId → the reason a non-reconciling box was accepted anyway. */
+  const [accepted, setAccepted] = React.useState<Record<string, string>>({});
+
+  /* A calculated box that neither reconciles nor has been settled holds the
+     step: the quiet failure this validation exists to catch must reach a
+     person before anything is applied. */
+  const pendingValidations = checks.filter(
+    (c) => c.state !== "ok" && accepted[c.id] === undefined,
+  ).length;
 
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => () => {
@@ -66,7 +78,7 @@ export function BuildScreen({
 
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-[22px] font-semibold tracking-tight text-text">
+              <h1 className="text-[22px] font-medium tracking-tight text-heading">
                 {countryName}
               </h1>
             </div>
@@ -95,14 +107,14 @@ export function BuildScreen({
             <button
               type="button"
               onClick={() => setAsDeveloper((d) => !d)}
-              className="text-[13px] font-medium text-text-muted underline-offset-4 transition-colors hover:text-brand hover:underline"
+              className="text-[13px] font-medium text-brand underline decoration-brand/40 underline-offset-2 transition-colors hover:decoration-brand"
             >
               {asDeveloper ? "View as tax expert" : "View as developer"}
             </button>
           </div>
 
           <section className="mt-8">
-            <h2 className="text-[17px] font-semibold tracking-tight text-text">
+            <h2 className="text-[17px] font-medium tracking-tight text-heading">
               What will be applied
             </h2>
             <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-text-muted">
@@ -129,7 +141,7 @@ export function BuildScreen({
 
               return (
                 <section key={group}>
-                  <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint">
+                  <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
                     {ARTIFACT_GROUP_LABEL[group]}
                   </h3>
                   <ul className="mt-1 border-t border-border">
@@ -142,10 +154,31 @@ export function BuildScreen({
             })}
           </div>
 
+          <ValidationPanel
+            checks={checks}
+            period={BE_RECONCILE_PERIOD}
+            accepted={accepted}
+            onAccept={(id, reason) =>
+              setAccepted((a) => ({ ...a, [id]: reason }))
+            }
+            onUndo={(id) =>
+              setAccepted((a) => {
+                const next = { ...a };
+                delete next[id];
+                return next;
+              })
+            }
+          />
+
+          {/* Supporting material for the build — a reference export or a schema
+              to check the generated files against. */}
+          <UploadBar className="mt-8" />
+
           <ApplyPanel
             phase={phase}
             appliedAt={appliedAt}
             canApply={asDeveloper}
+            pendingValidations={pendingValidations}
             onApply={apply}
             onReapply={() => setPhase("ready")}
           />
@@ -188,15 +221,18 @@ function ApplyPanel({
   phase,
   appliedAt,
   canApply,
+  pendingValidations,
   onApply,
   onReapply,
 }: {
   phase: BuildPhase;
   appliedAt: string | null;
   canApply: boolean;
+  pendingValidations: number;
   onApply: () => void;
   onReapply: () => void;
 }) {
+  const blocked = pendingValidations > 0;
   return (
     <section className="mt-12 border-t border-border pt-6">
       {phase === "applied" ? (
@@ -233,15 +269,24 @@ function ApplyPanel({
               Apply to the test environment
             </p>
             <p className="mt-0.5 max-w-[58ch] text-[13px] leading-relaxed text-text-muted">
-              {canApply
-                ? "Runs these files against Comply's test database. Production is untouched until both approvals are in."
-                : "A Fintua developer runs this. Production is untouched until both approvals are in."}
+              {blocked ? (
+                <span className="text-attention-text">
+                  {(pendingValidations === 1
+                    ? copy.validation.blocked
+                    : copy.validation.blockedPlural
+                  ).replace("{count}", String(pendingValidations))}
+                </span>
+              ) : canApply ? (
+                "Runs these files against Comply's test database. Production is untouched until both approvals are in."
+              ) : (
+                "A Fintua developer runs this. Production is untouched until both approvals are in."
+              )}
             </p>
           </div>
 
           <Button
             variant="primary"
-            disabled={!canApply || phase === "applying"}
+            disabled={!canApply || blocked || phase === "applying"}
             onClick={onApply}
             className={cn(phase === "applying" && "cursor-wait")}
           >

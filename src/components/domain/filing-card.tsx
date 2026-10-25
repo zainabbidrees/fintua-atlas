@@ -37,6 +37,7 @@ export function FilingCard({
 
   return (
     <article
+      data-review-item={needsCheck ? "" : undefined}
       className={cn(
         "group rounded-lg border bg-surface p-4 shadow-[var(--shadow-raised)] transition-colors",
         needsCheck ? "border-attention-edge" : "border-border",
@@ -55,7 +56,7 @@ export function FilingCard({
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <h3 className="text-[15px] font-semibold text-text">
+              <h3 className="text-[15px] font-medium text-heading">
                 {filing.name}
               </h3>
               <span className="text-sm text-text-muted">
@@ -79,14 +80,13 @@ export function FilingCard({
 
       {/* The claim and its proof sit side by side, so the eye travels across
           rather than down: reading "why this applies" and "where it came from"
-          is one movement. The source sits centred against the claim so it reads
-          as a document pinned beside it, not a footnote under it. Capped at a
-          readable measure: without it the text column grows with the page and
-          strands the source against the far edge. Stacked only when there is no
-          room for two columns. */}
-      <div className="mt-3 flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+          is one movement. The reasoning fills the left and the source pins to
+          the right edge, with the text itself capped at a readable measure so
+          it does not run the full width. Stacked only when there is no room for
+          two columns. */}
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
         <div className="min-w-0 flex-1">
-          <p className="text-sm leading-relaxed text-text">
+          <p className="max-w-[62ch] text-sm leading-relaxed text-text">
             <span className="text-text-faint">{copy.filings.whyLabel}: </span>
             {filing.whyItApplies}
           </p>
@@ -117,10 +117,7 @@ export function FilingCard({
           size="sm"
           variant="ghost"
           onClick={() => onRemove(filing)}
-          className={cn(
-            "-ml-2 text-text-faint hover:text-risk",
-            !needsCheck && "opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
-          )}
+          className="-ml-2 text-text-faint hover:text-risk"
         >
           <Trash2 />
           {copy.filings.remove}

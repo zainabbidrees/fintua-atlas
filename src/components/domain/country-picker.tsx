@@ -88,14 +88,14 @@ function Results({
 
   return (
     <>
-          <div className="flex items-center gap-2 border-b border-border px-3">
-            <Search className="size-4 shrink-0 text-text-faint" />
+          <div className="flex items-center gap-2.5 border-b border-border px-3.5">
+            <Search className="size-[18px] shrink-0 text-text-muted" />
             <Input
               autoFocus
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder={placeholder}
-              className="h-10 border-0 px-0 focus-visible:ring-0"
+              className="h-12 border-0 px-0 text-[15px] focus-visible:ring-0"
             />
           </div>
 
