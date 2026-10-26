@@ -85,7 +85,7 @@ export function UploadBar({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-text transition-[background-color,transform] hover:bg-surface-sunken active:scale-[0.98]"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-text transition-[background-color,transform] hover:bg-wash active:scale-[0.98]"
         >
           <Paperclip className="size-4 text-text-muted" />
           {copy.uploadBar.attach}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MoreHorizontal, ArrowUpRight, Pencil, Copy, Trash2 } from "lucide-react";
+import { MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,9 +15,8 @@ import { cn } from "@/lib/cn";
 import type { CountryRow } from "./data";
 
 /**
- * The CRUD handle on a row: Open (read), Edit (update), Duplicate (create) and
- * Remove (delete). The row itself still opens on click; this is the explicit
- * way in, and the only way to the three actions that aren't navigation.
+ * The row's action handle: View (read), Edit (update) and Delete. The row
+ * itself still opens on click; this is the explicit way in.
  *
  * The trigger is visible by default. Pass `quiet` to fade it in only on row
  * hover or focus, for places where a dense list shouldn't carry a control in
@@ -27,13 +26,11 @@ export function RowActions({
   run,
   quiet = false,
   onEdit,
-  onDuplicate,
   onRemove,
 }: {
   run: CountryRow;
   quiet?: boolean;
   onEdit: (run: CountryRow) => void;
-  onDuplicate: (run: CountryRow) => void;
   onRemove: (run: CountryRow) => void;
 }) {
   return (
@@ -50,9 +47,9 @@ export function RowActions({
                jammed against the far edge. */
             "grid size-8 place-items-center rounded-lg text-text-faint",
             "transition-[opacity,color,background-color] duration-200",
-            "hover:bg-surface-sunken hover:text-text",
+            "hover:bg-wash hover:text-text",
             "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40",
-            "data-[state=open]:bg-surface-sunken data-[state=open]:text-text data-[state=open]:opacity-100",
+            "data-[state=open]:bg-wash data-[state=open]:text-text data-[state=open]:opacity-100",
             quiet && "opacity-0 group-hover:opacity-100",
           )}
         >
@@ -65,17 +62,13 @@ export function RowActions({
       <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
         <DropdownMenuItem asChild>
           <Link href={`/countries/${run.code}/returns`}>
-            <ArrowUpRight />
+            <Eye />
             {copy.countries.open}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onEdit(run)}>
           <Pencil />
           {copy.countries.edit}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onDuplicate(run)}>
-          <Copy />
-          {copy.countries.duplicate}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem destructive onSelect={() => onRemove(run)}>

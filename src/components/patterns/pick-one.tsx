@@ -136,7 +136,7 @@ function Body({
                 "flex w-full flex-col items-start gap-0.5 rounded-md border p-3 text-left transition-colors",
                 selected
                   ? "border-brand bg-brand-quiet"
-                  : "border-border hover:border-border-strong hover:bg-surface-sunken",
+                  : "border-border hover:border-border-strong hover:bg-wash",
               )}
             >
               <span className="text-sm font-medium text-text">{option.label}</span>

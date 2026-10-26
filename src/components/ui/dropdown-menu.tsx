@@ -48,7 +48,7 @@ export function DropdownMenuItem({
     <DropdownMenuPrimitive.Item
       className={cn(
         "flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-text outline-none",
-        "data-[highlighted]:bg-surface-sunken",
+        "data-[highlighted]:bg-wash",
         "[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-text-faint",
         destructive &&
           "text-risk data-[highlighted]:bg-risk-quiet [&_svg]:text-risk",

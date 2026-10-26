@@ -25,6 +25,9 @@
   --canvas: #fcfcfc; /* the page — lightest grey, no tint */
   --surface: oklch(100% 0 0); /* white cards lift off the grey canvas */
   --surface-sunken: oklch(96.5% 0.014 294);
+  /* Hover feedback is a neutral light grey, deliberately free of the violet
+     tint the rest of the system carries, so a hover never previews the brand. */
+  --wash: oklch(96.5% 0 0);
   --border: #efefef; /* the hairline stroke, light and neutral */
   /* The one flat control fill, a lavender-grey to match. */
   --control: #e8e2f4;
@@ -81,6 +84,7 @@
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-sunken: var(--surface-sunken);
+  --color-wash: var(--wash);
   --color-border: var(--border);
   --color-control: var(--control);
   --color-control-hover: var(--control-hover);

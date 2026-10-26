@@ -72,7 +72,7 @@ export function AuthForm() {
             </label>
             <button
               type="button"
-              className="text-xs font-medium text-text-muted transition-colors hover:text-brand"
+              className="text-xs font-medium text-text-muted transition-colors hover:text-text"
             >
               Forgot it?
             </button>

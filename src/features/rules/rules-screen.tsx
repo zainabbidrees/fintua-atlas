@@ -43,7 +43,7 @@ export function RulesScreen({
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
             href={`/countries/${countryCode}/returns`}
-            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
             Return Types
@@ -138,7 +138,7 @@ export function RulesScreen({
                 <button
                   type="button"
                   onClick={() => downloadCsv(current, countryCode)}
-                  className="inline-flex shrink-0 items-center gap-1.5 pb-1 text-[13px] font-medium text-text-muted transition-colors hover:text-brand"
+                  className="inline-flex shrink-0 items-center gap-1.5 pb-1 text-[13px] font-medium text-text-muted transition-colors hover:text-text"
                 >
                   <Download className="size-3.5" />
                   Export CSV

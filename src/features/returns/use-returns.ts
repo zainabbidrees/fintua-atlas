@@ -98,6 +98,16 @@ export function useReturns(countryCode: string) {
     advanceIfCleared(findingId);
   };
 
+  /** Puts a finding back exactly as it was — the undo behind a confirm toast. */
+  const restore = React.useCallback((finding: Finding) => {
+    setObligations((all) =>
+      all.map((o) => ({
+        ...o,
+        findings: o.findings.map((f) => (f.id === finding.id ? finding : f)),
+      })),
+    );
+  }, []);
+
   /** Keeps the agent's original value alongside the correction and its reason. */
   const edit = (finding: Finding, value: string, reason: string) => {
     patch(finding.id, {
@@ -152,6 +162,7 @@ export function useReturns(countryCode: string) {
     selectedId: selected?.id ?? "",
     setSelectedId,
     confirm,
+    restore,
     edit,
     confirmCorroborated,
     outstanding,

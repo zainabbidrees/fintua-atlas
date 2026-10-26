@@ -70,7 +70,7 @@ export function BuildScreen({
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
             href={`/countries/${countryCode}/rules`}
-            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
             Specs &amp; Datasets
@@ -255,7 +255,7 @@ function ApplyPanel({
             <button
               type="button"
               onClick={onReapply}
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-text-muted transition-colors hover:text-brand"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-text-muted transition-colors hover:text-text"
             >
               <RotateCcw className="size-3.5" />
               Apply again

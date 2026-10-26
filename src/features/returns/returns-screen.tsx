@@ -27,12 +27,15 @@ export function ReturnsScreen({
   const clearedReturns = r.obligations.filter(r.isSettled).length;
 
   return (
-    <div className="pb-24">
-      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
+    // A fixed-height shell: the header, rail and footer stay put, and only the
+    // findings column scrolls — so reviewing a long return never moves the
+    // navigation or the action bar out from under the hand.
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
+      <header className="shrink-0 border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
             href="/countries"
-            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
             Countries
@@ -57,31 +60,29 @@ export function ReturnsScreen({
         </div>
       </header>
 
-      <div className="px-6 py-8 sm:px-12">
-        <div className="mx-auto w-full max-w-[1600px]">
-          {/* Asymmetric: the rail navigates, the findings carry the work. A
-              hairline down the findings' edge sets the rail apart as its own
-              panel — where you are, not what you are doing. */}
-          <div className="grid gap-x-6 gap-y-8 [&>*]:min-w-0 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:items-stretch">
-            {/* The rail lives in its own panel: a full-height stroke on its
-                right edge sets it apart from the work, while the nav inside
-                stays sticky. */}
-            <div className="lg:border-r lg:border-border-strong lg:pr-6">
-              <ObligationRail
-                obligations={r.obligations}
-                selectedId={r.selectedId}
-                onSelect={r.setSelectedId}
-                outstanding={r.outstanding}
-                isSettled={r.isSettled}
-              />
-            </div>
+      <div className="min-h-0 flex-1 px-6 sm:px-12">
+        <div className="mx-auto grid h-full w-full max-w-[1600px] grid-rows-[auto_minmax(0,1fr)] gap-x-6 [&>*]:min-w-0 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:grid-rows-1">
+          {/* The rail is a white panel that runs up to meet the header. It
+              stays put while only the findings scroll; a hairline on its right
+              edge sets it apart from the work. */}
+          <div className="min-h-0 overflow-y-auto bg-surface pt-8 lg:border-r lg:border-border lg:pr-6">
+            <ObligationRail
+              obligations={r.obligations}
+              selectedId={r.selectedId}
+              onSelect={r.setSelectedId}
+              outstanding={r.outstanding}
+              isSettled={r.isSettled}
+            />
+          </div>
 
+          {/* The one scrolling region on the screen. */}
+          <div className="min-h-0 overflow-y-auto pb-8 pt-8">
             {r.selected && <Detail run={r.selected} r={r} />}
           </div>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
+      <div className="shrink-0 border-t border-border bg-surface px-6 py-3 sm:px-12">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href="/countries/new">{copy.page.back}</Link>
@@ -191,7 +192,7 @@ function Detail({
                     key={finding.id}
                     finding={finding}
                     onConfirm={() => r.confirm(finding.id)}
-                    onEdit={(value, reason) => r.edit(finding, value, reason)}
+                    onRestore={(f) => r.restore(f)}
                   />
                 ))}
               </ul>

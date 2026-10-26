@@ -5,25 +5,20 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
-  ListChecks,
   Paperclip,
   RotateCcw,
-  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { AddFileOrLink } from "@/components/patterns/add-file-or-link";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { LiveTrail } from "@/components/patterns/live-trail";
 import { PickOne } from "@/components/patterns/pick-one";
-import { StepMarks, Stepper } from "@/components/patterns/stepper";
+import { Stepper } from "@/components/patterns/stepper";
 import { CountryPicker } from "@/components/domain/country-picker";
 import { DescribeDocument } from "@/components/domain/describe-document";
 import { DocumentList } from "@/components/domain/document-list";
 import { FilingCard, formatDate } from "@/components/domain/filing-card";
-import { SourcePanel } from "@/components/domain/source-panel";
 import { copy, fill } from "@/lib/copy";
 import { ACCEPTED_FILE_TYPES, MAX_UPLOAD_BYTES } from "./constants";
 import { useSetup } from "./use-setup";
@@ -35,17 +30,14 @@ export function SetupScreen() {
   const s = useSetup();
 
   const [filingToRemove, setFilingToRemove] = React.useState<Filing | null>(null);
-  const [sourceToRemove, setSourceToRemove] = React.useState<Source | null>(null);
   const [pendingFile, setPendingFile] = React.useState<{ name: string; size: number } | null>(null);
   const [collision, setCollision] = React.useState<{
     source: Source;
     file: { name: string; size: number };
   } | null>(null);
   const [fileError, setFileError] = React.useState<string | null>(null);
-  const [term, setTerm] = React.useState("");
   /** Tracked as exclusions, so anything newly found is carried by default. */
   const [excluded, setExcluded] = React.useState<ReadonlySet<string>>(new Set());
-  const [finished, setFinished] = React.useState(false);
 
   const researching = s.phase === "researching";
   const hasResults = s.phase === "found" && s.filings.length > 0;
@@ -80,17 +72,6 @@ export function SetupScreen() {
     setPendingFile({ name: file.name, size: file.size });
   }
 
-  if (finished && s.country) {
-    return (
-      <SetupComplete
-        countryCode={s.country.code}
-        countryName={s.country.name}
-        count={s.filings.length}
-        onBack={() => setFinished(false)}
-      />
-    );
-  }
-
   return (
     <div className="pb-20">
       {/* Header band — sits on the sunken surface so the working area reads as paper. */}
@@ -98,7 +79,7 @@ export function SetupScreen() {
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
             href="/countries"
-            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
             Countries
@@ -132,7 +113,7 @@ export function SetupScreen() {
 
       <div className="px-6 py-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
-          <section className="mt-8 rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-raised)]">
+          <section className="rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-raised)]">
             <CountryPicker
               value={s.country}
               label={copy.country.label}
@@ -144,16 +125,11 @@ export function SetupScreen() {
             )}
           </section>
 
-          {/* Before a country is chosen, both downstream blocks are shown
+          {/* Before a country is chosen, the supporting-material block is shown
               inert rather than hidden — the expert can see what this step will
               ask of them before committing to a country. */}
           {!s.country && (
             <div aria-disabled className="select-none">
-              <PendingBlock
-                icon={ListChecks}
-                heading={copy.filings.pendingHeading}
-                hint={copy.filings.pendingHint}
-              />
               <PendingBlock
                 icon={Paperclip}
                 heading={copy.documents.heading}
@@ -188,32 +164,19 @@ export function SetupScreen() {
 
           {hasResults && s.country && (
             <section className="mt-8">
-              <div className="flex items-baseline justify-between gap-4">
+              {/* Heading left; the shortcut to what still needs a decision sits
+                  on the right, where the summary text used to be. */}
+              <div className="flex items-center justify-between gap-4">
                 <h2 className="text-[17px] font-medium tracking-tight text-heading">
                   {fill(copy.filings.heading, {
                     country: s.country.name,
                     count: s.filings.length,
                   })}
                 </h2>
-                <p className="text-sm text-text-muted">
-                  {s.needsCheck === 0
-                    ? fill(copy.filings.summaryAllClear, { count: s.filings.length })
-                    : fill(
-                        s.needsCheck === 1
-                          ? copy.filings.summaryMixed
-                          : copy.filings.summaryMixedPlural,
-                        { solid: s.filings.length - s.needsCheck, checks: s.needsCheck },
-                      )}
-                </p>
-              </div>
-
-              {/* A shortcut straight to the obligations that still block the
-                  step, so they are not hunted for by scrolling. */}
-              {s.needsCheck > 0 && (
-                <div className="mt-4">
+                {s.needsCheck > 0 && (
                   <JumpToReview count={s.needsCheck} verb="review" />
-                </div>
-              )}
+                )}
+              </div>
 
               <div className="mt-4 space-y-3">
                 {s.filings.map((filing) => (
@@ -227,55 +190,7 @@ export function SetupScreen() {
                   />
                 ))}
               </div>
-
-              <div className="mt-5 rounded-xl border border-border bg-surface p-4">
-                <label className="text-sm font-medium text-text">
-                  {copy.filings.searchMore}
-                </label>
-                <div className="mt-2 flex max-w-md gap-2">
-                  <div className="relative flex-1">
-                    <Search
-                      aria-hidden
-                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
-                    />
-                    <Input
-                      value={term}
-                      onChange={(e) => {
-                        setTerm(e.target.value);
-                        s.clearSearchMessage();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && term.trim()) {
-                          void s.addFiling(term);
-                          setTerm("");
-                        }
-                      }}
-                      placeholder={copy.filings.searchMorePlaceholder}
-                      className="h-10 pl-9 text-sm shadow-[var(--shadow-raised)]"
-                    />
-                  </div>
-                  <Button
-                    className="h-10"
-                    disabled={!term.trim() || s.searching}
-                    onClick={() => {
-                      void s.addFiling(term);
-                      setTerm("");
-                    }}
-                  >
-                    {copy.filings.searchMoreAction}
-                  </Button>
-                </div>
-                {s.searchMessage && (
-                  <p className="mt-2 text-sm text-text-muted">{s.searchMessage}</p>
-                )}
-              </div>
             </section>
-          )}
-
-          {s.sources.length > 0 && (
-            <div className="mt-6">
-              <SourcePanel sources={s.sources} filings={s.filings} onRemove={setSourceToRemove} />
-            </div>
           )}
 
           {s.country && (
@@ -320,14 +235,19 @@ export function SetupScreen() {
             {s.phase === "found" && (s.filings.length === 0 || carriedCount === 0) && (
               <span className="text-sm text-text-muted">{copy.page.blockedNoFilings}</span>
             )}
-            <Button
-              variant="primary"
-              disabled={!canContinue}
-              onClick={() => setFinished(true)}
-            >
-              {copy.page.continue}
-              <ArrowRight />
-            </Button>
+            {canContinue && s.country ? (
+              <Button variant="primary" asChild>
+                <Link href={`/countries/${s.country.code}/returns`}>
+                  {copy.page.continue}
+                  <ArrowRight />
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="primary" disabled>
+                {copy.page.continue}
+                <ArrowRight />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -343,20 +263,6 @@ export function SetupScreen() {
         onConfirm={(reason) => {
           if (filingToRemove) s.removeFiling(filingToRemove, reason);
           setFilingToRemove(null);
-        }}
-      />
-
-      <ConfirmWithReason
-        open={sourceToRemove !== null}
-        onOpenChange={(open) => !open && setSourceToRemove(null)}
-        title={copy.removeReason.title}
-        hint={copy.removeReason.hint}
-        placeholder={copy.removeReason.placeholder}
-        confirmLabel={copy.removeReason.confirm}
-        cancelLabel={copy.removeReason.cancel}
-        onConfirm={(reason) => {
-          if (sourceToRemove) s.removeSource(sourceToRemove, reason);
-          setSourceToRemove(null);
         }}
       />
 
@@ -416,54 +322,6 @@ export function SetupScreen() {
   );
 }
 
-/** Closes the step: says what was agreed, and what happens next. */
-function SetupComplete({
-  countryCode,
-  countryName,
-  count,
-  onBack,
-}: {
-  countryCode: string;
-  countryName: string;
-  count: number;
-  onBack: () => void;
-}) {
-  return (
-    <div className="flex min-h-[100dvh] flex-col justify-center px-6 py-16 sm:px-12">
-      <div className="mx-auto w-full max-w-2xl">
-        <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-raised)]">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-settled-quiet">
-            <Check className="size-6 text-settled" />
-          </span>
-
-          <h1 className="mt-5 text-[22px] font-medium tracking-tight text-heading">
-            {copy.page.done}
-          </h1>
-          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-text-muted">
-            {fill(copy.page.doneBody, { count, country: countryName })}
-          </p>
-
-          <div className="mt-7">
-            <StepMarks total={STEPS.length} completed={1} label="Step 1 of 5 complete" />
-          </div>
-
-          <div className="mt-8 flex items-center justify-center gap-2">
-            <Button variant="ghost" onClick={onBack}>
-              {copy.page.doneReview}
-            </Button>
-            <Button variant="primary" size="lg" asChild>
-              <Link href={`/countries/${countryCode}/returns`}>
-                {copy.page.doneNext}
-                <ArrowRight />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /**
  * What this step will ask for, shown before a country is chosen.
  *
@@ -481,7 +339,7 @@ function PendingBlock({
   hint: string;
 }) {
   return (
-    <section className="mt-5 flex items-center gap-4 rounded-xl border border-border bg-surface-sunken/60 p-5">
+    <section className="mt-5 flex items-center gap-4 rounded-xl border border-border bg-surface p-5">
       <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-surface">
         <Icon className="size-[18px] text-text-faint" />
       </span>

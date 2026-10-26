@@ -21,11 +21,11 @@ const button = cva(
       variant: {
         primary: "bg-brand text-on-brand hover:bg-brand-hover",
         secondary:
-          "border border-border-strong bg-surface text-text hover:bg-surface-sunken",
+          "border border-border-strong bg-surface text-text hover:bg-wash",
         /* A flat grey fill, for a standing action that is neither the primary
            move nor a quiet one — "Save draft" sits beside the page title. */
         filled: "bg-control text-text hover:bg-control-hover",
-        ghost: "text-text-muted hover:bg-surface-sunken hover:text-text",
+        ghost: "text-text-muted hover:bg-wash hover:text-text",
         danger:
           "border border-risk-edge bg-surface text-risk hover:bg-risk-quiet",
       },

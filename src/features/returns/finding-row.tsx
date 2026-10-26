@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { ArrowUpRight, Check, ChevronDown, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import type { Finding, FindingState } from "@/lib/types";
 
@@ -20,18 +20,30 @@ import type { Finding, FindingState } from "@/lib/types";
 export function FindingRow({
   finding,
   onConfirm,
-  onEdit,
+  onRestore,
 }: {
   finding: Finding;
   onConfirm: () => void;
-  onEdit: (value: string, reason: string) => void;
+  /** Puts the finding back as it was — the undo behind the confirm toast. */
+  onRestore: (finding: Finding) => void;
 }) {
   const flagged = finding.state === "needs_review";
   /* Both the uncertain (needs_review) and the cross-checked values wait on an
      explicit human confirm — nothing is accepted in bulk. */
   const unconfirmed = flagged || finding.state === "corroborated";
   const [showPassage, setShowPassage] = React.useState(flagged);
-  const [editing, setEditing] = React.useState(false);
+
+  /* Confirming is reversible: it fires a toast carrying the value and an Undo
+     that restores this exact finding, so there's no modal to dismiss and no
+     dead end if the wrong one was cleared. */
+  function confirmValue() {
+    const prior = finding;
+    onConfirm();
+    toast(`${finding.label} confirmed`, {
+      description: finding.value,
+      action: { label: "Undo", onClick: () => onRestore(prior) },
+    });
+  }
 
   return (
     <li
@@ -73,23 +85,13 @@ export function FindingRow({
             </p>
           )}
 
-          {/* The decision, per value — never in bulk. Anything not yet
-              confirmed carries its own Confirm; a settled value keeps a
-              correction as the escape hatch. */}
-          {!editing && (
-            <div className="mt-3 flex items-center gap-4">
-              {unconfirmed && (
-                <Button size="sm" variant="primary" onClick={onConfirm}>
-                  Confirm
-                </Button>
-              )}
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="text-[13px] font-medium text-brand underline decoration-brand/40 underline-offset-2 transition-colors hover:decoration-brand"
-              >
-                Correct this
-              </button>
+          {/* The decision, per value — never in bulk. Confirming is reversible
+              through the toast's Undo, so it needs no second control beside it. */}
+          {unconfirmed && (
+            <div className="mt-3">
+              <Button size="sm" variant="primary" onClick={confirmValue}>
+                Confirm
+              </Button>
             </div>
           )}
         </div>
@@ -108,13 +110,13 @@ export function FindingRow({
             href={finding.evidence.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-start gap-1.5 text-[13px] text-text-muted transition-colors hover:text-brand"
+            className="group inline-flex items-start gap-1.5 text-[13px] font-medium text-brand transition-colors hover:text-brand-hover"
           >
             <FileText
-              className="mt-px size-3.5 shrink-0 text-text-faint transition-colors group-hover:text-brand"
+              className="mt-px size-3.5 shrink-0"
               strokeWidth={1.75}
             />
-            <span className="underline-offset-2 group-hover:underline">
+            <span className="underline decoration-brand/40 underline-offset-2 group-hover:decoration-brand">
               {finding.evidence.sourceTitle}
             </span>
             <ArrowUpRight className="mt-px size-3 shrink-0" />
@@ -126,7 +128,7 @@ export function FindingRow({
             type="button"
             onClick={() => setShowPassage((s) => !s)}
             aria-expanded={showPassage}
-            className="-mx-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[13px] font-medium text-brand transition-colors hover:bg-brand-quiet active:scale-[0.98]"
+            className="-mx-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[13px] font-medium text-brand transition-colors hover:bg-wash active:scale-[0.98]"
           >
             {showPassage ? "Hide passage" : "Show passage"}
             <ChevronDown
@@ -151,17 +153,6 @@ export function FindingRow({
           )}
         </figure>
       )}
-
-      {editing && (
-        <EditForm
-          initial={finding.value}
-          onCancel={() => setEditing(false)}
-          onSave={(value, reason) => {
-            onEdit(value, reason);
-            setEditing(false);
-          }}
-        />
-      )}
     </li>
   );
 }
@@ -185,67 +176,10 @@ function StatusTag({ state }: { state: FindingState }) {
     );
   }
 
-  // cross-checked — the agent found the same value in more than one source,
-  // and they agree; awaiting a human confirm. ("Cross-checked" is the plain
-  // label for the FindingState "corroborated".)
-  return (
-    <span className="shrink-0 text-[12px] font-medium text-text-muted">
-      Cross-checked
-    </span>
-  );
-}
-
-/** Correcting a value requires saying why; the agent's original is retained. */
-function EditForm({
-  initial,
-  onCancel,
-  onSave,
-}: {
-  initial: string;
-  onCancel: () => void;
-  onSave: (value: string, reason: string) => void;
-}) {
-  const [value, setValue] = React.useState(initial);
-  const [reason, setReason] = React.useState("");
-  const canSave = value.trim() !== "" && reason.trim() !== "";
-
-  return (
-    <div className="mt-4 max-w-lg space-y-3">
-      <label className="block text-[13px] text-text-muted">
-        Corrected value
-        <Input
-          autoFocus
-          value={value}
-          /* Pre-filled with the agent's value, usually replaced wholesale. */
-          onFocus={(e) => e.target.select()}
-          onChange={(e) => setValue(e.target.value)}
-          className="mt-1.5"
-        />
-      </label>
-
-      <label className="block text-[13px] text-text-muted">
-        Rationale
-        <Textarea
-          rows={2}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Retained with the record for audit purposes"
-          className="mt-1.5"
-        />
-      </label>
-
-      <div className="flex items-center gap-4">
-        <Button size="sm" variant="primary" disabled={!canSave} onClick={() => onSave(value.trim(), reason.trim())}>
-          Save correction
-        </Button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-[13px] font-medium text-text-muted transition-colors hover:text-text"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
+  // cross-checked (the FindingState "corroborated"): the agent found the same
+  // value in more than one source and they agree, awaiting a human confirm. It
+  // carries no status word — the row's value and its source already say it, and
+  // only the states that need a person (needs review) or are settled
+  // (confirmed/corrected) earn a label.
+  return null;
 }

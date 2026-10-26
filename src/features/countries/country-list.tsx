@@ -8,14 +8,12 @@ import { ChevronLeft, ChevronRight, Search, SearchX, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
-import { UploadBar } from "@/components/patterns/upload-bar";
 import { RowActions } from "./row-actions";
 import { EditCountryDialog } from "./edit-country-dialog";
 import {
   FILTERS,
   RUNS,
   STATE_META,
-  makeDuplicate,
   withIds,
   type CountryRow,
   type FilterId,
@@ -87,23 +85,6 @@ export function CountryList() {
   function saveEdit(id: string, patch: Partial<CountryRow>) {
     setAll((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     toast(fill(copy.countries.edited, { country: patch.name ?? "" }));
-  }
-
-  function duplicate(run: CountryRow) {
-    const name = `${run.name}${copy.countries.duplicateSuffix}`;
-    const copyRow = makeDuplicate(
-      run,
-      name,
-      fill(copy.countries.duplicatedFrom, { source: run.name }),
-    );
-    /* Dropped in directly below its source, where the eye expects it. */
-    setAll((rs) => {
-      const at = rs.findIndex((r) => r.id === run.id);
-      const next = [...rs];
-      next.splice(at + 1, 0, copyRow);
-      return next;
-    });
-    toast(fill(copy.countries.duplicated, { country: name }));
   }
 
   function remove(id: string, name: string, reason: string) {
@@ -215,7 +196,7 @@ export function CountryList() {
                 setPage(1);
               }}
               aria-label="Clear search"
-              className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-faint transition-colors hover:bg-surface-sunken hover:text-text"
+              className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-faint transition-colors hover:bg-wash hover:text-text"
             >
               <X className="size-4" />
             </button>
@@ -241,6 +222,11 @@ export function CountryList() {
                   columns spread across the whole width instead of bunching at
                   the left with one column absorbing the slack. */}
               <tr>
+                {/* A row number for reference in review and conversation —
+                    continuous across pages, so it reads as a position in the
+                    whole set, not the page. Kept narrow and faint so it orders
+                    without competing with the jurisdiction beside it. */}
+                <Th className="w-[4%] text-right">#</Th>
                 <Th className="w-[16%]">Jurisdiction</Th>
                 <Th className="w-[11%]">Status</Th>
                 {/* Fits "Approval & Publish 4/5", the longest stage. A clipped
@@ -252,7 +238,7 @@ export function CountryList() {
                 <Th className="w-[7%] text-right">Review</Th>
                 <Th className="w-[14%]">Owner</Th>
                 {/* The widest share: two lines of activity, truncated with a title. */}
-                <Th className="w-[24%]">Last activity</Th>
+                <Th className="w-[20%]">Last activity</Th>
                 <th className="w-[4%] bg-canvas shadow-[inset_0_-1px_0_var(--border)]">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -264,8 +250,8 @@ export function CountryList() {
                   key={run.id}
                   run={run}
                   index={i}
+                  serial={start + i + 1}
                   onEdit={setEditing}
-                  onDuplicate={duplicate}
                   onRemove={setRemoving}
                 />
               ))}
@@ -278,8 +264,8 @@ export function CountryList() {
                 key={run.id}
                 run={run}
                 index={i}
+                serial={start + i + 1}
                 onEdit={setEditing}
-                onDuplicate={duplicate}
                 onRemove={setRemoving}
               />
             ))}
@@ -310,7 +296,7 @@ export function CountryList() {
                 disabled={current === 1}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium transition-colors",
-                  "text-text-muted hover:bg-surface-sunken hover:text-text",
+                  "text-text-muted hover:bg-wash hover:text-text",
                   "disabled:pointer-events-none disabled:opacity-40",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30",
                 )}
@@ -329,7 +315,7 @@ export function CountryList() {
                 disabled={current === totalPages}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-medium transition-colors",
-                  "text-text-muted hover:bg-surface-sunken hover:text-text",
+                  "text-text-muted hover:bg-wash hover:text-text",
                   "disabled:pointer-events-none disabled:opacity-40",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30",
                 )}
@@ -341,10 +327,6 @@ export function CountryList() {
           </nav>
         </>
       )}
-
-      {/* Supporting material for the jurisdiction list — a file or a link that
-          the table above doesn't already hold. */}
-      <UploadBar className="mt-6" />
 
       <EditCountryDialog
         run={editing}
@@ -373,7 +355,6 @@ export function CountryList() {
 
 type RowHandlers = {
   onEdit: (run: CountryRow) => void;
-  onDuplicate: (run: CountryRow) => void;
   onRemove: (run: CountryRow) => void;
 };
 
@@ -403,10 +384,10 @@ function Th({
 function Row({
   run,
   index,
+  serial,
   onEdit,
-  onDuplicate,
   onRemove,
-}: { run: CountryRow; index: number } & RowHandlers) {
+}: { run: CountryRow; index: number; serial: number } & RowHandlers) {
   const router = useRouter();
   const state = STATE_META[run.state];
   const done = run.state === "live";
@@ -426,6 +407,10 @@ function Row({
       className="rise group cursor-pointer border-b border-border last:border-0"
       style={{ "--index": index } as React.CSSProperties}
     >
+      <Td className="text-right">
+        <span className="text-[13px] tabular-nums text-text-faint">{serial}</span>
+      </Td>
+
       <Td>
         <span className="flex items-center gap-3">
           <span
@@ -438,7 +423,7 @@ function Row({
                     "font-mono text-[12px] font-semibold",
                     done
                       ? "bg-settled-quiet text-settled"
-                      : "bg-surface-sunken text-text-muted group-hover:bg-brand group-hover:text-on-brand",
+                      : "bg-surface-sunken text-text-muted group-hover:bg-wash",
                   ),
             )}
           >
@@ -511,7 +496,6 @@ function Row({
           <RowActions
             run={run}
             onEdit={onEdit}
-            onDuplicate={onDuplicate}
             onRemove={onRemove}
           />
         </div>
@@ -543,10 +527,10 @@ function Td({
 function CompactRow({
   run,
   index,
+  serial,
   onEdit,
-  onDuplicate,
   onRemove,
-}: { run: CountryRow; index: number } & RowHandlers) {
+}: { run: CountryRow; index: number; serial: number } & RowHandlers) {
   const state = STATE_META[run.state];
   const done = run.state === "live";
   const flag = findCountry(run.code)?.flag;
@@ -562,7 +546,6 @@ function CompactRow({
         <RowActions
           run={run}
           onEdit={onEdit}
-          onDuplicate={onDuplicate}
           onRemove={onRemove}
         />
       </div>
@@ -587,8 +570,13 @@ function CompactRow({
 
         <span className="min-w-0 flex-1">
           <span className="flex items-center justify-between gap-3">
-            <span className="truncate text-[14px] font-medium text-text">
-              {run.name}
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="shrink-0 text-[13px] tabular-nums text-text-faint">
+                {serial}
+              </span>
+              <span className="truncate text-[14px] font-medium text-text">
+                {run.name}
+              </span>
             </span>
             {run.review > 0 && (
               <span className="shrink-0 rounded-full bg-attention-quiet px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-attention-text">

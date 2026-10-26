@@ -76,15 +76,19 @@ export function SourceBlock({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "group/source flex h-full items-center gap-3 rounded-lg border border-border bg-[#fefefe] p-3 transition-colors hover:border-border-strong hover:bg-surface",
+        "group/source flex h-full items-center gap-3 rounded-lg bg-[#fefefe] p-3 transition-colors hover:bg-surface",
         className,
       )}
     >
       <SourceMark extension={extension} host={host} />
 
       <span className="min-w-0 flex-1 self-center">
-        <span className="flex items-center gap-1 text-[15px] font-medium text-text transition-colors group-hover/source:text-brand">
-          <span className="truncate">{title}</span>
+        {/* Reads as a link by default — brand and underlined — not only on
+            hover; the underline strengthens on hover and the arrow stays bare. */}
+        <span className="flex items-center gap-1 text-[15px] font-medium text-brand transition-colors group-hover/source:text-brand-hover">
+          <span className="truncate underline decoration-brand/40 underline-offset-2 group-hover/source:decoration-brand">
+            {title}
+          </span>
           <ArrowUpRight className="size-4 shrink-0" />
         </span>
 
@@ -112,7 +116,7 @@ function SourceMark({
   const Icon = extension ? (EXTENSION_ICON[extension] ?? File) : Globe;
 
   return (
-    <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-surface">
+    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-[#efefef]">
       {host && !faviconFailed ? (
         // A plain img: the host is arbitrary and unknown at build time, and a
         // broken favicon has to fall back rather than throw.

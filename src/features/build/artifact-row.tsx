@@ -45,7 +45,7 @@ export function ArtifactRow({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-surface-sunken/50"
+        className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-wash/50"
       >
         <span className="min-w-0 flex-1">
           <span className="block font-mono text-[13px] text-text">

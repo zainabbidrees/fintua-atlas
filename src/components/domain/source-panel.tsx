@@ -49,7 +49,7 @@ export function SourcePanel({
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm font-medium text-text underline decoration-border-strong underline-offset-2 transition-colors hover:text-brand hover:decoration-brand"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-text underline decoration-border-strong underline-offset-2 transition-colors hover:text-text hover:decoration-brand"
                 >
                   {source.title}
                   <ArrowUpRight className="size-3.5 shrink-0 text-text-faint" />

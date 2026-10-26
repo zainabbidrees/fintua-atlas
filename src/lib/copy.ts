@@ -63,7 +63,7 @@ export const copy = {
   },
 
   filings: {
-    heading: "{count} filing obligations identified",
+    heading: "{count} return types identified",
     /** "Cross-checked": the agent found the same value in more than one
         source. Plain label for the evidential standard "corroborated". */
     summaryAllClear: "All {count} cross-checked",
@@ -74,7 +74,7 @@ export const copy = {
     foundOnLabel: "Source",
     needsCheck: "Requires review",
     keep: "Confirm",
-    remove: "Remove",
+    remove: "Delete",
     searchMore: "Missing an obligation?",
     searchMorePlaceholder: "Search by name, e.g. OSS",
     searchMoreAction: "Search",
@@ -184,10 +184,10 @@ export const copy = {
   /** The per-row actions on the Countries index, and their two dialogs. */
   countries: {
     rowActions: "Actions for {country}",
-    open: "Open",
-    edit: "Edit details",
+    open: "View",
+    edit: "Edit",
     duplicate: "Duplicate",
-    remove: "Remove",
+    remove: "Delete",
 
     /* Toasts after an action. Short — they confirm, they don't explain. */
     edited: "{country} updated",

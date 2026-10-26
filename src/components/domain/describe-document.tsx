@@ -79,7 +79,7 @@ function Body({
               "rounded-full border px-3 py-1.5 text-sm transition-colors",
               kind === k
                 ? "border-brand bg-brand-quiet text-brand"
-                : "border-border-strong text-text-muted hover:bg-surface-sunken hover:text-text",
+                : "border-border-strong text-text-muted hover:bg-wash hover:text-text",
             )}
           >
             {DOCUMENT_KIND_LABEL[k]}

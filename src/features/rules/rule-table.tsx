@@ -84,7 +84,7 @@ export function RuleTable({
               <button
                 type="button"
                 onClick={onAdd}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-left text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-sunken hover:text-brand"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2.5 text-left text-[13px] font-medium text-text-muted transition-colors hover:bg-wash hover:text-text"
               >
                 <Plus className="size-4 text-text-faint" strokeWidth={2} />
                 Add a rule row
@@ -141,7 +141,7 @@ function Row({
               target="_blank"
               rel="noopener noreferrer"
               title={row.citation.locator}
-              className="mt-2 inline-flex max-w-full items-center rounded-md border border-border bg-surface-sunken px-1.5 py-0.5 text-[12px] text-text-muted transition-colors hover:border-border-strong hover:text-brand"
+              className="mt-2 inline-flex max-w-full items-center rounded-md border border-border bg-surface-sunken px-1.5 py-0.5 text-[12px] text-text-muted transition-colors hover:border-border-strong hover:text-text"
             >
               <span className="truncate">{row.citation.label}</span>
             </a>

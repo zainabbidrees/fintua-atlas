@@ -24,9 +24,7 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 /**
- * Mark plus wordmark. "FINTUA" is the brand, set in caps as the artwork does;
- * "Atlas" is this product, carried in a lighter weight so the lockup reads as
- * one company and one tool rather than a single compound name.
+ * Mark plus wordmark. "FINTUA" is the brand, set in caps as the artwork does.
  */
 export function Wordmark({
   className,
@@ -40,23 +38,13 @@ export function Wordmark({
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <LogoMark className={onDeep ? "text-on-deep" : "text-brand"} />
-      <span className="flex items-baseline gap-1.5">
-        <span
-          className={cn(
-            "text-[15px] font-bold uppercase tracking-[-0.01em]",
-            onDeep ? "text-on-deep" : "text-text",
-          )}
-        >
-          Fintua
-        </span>
-        <span
-          className={cn(
-            "text-[15px] font-normal tracking-tight",
-            onDeep ? "text-deep-text-faint" : "text-text-muted",
-          )}
-        >
-          Atlas
-        </span>
+      <span
+        className={cn(
+          "text-[15px] font-bold uppercase tracking-[-0.01em]",
+          onDeep ? "text-on-deep" : "text-text",
+        )}
+      >
+        Fintua
       </span>
     </span>
   );

@@ -51,7 +51,7 @@ export function ApprovalScreen({
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
             href={`/countries/${countryCode}/build`}
-            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-brand"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
             SQL Review
@@ -385,7 +385,7 @@ function Published({
           </Button>
           <Link
             href="/audit-log"
-            className="text-[13px] font-medium text-text-muted transition-colors hover:text-brand"
+            className="text-[13px] font-medium text-text-muted transition-colors hover:text-text"
           >
             View the audit trail
           </Link>

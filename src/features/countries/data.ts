@@ -349,15 +349,10 @@ export function filingsLive(runs: CountryRun[]): number {
     .reduce((sum, r) => sum + r.filingsConfirmed, 0);
 }
 
-export type FilterId = "all" | "active" | "needs_you" | "live";
+export type FilterId = "all" | "needs_you" | "live";
 
 export const FILTERS: { id: FilterId; label: string; match: (r: CountryRun) => boolean }[] = [
   { id: "all", label: "All", match: () => true },
-  {
-    id: "active",
-    label: "In progress",
-    match: (r) => ["draft", "in_progress", "testing"].includes(r.state),
-  },
   { id: "needs_you", label: "Awaiting you", match: (r) => r.state === "awaiting_you" },
   { id: "live", label: "Live", match: (r) => r.state === "live" },
 ];
