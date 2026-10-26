@@ -36,14 +36,14 @@ const EXTENSION_ICON: Record<string, React.ComponentType<{ className?: string }>
 };
 
 /** The extension, when the thing being linked is a file rather than a page. */
-function extensionOf(target: string): string | null {
+export function extensionOf(target: string): string | null {
   const path = target.split(/[?#]/)[0] ?? "";
   const match = /\.([a-z0-9]{2,5})$/i.exec(path);
   const ext = match?.[1]?.toLowerCase();
   return ext && ext in EXTENSION_ICON ? ext : null;
 }
 
-function hostOf(url: string): string | null {
+export function hostOf(url: string): string | null {
   try {
     return new URL(url).hostname;
   } catch {
@@ -76,7 +76,7 @@ export function SourceBlock({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "group/source flex h-full items-start gap-3 rounded-lg bg-wash p-3 transition-colors hover:bg-surface",
+        "group/source flex items-start gap-3 rounded-lg bg-[oklch(97.8%_0_0)] p-3 transition-colors",
         className,
       )}
     >
@@ -105,7 +105,7 @@ export function SourceBlock({
 }
 
 /** The artefact's own mark: a file-type glyph, or the site's favicon. */
-function SourceMark({
+export function SourceMark({
   extension,
   host,
 }: {
@@ -116,7 +116,7 @@ function SourceMark({
   const Icon = extension ? (EXTENSION_ICON[extension] ?? File) : Globe;
 
   return (
-    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-[#efefef]">
+    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-surface ring-1 ring-inset ring-border">
       {host && !faviconFailed ? (
         // A plain img: the host is arbitrary and unknown at build time, and a
         // broken favicon has to fall back rather than throw.

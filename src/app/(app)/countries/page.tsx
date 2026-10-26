@@ -27,7 +27,7 @@ export default function CountriesPage() {
             </h1>
             <p className="mt-0.5 text-[13px] text-text-muted">
               <span className="tabular-nums">{RUNS.length}</span> jurisdictions ·{" "}
-              <span className="tabular-nums">{live}</span> live in Comply ·{" "}
+              <span className="tabular-nums">{live}</span> published ·{" "}
               <span className="tabular-nums">{obligations}</span> obligations
               filing
             </p>

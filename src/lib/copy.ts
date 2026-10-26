@@ -18,6 +18,7 @@ import type { DocumentKind, SourceKind } from "./types";
 export const copy = {
   page: {
     title: "Onboard country",
+    specsTitle: "Form annotations and rule mapping",
     step: "Step 1 of 5 · Select Country",
     stepsLabel: [
       "Select Country",
@@ -27,16 +28,28 @@ export const copy = {
       "Approval & Publish",
     ],
     saveDraft: "Save draft",
+    discard: "Discard",
     back: "Back",
     continue: "Continue",
-    blockedNeedsCheck: "{count} obligation requires review",
-    blockedNeedsCheckPlural: "{count} obligations require review",
-    blockedNoFilings: "At least one obligation must be confirmed",
+    blockedNeedsCheck: "{count} return type requires review",
+    blockedNeedsCheckPlural: "{count} return types require review",
+    blockedNoFilings: "At least one return type must be confirmed",
     done: "Selection complete",
     doneBody:
-      "{count} filing obligations confirmed for {country}, each with supporting evidence. Each is now worked through individually.",
+      "{count} return types confirmed for {country}, each with supporting evidence. Each is now worked through individually.",
     doneNext: "Continue to Return Types",
     doneReview: "Return to selection",
+  },
+
+  /* Discarding a draft abandons the expert's own unsaved work on this step, so
+     it asks to confirm — but not for a reason. The reason trail is for
+     overruling the agent's findings; throwing away a draft you are still
+     building is not that. */
+  discardDraft: {
+    title: "Discard this draft?",
+    hint: "The country and anything added on this step are cleared. The draft is not saved.",
+    confirm: "Discard draft",
+    cancel: "Keep working",
   },
 
   country: {
@@ -56,10 +69,15 @@ export const copy = {
   },
 
   research: {
-    runningTitle: "Researching {country}'s filing obligations",
+    runningTitle: "Researching {country}'s return types",
     runningHint: "Findings populate as they are retrieved. You can continue working.",
     trailLabel: "Sources consulted",
     activity: "Activity",
+    /** Shown once a country is chosen: the two ways to begin, neither of which
+        runs until the expert picks it. */
+    chooseHint:
+      "Search public sources for {country}'s return types, or add a document to research against.",
+    runAction: "Run deep search",
   },
 
   filings: {
@@ -75,20 +93,78 @@ export const copy = {
     needsCheck: "Requires review",
     keep: "Confirm",
     remove: "Delete",
-    searchMore: "Missing an obligation?",
+    searchMore: "Missing a return type?",
     searchMorePlaceholder: "Search by name, e.g. OSS",
     searchMoreAction: "Search",
     noneFound:
-      "No filing obligations were identified for {country}. Retry the research, or supply the material yourself below.",
+      "No return types were identified for {country}. Retry the research, or supply the material yourself below.",
     failed:
       "Research for {country} could not be completed. Retry, or supply the material yourself below.",
     retry: "Retry research",
     /** Shown before a country is chosen, so the expert can see what this
         step will produce before committing to one. */
     includeLabel: "Carry {name} into the next step",
-    pendingHeading: "Filing obligations",
+    pendingHeading: "Return types",
     pendingHint:
-      "Each obligation identified for the country appears here, with the source it was drawn from.",
+      "Each return type identified for the country appears here, with the source it was drawn from.",
+  },
+
+  /* A needs-review finding (step two) tints its row amber and carries an alert
+     that opens this modal: the agent's concern in full, and the decision on it.
+     Confirm accepts the value as it stands; Delete drops the finding from the
+     return; Move forward leaves it flagged to come back to. */
+  review: {
+    trigger: "Needs review",
+    triggerAria: "Review {label}",
+    concernLabel: "Agent's concern",
+    confirm: "Confirm value",
+    delete: "Delete row",
+    moveOn: "Move forward",
+    /* A pinned shortcut to the flagged rows so the expert never scrolls a long
+       return hunting for the two that need them. No count — the rail already
+       carries it; this is the way down, stepping to the next on each click. */
+    jump: "Jump to review",
+  },
+
+  /* The form-preview panel on the specs step: the official return rendered with
+     the agent's extracted boxes drawn over it. Chrome only — the form's own
+     German labels are fixture data in src/lib/mock/form-preview.ts. */
+  formPreview: {
+    showBoxes: "Show boxes",
+    fitWidth: "Fit width",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    pageOf: "Page {current} of {total}",
+    pagesOf: "Pages {from}–{to} of {total}",
+    goTo: "Go to",
+    first: "First page",
+    prev: "Previous page",
+    next: "Next page",
+    last: "Last page",
+  },
+
+  /* The field map under the preview: one row per extracted box. Column chrome
+     only — the box names and labels are fixture data in
+     src/lib/mock/field-map.ts. */
+  fieldMap: {
+    heading: "Field map",
+    hint: "{count} boxes extracted from the form — the mapping the SQL spec is built from.",
+    name: "box_name",
+    labelEn: "Label EN",
+    labelLocal: "Label local",
+    type: "Type",
+    required: "Req",
+    calc: "Calc",
+    formula: "Formula",
+    position: "Position",
+    confidence: "Conf",
+    rounding: "Rounding",
+    dataType: "data_type",
+    mandatoryXml: "Mandatory for XML",
+    startDate: "Start date",
+    endDate: "End date",
+    note: "Note",
+    empty: "—",
   },
 
   sources: {
@@ -98,12 +174,13 @@ export const copy = {
     updatedUnknown: "No publication date",
     whatsInItLabel: "Contents",
     remove: "Remove",
-    inUse: "Cited by {count} obligation",
-    inUsePlural: "Cited by {count} obligations",
+    inUse: "Cited by {count} return type",
+    inUsePlural: "Cited by {count} return types",
   },
 
   documents: {
     heading: "Add supporting material",
+    orDivider: "or",
     hint: "Upload a document, or provide a source URL.",
     dropAction: "Select file",
     linkPlaceholder: "https://…",
@@ -112,6 +189,9 @@ export const copy = {
     wrongType:
       "{name} is an unsupported format. Accepted: PDF, XML, XSD, CSV, XLS, XLSX or TXT.",
     yours: "Supporting material",
+    /** Marks each attached row as the expert's own, so it is never read as
+        something the agent retrieved. */
+    uploadedByYou: "Uploaded by you",
     kindQuestion: "Document type",
     noteQuestion: "Note",
     notePlaceholder: "Optional — e.g. supersedes the version published online",
@@ -127,6 +207,11 @@ export const copy = {
     linkPlaceholder: "Paste a link…",
     add: "Add",
     linkInvalid: "Not a valid web address.",
+    /** The group that lists what the expert has attached, alongside the
+        agent's own groups of findings. */
+    groupLabel: "Uploaded by you",
+    fileKind: "Uploaded file",
+    linkKind: "Pasted link",
   },
 
   duplicate: {
@@ -179,6 +264,39 @@ export const copy = {
     allClear: "All {count} calculated boxes reconcile",
     blocked: "{count} calculated box needs a decision before this can be applied",
     blockedPlural: "{count} calculated boxes need a decision before this can be applied",
+  },
+
+  /* Step 4, SQL Review: the linter's findings and the dry run's evidence —
+     shown, not asserted, so a developer reviews the actual SQL and what it
+     would do before any of it reaches the test database. */
+  build: {
+    /* The severity tally chips — singular/plural kept as separate keys, as the
+       rest of this file does. */
+    countPassed: "{count} passed",
+    countWarning: "{count} warning",
+    countWarningPlural: "{count} warnings",
+    countBlocker: "{count} blocker",
+    countBlockerPlural: "{count} blockers",
+    lineLabel: "Line {line}",
+    autoFix: "Auto-fix",
+    autoFixed: "Fixed",
+    viewPolicy: "View policy",
+    policyClose: "Close",
+
+    /* The dry-run output pane. */
+    outputTitle: "Dry-run output",
+    outputPurpose:
+      "What the rolled-back run would have written, how the database would run it, and what it would cost. Nothing here touched a real table.",
+    tabResult: "Result preview",
+    tabPlan: "Query plan",
+    tabPerformance: "Performance",
+    resultFor: "Writing to {file}",
+    rowsAffected: "{count} rows across the plan",
+    statementsRun: "{count} statements",
+    scanIndex: "Index scan",
+    scanSequential: "Sequential scan",
+    scanWrite: "Write",
+    scanFlag: "Reads the whole table — no index covers this filter yet.",
   },
 
   /** The per-row actions on the Countries index, and their two dialogs. */

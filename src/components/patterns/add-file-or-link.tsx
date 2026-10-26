@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Paperclip, Link2 } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -23,18 +23,18 @@ export function AddFileOrLink({
   linkInvalidMessage,
   accept,
   disabled,
-  onFile,
+  onFiles,
   onLink,
   className,
 }: {
-  heading: string;
+  heading?: string;
   hint: string;
   chooseLabel: string;
   linkPlaceholder: string;
   linkInvalidMessage: string;
   accept: string;
   disabled?: boolean;
-  onFile: (file: File) => void;
+  onFiles: (files: File[]) => void;
   onLink: (url: string) => void;
   className?: string;
 }) {
@@ -59,7 +59,9 @@ export function AddFileOrLink({
 
   return (
     <section className={className}>
-      <h3 className="text-sm font-medium text-heading">{heading}</h3>
+      {heading && (
+        <h3 className="text-sm font-medium text-heading">{heading}</h3>
+      )}
 
       <div
         onDragOver={(e) => {
@@ -70,8 +72,8 @@ export function AddFileOrLink({
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file) onFile(file);
+          const files = Array.from(e.dataTransfer.files ?? []);
+          if (files.length) onFiles(files);
         }}
         className={cn(
           "mt-2 rounded-lg border border-dashed p-4 transition-colors",
@@ -92,34 +94,24 @@ export function AddFileOrLink({
 
           <span className="text-xs text-text-faint">or</span>
 
-          <div className="flex min-w-[16rem] flex-1 items-center gap-2">
-            <Input
-              value={link}
-              disabled={disabled}
-              aria-invalid={error ? true : undefined}
-              onChange={(e) => {
-                setLink(e.target.value);
-                setError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  submitLink();
-                }
-              }}
-              placeholder={linkPlaceholder}
-              className="h-8 text-[13px]"
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={disabled || !link.trim()}
-              onClick={submitLink}
-              aria-label="Add link"
-            >
-              <Link2 />
-            </Button>
-          </div>
+          {/* The link is committed with Enter — no trailing button. */}
+          <Input
+            value={link}
+            disabled={disabled}
+            aria-invalid={error ? true : undefined}
+            onChange={(e) => {
+              setLink(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitLink();
+              }
+            }}
+            placeholder={linkPlaceholder}
+            className="h-8 min-w-[16rem] flex-1 text-[13px]"
+          />
         </div>
 
         {error && <p className="mt-2 text-xs text-risk">{error}</p>}
@@ -128,10 +120,11 @@ export function AddFileOrLink({
           ref={inputRef}
           type="file"
           accept={accept}
+          multiple
           className="sr-only"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onFile(file);
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) onFiles(files);
             e.target.value = "";
           }}
         />

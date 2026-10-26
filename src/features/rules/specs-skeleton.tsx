@@ -1,10 +1,9 @@
 /**
  * Prerendered placeholder while the route's params resolve.
  *
- * Shaped like the real screen — three stage nodes on the left, a table on the
- * right — so the swap reads as content arriving rather than the layout
- * rebuilding. Three nodes and not four: the count is part of the shape here,
- * since it is what tells the reader the step has parts at all.
+ * Shaped like the real screen — the three parts of the spec stacked on one
+ * page, each a heading over a table — so the swap reads as content arriving
+ * rather than the layout rebuilding.
  */
 export function SpecsSkeleton() {
   return (
@@ -22,19 +21,9 @@ export function SpecsSkeleton() {
       </div>
 
       <div className="px-6 py-8 sm:px-12">
-        <div className="mx-auto w-full max-w-[1600px]">
-          <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,13.5rem)_minmax(0,1fr)]">
-            <div className="space-y-2">
-              <span className="block h-3 w-28 rounded bg-border" />
-              <span className="block h-3 w-16 rounded bg-border/60" />
-              <div className="space-y-1.5 pt-3">
-                {[0, 1, 2].map((i) => (
-                  <span key={i} className="block h-14 rounded-xl bg-border/50" />
-                ))}
-              </div>
-            </div>
-
-            <div>
+        <div className="mx-auto w-full max-w-[1600px] space-y-16">
+          {[0, 1].map((s) => (
+            <div key={s}>
               <span className="block h-5 w-40 rounded bg-border" />
               <span className="mt-3 block h-3 w-full max-w-[40ch] rounded bg-border/60" />
 
@@ -61,7 +50,7 @@ export function SpecsSkeleton() {
                 ))}
               </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

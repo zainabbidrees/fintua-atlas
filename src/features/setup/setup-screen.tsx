@@ -6,22 +6,22 @@ import {
   ArrowLeft,
   ArrowRight,
   RotateCcw,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddFileOrLink } from "@/components/patterns/add-file-or-link";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
+import { DraftActions } from "@/components/patterns/draft-actions";
 import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { LiveTrail } from "@/components/patterns/live-trail";
-import { PickOne } from "@/components/patterns/pick-one";
 import { Stepper } from "@/components/patterns/stepper";
 import { CountryPicker } from "@/components/domain/country-picker";
-import { DescribeDocument } from "@/components/domain/describe-document";
 import { DocumentList } from "@/components/domain/document-list";
-import { FilingCard, formatDate } from "@/components/domain/filing-card";
+import { FilingCard } from "@/components/domain/filing-card";
 import { copy, fill } from "@/lib/copy";
 import { ACCEPTED_FILE_TYPES, MAX_UPLOAD_BYTES } from "./constants";
 import { useSetup } from "./use-setup";
-import type { Filing, Source } from "@/lib/types";
+import type { Filing } from "@/lib/types";
 
 const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 
@@ -29,17 +29,22 @@ export function SetupScreen() {
   const s = useSetup();
 
   const [filingToRemove, setFilingToRemove] = React.useState<Filing | null>(null);
-  const [pendingFile, setPendingFile] = React.useState<{ name: string; size: number } | null>(null);
-  const [collision, setCollision] = React.useState<{
-    source: Source;
-    file: { name: string; size: number };
-  } | null>(null);
   const [fileError, setFileError] = React.useState<string | null>(null);
   /** Tracked as exclusions, so anything newly found is carried by default. */
   const [excluded, setExcluded] = React.useState<ReadonlySet<string>>(new Set());
 
   const researching = s.phase === "researching";
   const hasResults = s.phase === "found" && s.filings.length > 0;
+  /* The draft actions belong to work that exists. Before the expert has picked
+     a country or added a document, there is nothing to save or discard, so the
+     pair stays off the header entirely. */
+  const hasStarted = Boolean(s.country) || s.documents.length > 0;
+
+  function discardDraft() {
+    s.discard();
+    setExcluded(new Set());
+    setFileError(null);
+  }
   const carriedCount = s.filings.filter((f) => !excluded.has(f.id)).length;
   const canContinue = hasResults && s.needsCheck === 0 && carriedCount > 0;
 
@@ -52,23 +57,28 @@ export function SetupScreen() {
     });
   }
 
-  function handleFile(file: File) {
+  /* Attach files straight away — one or many at a time. No type to pick and no
+     note to write: the file itself is what the model needs. Invalid files are
+     named back; the valid ones are added. */
+  function handleFiles(files: File[]): boolean {
     setFileError(null);
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setFileError(fill(copy.documents.tooLarge, { name: file.name }));
-      return;
+    const rejected: string[] = [];
+    let added = 0;
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        rejected.push(fill(copy.documents.tooLarge, { name: file.name }));
+        continue;
+      }
+      const ext = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
+      if (!ACCEPTED_FILE_TYPES.includes(ext)) {
+        rejected.push(fill(copy.documents.wrongType, { name: file.name }));
+        continue;
+      }
+      s.addDocument(file.name, file.size);
+      added++;
     }
-    const ext = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
-    if (!ACCEPTED_FILE_TYPES.includes(ext)) {
-      setFileError(fill(copy.documents.wrongType, { name: file.name }));
-      return;
-    }
-    const clash = s.findCollision(file.name);
-    if (clash) {
-      setCollision({ source: clash.source, file: { name: file.name, size: file.size } });
-      return;
-    }
-    setPendingFile({ name: file.name, size: file.size });
+    if (rejected.length) setFileError(rejected.join(" "));
+    return added > 0;
   }
 
   return (
@@ -97,9 +107,7 @@ export function SetupScreen() {
                 </h1>
               </div>
             </div>
-            <Button variant="filled" size="sm">
-              {copy.page.saveDraft}
-            </Button>
+            {hasStarted && <DraftActions onDiscard={discardDraft} />}
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -119,28 +127,57 @@ export function SetupScreen() {
               placeholder={copy.country.placeholder}
               onSelect={s.selectCountry}
             />
-            {s.phase === "empty" && (
+            {!s.country && (
               <p className="mt-3 text-sm text-text-muted">{copy.country.empty}</p>
             )}
-          </section>
 
-          {/* An upload bar from the start: an expert who already holds the
-              documents for this country can add them straight away, before
-              research even runs — not only once the findings are in. */}
-          <div className="mt-6">
-            <AddFileOrLink
-              heading={copy.documents.heading}
-              hint={copy.documents.hint}
-              chooseLabel={copy.documents.dropAction}
-              linkPlaceholder={copy.documents.linkPlaceholder}
-              linkInvalidMessage={copy.documents.linkInvalid}
-              accept={ACCEPTED_FILE_TYPES.join(",")}
-              onFile={handleFile}
-              onLink={(url) => setPendingFile({ name: new URL(url).hostname, size: 0 })}
-            />
-            {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
-            <DocumentList documents={s.documents} onRemove={s.removeDocument} />
-          </div>
+            {/* A country is chosen but research hasn't begun. Selecting a country
+                starts nothing on its own: the expert picks one of the two ways
+                in, and only that begins the research. */}
+            {s.country && s.phase === "empty" && (
+              <div className="mt-5 border-t border-border pt-5">
+                <p className="text-sm text-text-muted">
+                  {fill(copy.research.chooseHint, { country: s.country.name })}
+                </p>
+
+                <Button
+                  variant="primary"
+                  className="mt-4"
+                  onClick={s.startResearch}
+                >
+                  <Search />
+                  {copy.research.runAction}
+                </Button>
+
+                <div className="mt-5 flex items-center gap-4" role="separator">
+                  <span aria-hidden className="h-px flex-1 bg-border" />
+                  <span className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
+                    {copy.documents.orDivider}
+                  </span>
+                  <span aria-hidden className="h-px flex-1 bg-border" />
+                </div>
+
+                {/* Uploading a document is the other way in — adding one begins
+                    the research against it, so there's no separate "go". */}
+                <AddFileOrLink
+                  className="mt-5"
+                  hint={copy.documents.hint}
+                  chooseLabel={copy.documents.dropAction}
+                  linkPlaceholder={copy.documents.linkPlaceholder}
+                  linkInvalidMessage={copy.documents.linkInvalid}
+                  accept={ACCEPTED_FILE_TYPES.join(",")}
+                  onFiles={(files) => {
+                    if (handleFiles(files)) s.startResearch();
+                  }}
+                  onLink={(url) => {
+                    s.addDocument(new URL(url).hostname, 0, url);
+                    s.startResearch();
+                  }}
+                />
+                {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
+              </div>
+            )}
+          </section>
 
           {researching && s.country && (
             <section className="mt-5 rounded-xl border border-brand-edge bg-brand-quiet/50 p-5">
@@ -197,17 +234,27 @@ export function SetupScreen() {
             </section>
           )}
 
+          {/* What the expert attached as a way in, listed back once research is
+              under way. The upload control itself isn't repeated here — the
+              material is added at the start, beside the deep search — so this is
+              a record of it, not a second place to add more. */}
+          {s.country && s.phase !== "empty" && s.documents.length > 0 && (
+            <section className="mt-7">
+              <DocumentList documents={s.documents} onRemove={s.removeDocument} />
+            </section>
+          )}
+
         </div>
       </div>
 
       {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href="/countries">
-              <ArrowLeft />
-              {copy.page.back}
-            </Link>
+          {/* Step one is the first step — there's no step to go back to. The
+              Countries breadcrumb above still exits the flow. */}
+          <Button variant="ghost" disabled className="hidden sm:inline-flex">
+            <ArrowLeft />
+            {copy.page.back}
           </Button>
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
             {hasResults && s.needsCheck > 0 && (
@@ -225,7 +272,25 @@ export function SetupScreen() {
             )}
             {canContinue && s.country ? (
               <Button variant="primary" asChild>
-                <Link href={`/countries/${s.country.code}/returns`}>
+                <Link
+                  href={`/countries/${s.country.code}/returns`}
+                  /* Carry only the checked return types into step two, so an
+                     unchecked one never reappears there. Keyed by country. */
+                  onClick={() => {
+                    try {
+                      localStorage.setItem(
+                        `fintua:carried:${s.country!.code}`,
+                        JSON.stringify(
+                          s.filings
+                            .filter((f) => !excluded.has(f.id))
+                            .map((f) => f.id),
+                        ),
+                      );
+                    } catch {
+                      /* storage unavailable — step two then shows them all. */
+                    }
+                  }}
+                >
                   {copy.page.continue}
                   <ArrowRight />
                 </Link>
@@ -254,58 +319,6 @@ export function SetupScreen() {
         }}
       />
 
-      <DescribeDocument
-        fileName={pendingFile?.name ?? null}
-        open={pendingFile !== null}
-        onOpenChange={(open) => !open && setPendingFile(null)}
-        onSave={(kind, note) => {
-          if (pendingFile) s.addDocument(pendingFile.name, pendingFile.size, kind, note);
-          setPendingFile(null);
-        }}
-      />
-
-      {collision && (
-        <PickOne
-          open
-          onOpenChange={(open) => !open && setCollision(null)}
-          title={copy.duplicate.title}
-          hint={fill(copy.duplicate.body, {
-            name: collision.file.name,
-            publisher: collision.source.publisher,
-          })}
-          subject={collision.source.title}
-          options={[
-            {
-              id: "yours",
-              label: copy.duplicate.useYours,
-              attribution: collision.file.name,
-              meta: `Your copy · ${formatDate("2026-09-01")}`,
-            },
-            {
-              id: "theirs",
-              label: copy.duplicate.keepOurs,
-              attribution: collision.source.publisher,
-              meta: collision.source.lastUpdated
-                ? `Found online · ${formatDate(collision.source.lastUpdated)}`
-                : undefined,
-            },
-            {
-              id: "both",
-              label: copy.duplicate.keepBoth,
-              attribution: "Use both, and flag any disagreement",
-            },
-          ]}
-          reasonLabel={copy.clash.reasonLabel}
-          reasonPlaceholder={copy.clash.reasonPlaceholder}
-          confirmLabel={copy.clash.confirm}
-          cancelLabel={copy.documents.cancel}
-          onConfirm={(choice, reason) => {
-            s.record("Resolved duplicate", collision.source.title, reason);
-            if (choice !== "theirs") setPendingFile(collision.file);
-            setCollision(null);
-          }}
-        />
-      )}
     </div>
   );
 }

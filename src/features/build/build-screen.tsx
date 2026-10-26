@@ -2,15 +2,29 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DraftActions } from "@/components/patterns/draft-actions";
 import { Stepper } from "@/components/patterns/stepper";
 import { UploadBar } from "@/components/patterns/upload-bar";
-import { copy } from "@/lib/copy";
-import { artifactsFor, crossFieldFor, BE_RECONCILE_PERIOD } from "@/lib/mock/build";
-import { ARTIFACT_GROUP_LABEL, type ArtifactGroup, type BuildPhase } from "@/lib/types";
+import { copy, fill } from "@/lib/copy";
+import { artifactsFor, crossFieldFor, dryRunFor, BE_RECONCILE_PERIOD } from "@/lib/mock/build";
+import {
+  ARTIFACT_GROUP_LABEL,
+  type ArtifactGroup,
+  type BuildPhase,
+  type Check as CheckType,
+} from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { ArtifactRow } from "./artifact-row";
+import { DryRunOutput } from "./dry-run-output";
 import { ValidationPanel } from "./validation-panel";
 
 const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
@@ -23,14 +37,20 @@ export function BuildScreen({
   countryCode: string;
   countryName: string;
 }) {
+  const router = useRouter();
   const artifacts = React.useMemo(() => artifactsFor(countryCode), [countryCode]);
   const checks = React.useMemo(() => crossFieldFor(countryCode), [countryCode]);
+  const dryRun = React.useMemo(() => dryRunFor(countryCode), [countryCode]);
   const [phase, setPhase] = React.useState<BuildPhase>("ready");
   const [appliedAt, setAppliedAt] = React.useState<string | null>(null);
   /** This step belongs to a developer; everyone else sees it read-only. */
   const [asDeveloper, setAsDeveloper] = React.useState(false);
   /** checkId → the reason a non-reconciling box was accepted anyway. */
   const [accepted, setAccepted] = React.useState<Record<string, string>>({});
+  /** "artifactId:checkIndex" of lint findings the developer auto-fixed. */
+  const [fixed, setFixed] = React.useState<ReadonlySet<string>>(new Set());
+  /** The policy a finding opened, shown in a dialog. */
+  const [policy, setPolicy] = React.useState<CheckType["policy"] | null>(null);
 
   /* A calculated box that neither reconciles nor has been settled holds the
      step: the quiet failure this validation exists to catch must reach a
@@ -44,10 +64,33 @@ export function BuildScreen({
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
-  const warnings = artifacts.filter((a) =>
-    a.checks.some((c) => c.state === "warn"),
-  ).length;
   const statements = artifacts.length;
+
+  /* The safety tally, read by severity and after any auto-fix: a warning the
+     developer has fixed no longer counts. */
+  const severity = React.useMemo(() => {
+    let passed = 0;
+    let warnings = 0;
+    let blockers = 0;
+    for (const a of artifacts) {
+      a.checks.forEach((c, i) => {
+        const state = fixed.has(`${a.id}:${i}`) ? "pass" : c.state;
+        if (state === "pass") passed += 1;
+        else if (state === "warn") warnings += 1;
+        else blockers += 1;
+      });
+    }
+    return { passed, warnings, blockers };
+  }, [artifacts, fixed]);
+
+  function resolvedFor(artifactId: string): ReadonlySet<number> {
+    const indices = new Set<number>();
+    for (const key of fixed) {
+      const [id, idx] = key.split(":");
+      if (id === artifactId) indices.add(Number(idx));
+    }
+    return indices;
+  }
 
   function apply() {
     setPhase("applying");
@@ -82,9 +125,7 @@ export function BuildScreen({
                 {countryName}
               </h1>
             </div>
-            <Button variant="filled" size="sm">
-              {copy.page.saveDraft}
-            </Button>
+            <DraftActions onDiscard={() => router.push("/countries")} />
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -122,16 +163,38 @@ export function BuildScreen({
               <span className="tabular-nums">{statements}</span> files, each
               linted and dry-run against a copy of the test database and rolled
               back.
-              {warnings > 0 && (
-                <>
-                  {" "}
-                  <span className="text-attention-text">
-                    <span className="tabular-nums">{warnings}</span> raised a
-                    warning that does not block the run.
-                  </span>
-                </>
-              )}
             </p>
+
+            {/* The severity tally — the safety report at a glance, before the
+                per-file detail below. Colour only where a finding needs an eye. */}
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-[12px] font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-settled-quiet px-2 py-1 text-settled">
+                <Check className="size-3.5" />
+                {fill(copy.build.countPassed, { count: severity.passed })}
+              </span>
+              {severity.warnings > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-attention-quiet px-2 py-1 text-attention-text">
+                  <TriangleAlert className="size-3.5" />
+                  {fill(
+                    severity.warnings === 1
+                      ? copy.build.countWarning
+                      : copy.build.countWarningPlural,
+                    { count: severity.warnings },
+                  )}
+                </span>
+              )}
+              {severity.blockers > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-risk-quiet px-2 py-1 text-risk">
+                  <TriangleAlert className="size-3.5" />
+                  {fill(
+                    severity.blockers === 1
+                      ? copy.build.countBlocker
+                      : copy.build.countBlockerPlural,
+                    { count: severity.blockers },
+                  )}
+                </span>
+              )}
+            </div>
           </section>
 
           <div className="mt-8 space-y-10">
@@ -146,13 +209,28 @@ export function BuildScreen({
                   </h3>
                   <ul className="mt-1 border-t border-border">
                     {rows.map((artifact, i) => (
-                      <ArtifactRow key={artifact.id} artifact={artifact} index={i} />
+                      <ArtifactRow
+                        key={artifact.id}
+                        artifact={artifact}
+                        index={i}
+                        resolved={resolvedFor(artifact.id)}
+                        onAutoFix={(checkIndex) =>
+                          setFixed((prev) => {
+                            const next = new Set(prev);
+                            next.add(`${artifact.id}:${checkIndex}`);
+                            return next;
+                          })
+                        }
+                        onViewPolicy={setPolicy}
+                      />
                     ))}
                   </ul>
                 </section>
               );
             })}
           </div>
+
+          <DryRunOutput dryRun={dryRun} />
 
           <ValidationPanel
             checks={checks}
@@ -179,6 +257,7 @@ export function BuildScreen({
             appliedAt={appliedAt}
             canApply={asDeveloper}
             pendingValidations={pendingValidations}
+            lintBlockers={severity.blockers}
             onApply={apply}
             onReapply={() => setPhase("ready")}
           />
@@ -188,7 +267,10 @@ export function BuildScreen({
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={`/countries/${countryCode}/rules`}>{copy.page.back}</Link>
+            <Link href={`/countries/${countryCode}/rules`}>
+              <ArrowLeft />
+              {copy.page.back}
+            </Link>
           </Button>
 
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
@@ -213,6 +295,20 @@ export function BuildScreen({
           </div>
         </div>
       </div>
+
+      {/* The policy behind a finding — the rule and why it exists, so "View
+          policy" answers "on what basis?" without leaving the step. */}
+      <Dialog open={policy !== null} onOpenChange={(open) => !open && setPolicy(null)}>
+        <DialogContent>
+          <DialogTitle>{policy?.name}</DialogTitle>
+          <DialogDescription>{policy?.detail}</DialogDescription>
+          <div className="mt-5 flex justify-end">
+            <Button variant="filled" size="sm" onClick={() => setPolicy(null)}>
+              {copy.build.policyClose}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -222,6 +318,7 @@ function ApplyPanel({
   appliedAt,
   canApply,
   pendingValidations,
+  lintBlockers,
   onApply,
   onReapply,
 }: {
@@ -229,10 +326,15 @@ function ApplyPanel({
   appliedAt: string | null;
   canApply: boolean;
   pendingValidations: number;
+  /** Unresolved lint blockers — a file that cannot safely run as written. */
+  lintBlockers: number;
   onApply: () => void;
   onReapply: () => void;
 }) {
+  /** The validation message is specific to cross-field checks; a lint blocker
+      disables the apply too, but does not borrow that message. */
   const blocked = pendingValidations > 0;
+  const canRun = canApply && !blocked && lintBlockers === 0;
   return (
     <section className="mt-12 border-t border-border pt-6">
       {phase === "applied" ? (
@@ -286,7 +388,7 @@ function ApplyPanel({
 
           <Button
             variant="primary"
-            disabled={!canApply || blocked || phase === "applying"}
+            disabled={!canRun || phase === "applying"}
             onClick={onApply}
             className={cn(phase === "applying" && "cursor-wait")}
           >

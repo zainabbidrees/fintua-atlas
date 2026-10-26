@@ -28,11 +28,11 @@
   /* Hover feedback is a neutral light grey, deliberately free of the violet
      tint the rest of the system carries, so a hover never previews the brand. */
   --wash: oklch(96.5% 0 0);
-  --border: #efefef; /* the hairline stroke, light and neutral */
+  --border: #f3f3f3; /* the hairline stroke — toned down for a subtler look */
   /* The one flat control fill, a lavender-grey to match. */
   --control: #e8e2f4;
   --control-hover: #ddd4ef;
-  --border-strong: #e2e2e2; /* a touch stronger than --border, still neutral */
+  --border-strong: #ebebeb; /* a touch stronger than --border, still neutral */
 
   /* Text ladder — hierarchy is carried by COLOUR, not weight. Three clearly
      stepped violets: a rich near-#1B0A2E for primary, a mid violet for

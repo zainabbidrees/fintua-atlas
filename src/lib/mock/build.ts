@@ -1,4 +1,4 @@
-import type { BuildArtifact, CrossFieldCheck } from "../types";
+import type { BuildArtifact, CrossFieldCheck, DryRun } from "../types";
 
 /**
  * Generated from the datasets approved in step 3, using the same Belgian box
@@ -21,6 +21,16 @@ VALUES ('BE', 'transmission_days', 5),
        ('BE', 'nil_return_required', 1);`,
     checks: [
       { label: "Lint", state: "pass", detail: "No issues" },
+      {
+        label: "Naming",
+        state: "pass",
+        detail: "Identifiers follow snake_case, matching the schema.",
+        policy: {
+          name: "Naming convention",
+          detail:
+            "Tables and columns use snake_case, so generated SQL reads the same as the hand-written schema and the two never drift apart.",
+        },
+      },
       { label: "Dry run", state: "pass", detail: "2 statements · 4 rows · rolled back" },
       { label: "References", state: "pass", detail: "All foreign keys resolve" },
     ],
@@ -40,7 +50,14 @@ VALUES ('BE', 'BE-VAT',   'VAT Return',            'monthly',   20),
       {
         label: "Lint",
         state: "warn",
-        detail: "Statement is not terminated with a semicolon",
+        detail: "The final statement is not terminated with a semicolon.",
+        line: 5,
+        autoFix: { summary: "Add the missing semicolon" },
+        policy: {
+          name: "Statement termination",
+          detail:
+            "Every statement ends with a semicolon so the migration runner can split the file reliably. An unterminated final statement can run into the next file when the plan is applied.",
+        },
       },
       { label: "Dry run", state: "pass", detail: "1 statement · 4 rows · rolled back" },
       { label: "References", state: "pass", detail: "country_code resolves to BE" },
@@ -175,4 +192,101 @@ export const BE_CROSS_FIELD: CrossFieldCheck[] = [
 
 export function crossFieldFor(_countryCode: string): CrossFieldCheck[] {
   return BE_CROSS_FIELD;
+}
+
+/**
+ * The dry run's own evidence for Belgium: what the plan would write, how the
+ * database would execute it, and what it would cost. Taken from the same
+ * rolled-back run the step already describes — additive inserts plus two
+ * calculated updates, so the shape is cheap and backward-compatible.
+ *
+ * The one thing worth a second look is the plan: the box-54 update reads
+ * return_values by a sequential scan, because no index covers country_code yet.
+ * Harmless at test volume; named here so it is a decision, not a surprise.
+ */
+export const BE_DRY_RUN: DryRun = {
+  results: [
+    {
+      fileName: "002_return_types.sql",
+      columns: ["country_code", "code", "name", "frequency", "deadline_day"],
+      rows: [
+        ["BE", "BE-VAT", "VAT Return", "monthly", "20"],
+        ["BE", "BE-ESL", "EC Sales List", "monthly", "20"],
+        ["BE", "BE-ANNUAL", "Annual client listing", "annual", "90"],
+        ["BE", "BE-SAFT", "SAF-T", "on_demand", "—"],
+      ],
+      rowsAffected: 21,
+      statements: 7,
+    },
+    {
+      fileName: "010_boxes_vat_return.sql",
+      columns: ["box", "label", "data_type", "is_calculated"],
+      rows: [
+        ["01", "Sales at 6%", "decimal", "false"],
+        ["03", "Sales at 21%", "decimal", "false"],
+        ["54", "VAT due on sales", "decimal", "true"],
+        ["71", "VAT payable to the State", "decimal", "true"],
+      ],
+      rowsAffected: 21,
+      statements: 7,
+    },
+  ],
+  plan: [
+    {
+      op: "Insert",
+      target: "return_types",
+      scan: "none",
+      detail: "4 rows · cost 0.00–0.04",
+    },
+    {
+      op: "Insert",
+      target: "return_boxes",
+      scan: "none",
+      detail: "8 rows · cost 0.00–0.08",
+    },
+    {
+      op: "Update",
+      target: "return_values (box 54)",
+      scan: "none",
+      detail: "writes box_54 for matched rows",
+    },
+    {
+      op: "Seq Scan",
+      target: "return_values",
+      scan: "sequential",
+      detail: "filter country_code = 'BE' · cost 0.00–18.40 · no index on country_code",
+    },
+    {
+      op: "Index Scan",
+      target: "return_values_pkey",
+      scan: "index",
+      detail: "box 71 update · cost 0.29–8.31 · 1 row",
+    },
+  ],
+  performance: [
+    {
+      label: "Estimated lock time",
+      value: "6 ms",
+      ratio: 0.12,
+      tone: "settled",
+      note: "Well under the 50 ms threshold for a test apply.",
+    },
+    {
+      label: "Memory footprint",
+      value: "2.4 MB",
+      ratio: 0.16,
+      note: "Peak estimate across the plan's statements.",
+    },
+    {
+      label: "Backward compatibility",
+      value: "Full",
+      ratio: 1,
+      tone: "settled",
+      note: "Additive only — no column dropped or renamed.",
+    },
+  ],
+};
+
+export function dryRunFor(_countryCode: string): DryRun {
+  return BE_DRY_RUN;
 }

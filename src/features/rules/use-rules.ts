@@ -16,13 +16,14 @@ import {
  * Correcting a researched fact in step 2 demands a rationale — you are
  * disagreeing with the law as the agent read it. Here you are configuring a
  * mapping, and asking for prose on every cell would make the step unusable.
- * Changes are marked, the agent's original is retained, and each part of the
- * step is signed off as a whole.
+ * Changes are marked, the agent's original is retained, and the step is signed
+ * off as a whole.
  *
- * The gating is the point of this hook. A stage is finished when nothing in it
- * is still open, and until then the next one is genuinely unreachable — not
- * merely discouraged. That is what stops a rule being written against a grid
- * nobody has declared.
+ * The three parts — returns, form & rates, rules & mapping — are shown together
+ * on one page rather than gated one behind the next. The order they depend on
+ * still holds (a rule can only target a box and rate declared above it), and
+ * `view` makes that literal: a rule's columns offer exactly what the earlier
+ * parts have declared. The step is done when nothing anywhere is still open.
  */
 
 /** Why a row is still open. Empty means it is settled. */
@@ -41,8 +42,6 @@ export function useRules(countryCode: string) {
   const [datasets, setDatasets] = React.useState<Record<DatasetId, Dataset>>(() =>
     structuredClone(datasetsFor(countryCode)),
   );
-  const [stageIndex, setStageIndex] = React.useState(0);
-  const [active, setActive] = React.useState<DatasetId>(SPEC_STAGES[0].datasets[0]);
 
   const openIn = React.useCallback(
     (d: Dataset) =>
@@ -55,26 +54,6 @@ export function useRules(countryCode: string) {
     (stage: SpecStage) =>
       stage.datasets.reduce((n, id) => n + openIn(datasets[id]), 0),
     [datasets, openIn],
-  );
-
-  /** The first stage still carrying work. Everything after it is locked. */
-  const frontier = React.useMemo(() => {
-    const i = SPEC_STAGES.findIndex((s) => openInStage(s) > 0);
-    return i === -1 ? SPEC_STAGES.length - 1 : i;
-  }, [openInStage]);
-
-  const reachable = React.useCallback(
-    (i: number) => i <= Math.max(frontier, stageIndex),
-    [frontier, stageIndex],
-  );
-
-  const goToStage = React.useCallback(
-    (i: number) => {
-      if (i < 0 || i >= SPEC_STAGES.length || !reachable(i)) return;
-      setStageIndex(i);
-      setActive(SPEC_STAGES[i].datasets[0]);
-    },
-    [reachable],
   );
 
   const mutate = React.useCallback(
@@ -190,18 +169,12 @@ export function useRules(countryCode: string) {
     [datasets],
   );
 
-  const stage = SPEC_STAGES[stageIndex];
-
   return {
     datasets,
-    stage,
-    stageIndex,
     stages: SPEC_STAGES,
-    goToStage,
-    reachable,
-    active,
-    setActive,
-    current: withDeclaredOptions(datasets[active]),
+    /** A dataset with its rate and box columns narrowed to what the parts above
+        it have declared — the dependency order, made literal on one page. */
+    view: (id: DatasetId) => withDeclaredOptions(datasets[id]),
     edit,
     resolve,
     dismissGap,
@@ -210,7 +183,7 @@ export function useRules(countryCode: string) {
     rowBlockers,
     openIn,
     openInStage,
-    openInCurrentStage: openInStage(stage),
+    totalOpen: SPEC_STAGES.reduce((n, s) => n + openInStage(s), 0),
     allSettled: SPEC_STAGES.every((s) => openInStage(s) === 0),
   };
 }

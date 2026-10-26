@@ -4,6 +4,13 @@ import * as React from "react";
 import { completedFindingsFor, obligationsFor } from "@/lib/mock/obligations";
 import type { Finding, ObligationRun } from "@/lib/types";
 
+/** Something the expert attached from the rail — a file or a pasted link. */
+export interface Upload {
+  id: string;
+  label: string;
+  kind: "file" | "link";
+}
+
 /**
  * Review state for the Returns step.
  *
@@ -21,6 +28,63 @@ export function useReturns(countryCode: string) {
 
   const selected =
     obligations.find((o) => o.id === selectedId) ?? obligations[0];
+
+  /* Supporting material the expert attaches from the rail. Country-level, not
+     tied to one return, so it reads the same whichever return is open. */
+  const [uploads, setUploads] = React.useState<Upload[]>([]);
+  const addUpload = React.useCallback(
+    (item: { label: string; kind: "file" | "link" }) => {
+      setUploads((u) => [
+        ...u,
+        { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...item },
+      ]);
+    },
+    [],
+  );
+  const removeUpload = React.useCallback((id: string) => {
+    setUploads((u) => u.filter((x) => x.id !== id));
+  }, []);
+
+  /* The agent's original finding for each id, so the per-row undo can put a
+     confirmed or corrected value back exactly as it was first proposed. */
+  const originalById = React.useMemo(() => {
+    const map = new Map<string, Finding>();
+    for (const o of obligationsFor(countryCode)) {
+      const base = o.findings.length ? o.findings : completedFindingsFor(o.id);
+      for (const f of base) map.set(f.id, f);
+    }
+    return map;
+  }, [countryCode]);
+
+  /* Narrow to the return types carried forward from step one, when that choice
+     was recorded there. Done after mount so the first render matches the server
+     (both start from the full set); a missing or empty record keeps them all. */
+  React.useEffect(() => {
+    let carried: unknown = null;
+    try {
+      const raw = localStorage.getItem(`fintua:carried:${countryCode}`);
+      carried = raw ? JSON.parse(raw) : null;
+    } catch {
+      carried = null;
+    }
+    if (!Array.isArray(carried) || carried.length === 0) return;
+    const keep = new Set(carried as string[]);
+    // Syncing from localStorage after mount (to match the server's first render)
+    // is the one case that legitimately needs setState in an effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setObligations((all) => {
+      const next = all.filter((o) => keep.has(o.id));
+      return next.length ? next : all;
+    });
+  }, [countryCode]);
+
+  /* Keep the open return valid if the carried filter dropped the selected one. */
+  React.useEffect(() => {
+    if (obligations.length && !obligations.some((o) => o.id === selectedId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedId(obligations[0].id);
+    }
+  }, [obligations, selectedId]);
 
   /**
    * A running agent finishes on its own while the specialist works elsewhere.
@@ -63,14 +127,15 @@ export function useReturns(countryCode: string) {
     [],
   );
 
-  /** Did acting on `changedId` clear the whole of the open return? */
-  const clearsOpenReturn = (changedId: string) => {
+  /** Did settling `changed` (one id, or several from a bulk action) clear the
+      whole of the open return? The changed values count as settled here because
+      setObligations has not yet applied them when this runs. */
+  const clearsOpenReturn = (changed: Set<string>) => {
     const open = obligations.find((o) => o.id === selectedId);
     if (!open) return false;
-    return open.findings.every((f) =>
-      f.id === changedId
-        ? true
-        : f.state === "confirmed" || f.state === "edited",
+    return open.findings.every(
+      (f) =>
+        changed.has(f.id) || f.state === "confirmed" || f.state === "edited",
     );
   };
 
@@ -86,9 +151,11 @@ export function useReturns(countryCode: string) {
     )?.id ?? null;
 
   /** Clearing the last value in a return moves you straight to the next one, so
-      you are never left on a finished return wondering why you can't proceed. */
-  const advanceIfCleared = (changedId: string) => {
-    if (!clearsOpenReturn(changedId)) return;
+      you are never left on a finished return wondering why you can't proceed.
+      Takes one id or the set from a bulk action. */
+  const advanceIfCleared = (changed: string | Set<string>) => {
+    const set = typeof changed === "string" ? new Set([changed]) : changed;
+    if (!clearsOpenReturn(set)) return;
     const next = nextOpenReturn();
     if (next) setSelectedId(next);
   };
@@ -118,6 +185,43 @@ export function useReturns(countryCode: string) {
       editReason: reason,
     });
     advanceIfCleared(finding.id);
+  };
+
+  /** The per-row undo: puts a settled value back to the agent's original. */
+  const reset = (findingId: string) => {
+    const original = originalById.get(findingId);
+    if (original) restore(original);
+  };
+
+  /** Bulk confirm: accepts several selected values at once. A deliberate break
+      from confirming per value — logged in docs/decisions/deviations.md. */
+  const confirmMany = (ids: string[]) => {
+    const set = new Set(ids);
+    setObligations((all) =>
+      all.map((o) => ({
+        ...o,
+        findings: o.findings.map((f) =>
+          set.has(f.id)
+            ? { ...f, state: "confirmed" as const, concern: undefined }
+            : f,
+        ),
+      })),
+    );
+    // Clearing the open return in bulk advances just as the per-value confirm
+    // does, so confirming the last of them still moves you on.
+    advanceIfCleared(set);
+  };
+
+  /** Bulk dismiss: drops selected findings from the return, so they leave the
+      review rather than being cleared on trust. */
+  const dismiss = (ids: string[]) => {
+    const set = new Set(ids);
+    setObligations((all) =>
+      all.map((o) => ({
+        ...o,
+        findings: o.findings.filter((f) => !set.has(f.id)),
+      })),
+    );
   };
 
   /** Accepts every finding the agent corroborated, leaving the flagged ones. */
@@ -161,9 +265,15 @@ export function useReturns(countryCode: string) {
     selected,
     selectedId: selected?.id ?? "",
     setSelectedId,
+    uploads,
+    addUpload,
+    removeUpload,
     confirm,
     restore,
+    reset,
     edit,
+    confirmMany,
+    dismiss,
     confirmCorroborated,
     outstanding,
     isSettled,

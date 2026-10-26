@@ -114,14 +114,16 @@ export function CountryList() {
             const active = filter === id;
             const urgent = id === "needs_you" && count > 0;
             /* A dot only where a filter maps to one status colour — amber
-               waiting, green live. "All" and "In progress" map to no single
-               status, so a grey dot there would be noise, not a legend. */
+               waiting, green published, grey draft. "All" maps to no single
+               status, so a dot there would be noise, not a legend. */
             const dot =
               id === "needs_you"
                 ? "bg-attention"
                 : id === "live"
                   ? "bg-settled"
-                  : null;
+                  : id === "draft"
+                    ? "bg-text-faint"
+                    : null;
             return (
               <button
                 key={id}
@@ -227,14 +229,14 @@ export function CountryList() {
                     whole set, not the page. Kept narrow and faint so it orders
                     without competing with the jurisdiction beside it. */}
                 <Th className="w-[4%] text-right">#</Th>
-                <Th className="w-[16%]">Jurisdiction</Th>
+                <Th className="w-[16%]">Country</Th>
                 <Th className="w-[11%]">Status</Th>
                 {/* Fits "Approval & Publish 4/5", the longest stage. A clipped
                     enum loses its meaning; a clipped sentence still reads, so
                     the activity column is the one that gives way. */}
                 <Th className="w-[15%]">Stage</Th>
                 {/* Counts align right, under their own digits. */}
-                <Th className="w-[9%] text-right">Obligations</Th>
+                <Th className="w-[9%] text-right">Return types</Th>
                 <Th className="w-[7%] text-right">Review</Th>
                 <Th className="w-[14%]">Owner</Th>
                 {/* The widest share: two lines of activity, truncated with a title. */}

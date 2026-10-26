@@ -71,10 +71,10 @@ export interface UserDocument {
   id: string;
   fileName: string;
   sizeBytes: number;
-  kind: DocumentKind;
-  /** Optional one-liner, e.g. "This is the 2026 version, the site's is older." */
-  note?: string;
   addedAt: string;
+  /** Set when the material is a source URL rather than an uploaded file. The
+      row then reads as a link — favicon and all — instead of a file. */
+  url?: string;
 }
 
 /**
@@ -354,6 +354,21 @@ export interface Check {
   state: CheckState;
   /** What the check found, in words. */
   detail: string;
+  /** The SQL line the finding is about, when it anchors to one — so the report
+      and the code read as one thing. 1-based. */
+  line?: number;
+  /** A correction the linter can apply itself. Present → the finding offers
+      "Auto-fix", and applying it settles the finding. */
+  autoFix?: {
+    /** One line naming what the fix does, e.g. "Add the missing semicolon". */
+    summary: string;
+  };
+  /** The deployment-safety policy the finding comes from. Present → the finding
+      offers "View policy", opening the rule and why it exists. */
+  policy?: {
+    name: string;
+    detail: string;
+  };
 }
 
 export type ArtifactGroup = "schema" | "boxes" | "calculations";
@@ -375,6 +390,58 @@ export interface BuildArtifact {
 }
 
 export type BuildPhase = "ready" | "applying" | "applied" | "failed";
+
+/* ── Step 4: Dry-run output ───────────────────────────────────────────────
+ *
+ * The step already says the files were "dry-run against a copy of the test
+ * database and rolled back". This is that run's evidence, shown rather than
+ * asserted: what it would write, how the database would execute it, and what it
+ * would cost. Nothing here touches a real table — it is the rolled-back run.
+ */
+
+/** A preview of the rows a file would write, read back from the rolled-back run. */
+export interface DryRunResult {
+  /** The file this preview is for, so the grid is traceable to its statement. */
+  fileName: string;
+  columns: string[];
+  rows: string[][];
+  /** Total rows the whole plan would write, across every file. */
+  rowsAffected: number;
+  statements: number;
+}
+
+/** One node of the query plan — the database's own account of how it would run. */
+export interface ExplainNode {
+  /** The operation, e.g. "Insert", "Index Scan", "Seq Scan". */
+  op: string;
+  /** What it runs against, e.g. a table name. */
+  target: string;
+  /** Whether a read uses an index, scans the whole table, or reads nothing. A
+      sequential scan on a large table is the thing an expert looks for here. */
+  scan: "index" | "sequential" | "none";
+  /** Cost and row estimate, in words, e.g. "cost 0.00–8.27 · 8 rows". */
+  detail: string;
+}
+
+/** One performance reading, with a 0–1 ratio for its bar and a tone when it
+    warrants attention. */
+export interface PerfMetric {
+  label: string;
+  value: string;
+  /** 0–1, how full the bar reads. */
+  ratio: number;
+  /** A reading that needs a human eye carries attention; a comfortable one is
+      left neutral. Never decorative. */
+  tone?: "settled" | "attention" | "risk";
+  /** One line of context under the reading. */
+  note?: string;
+}
+
+export interface DryRun {
+  results: DryRunResult[];
+  plan: ExplainNode[];
+  performance: PerfMetric[];
+}
 
 /* ── Step 4: Cross-field validation ──────────────────────────────────────
  *

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Check,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
+import { DraftActions } from "@/components/patterns/draft-actions";
 import { Stepper } from "@/components/patterns/stepper";
 import { UploadBar } from "@/components/patterns/upload-bar";
 import { copy } from "@/lib/copy";
@@ -30,6 +32,7 @@ export function ApprovalScreen({
   countryCode: string;
   countryName: string;
 }) {
+  const router = useRouter();
   const a = useApproval(countryCode);
   const [pending, setPending] = React.useState<Pending>(null);
   const [confirmPublish, setConfirmPublish] = React.useState(false);
@@ -63,9 +66,7 @@ export function ApprovalScreen({
                 {countryName}
               </h1>
             </div>
-            <Button variant="filled" size="sm">
-              {copy.page.saveDraft}
-            </Button>
+            <DraftActions onDiscard={() => router.push("/countries")} />
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -91,7 +92,7 @@ export function ApprovalScreen({
               {!a.previousVersion && (
                 <>
                   <span className="tabular-nums">{a.scope.obligations}</span>{" "}
-                  obligations, <span className="tabular-nums">{a.scope.boxes}</span>{" "}
+                  return types, <span className="tabular-nums">{a.scope.boxes}</span>{" "}
                   return boxes,{" "}
                   <span className="tabular-nums">{a.scope.rules}</span> mapping
                   rules and <span className="tabular-nums">{a.scope.rates}</span>{" "}
@@ -277,7 +278,10 @@ export function ApprovalScreen({
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={`/countries/${countryCode}/build`}>{copy.page.back}</Link>
+            <Link href={`/countries/${countryCode}/build`}>
+              <ArrowLeft />
+              {copy.page.back}
+            </Link>
           </Button>
 
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
@@ -374,7 +378,7 @@ function Published({
         </h1>
         <p className="mt-2 max-w-[56ch] text-[15px] leading-relaxed text-text-muted">
           {version} published {at}. Clients registered in {countryName} can file{" "}
-          <span className="tabular-nums">{scope.obligations}</span> obligations
+          <span className="tabular-nums">{scope.obligations}</span> return types
           from the next period. Every decision in this onboarding is recorded in
           the audit log.
         </p>

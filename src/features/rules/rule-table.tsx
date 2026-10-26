@@ -119,8 +119,11 @@ function Row({
       <tr
         data-review-item={row.issue ? "" : undefined}
         className={cn(
-          "rise group border-b border-border align-top last:border-0",
-          row.issue && "bg-attention-quiet/40",
+          "rise group align-top",
+          /* An issue row keeps the same surface as every other row — the amber
+             lives only in the concern box below it — so it just drops its own
+             bottom rule to sit flush with that box. */
+          row.issue ? "" : "border-b border-border last:border-0",
         )}
         style={{ "--index": Math.min(index, 8) } as React.CSSProperties}
       >
@@ -166,16 +169,22 @@ function Row({
       </tr>
 
       {row.issue && (
-        <tr className="border-b border-border bg-attention-quiet/40 last:border-0">
-          <td colSpan={span} className="pb-3 pr-4">
-            <p className="flex max-w-[70ch] items-start gap-2 text-[13px] leading-relaxed text-attention-text">
-              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-              {row.issue}
-            </p>
+        <tr className="border-b border-border last:border-0">
+          {/* px-2 lines the box up with the cell contents above it. */}
+          <td colSpan={span} className="px-2 pb-3.5 pt-1">
+            {/* The concern reads in a filled amber box — the same treatment step
+                two gives a finding that needs review, so a flag reads the same
+                way across the flow. */}
+            <div className="max-w-[80ch] rounded-lg border border-attention-edge bg-attention-quiet px-3.5 py-2.5">
+              <p className="flex items-start gap-2 text-[13px] leading-relaxed text-attention-text">
+                <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+                <span>{row.issue}</span>
+              </p>
+            </div>
             <button
               type="button"
               onClick={onResolve}
-              className="ml-5.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-attention-edge bg-surface px-2.5 py-1 text-[13px] font-medium text-attention-text transition-colors hover:bg-attention-quiet active:scale-[0.98]"
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded-md border border-attention-edge bg-surface px-2.5 py-1 text-[13px] font-medium text-attention-text transition-colors hover:bg-attention-quiet active:scale-[0.98]"
             >
               <Check className="size-3.5" />
               Settled — carry this row forward
@@ -234,8 +243,8 @@ function CellControl({
           aria-label={label}
           onChange={(e) => onCommit(e.target.value)}
           className={cn(
-            "w-full appearance-none rounded-md border border-transparent bg-transparent py-2 pl-2 pr-6 text-[14px] text-text",
-            "transition-colors hover:border-border-strong hover:bg-surface focus:border-brand focus:bg-surface focus:outline-none",
+            "w-full appearance-none rounded-md border border-border-strong bg-surface py-2 pl-2 pr-6 text-[14px] text-text",
+            "transition-colors hover:border-brand/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20",
             column.mono && "font-mono tabular-nums",
             missing && "border-risk-edge bg-risk-quiet text-risk",
           )}
@@ -334,13 +343,15 @@ function EditableCell({
         setEditing(true);
       }}
       className={cn(
-        "flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-left text-[14px] text-text",
-        "border border-transparent transition-colors hover:border-border-strong hover:bg-surface",
+        "flex w-full items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2 py-2 text-left text-[14px] text-text",
+        "transition-colors hover:border-brand/50 focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20",
         mono && "font-mono tabular-nums",
         missing && "border-risk-edge bg-risk-quiet text-risk",
       )}
     >
-      <span className="truncate">{value || (missing ? "Needed" : "—")}</span>
+      <span className={cn("truncate", !value && !missing && "text-text-faint")}>
+        {value || (missing ? "Needed" : "—")}
+      </span>
       {original && (
         <span
           aria-hidden

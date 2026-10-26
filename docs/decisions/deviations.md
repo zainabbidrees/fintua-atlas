@@ -14,6 +14,7 @@ team. Identified 2026-10-22, during discovery.
 | D3 | Source title link | Story 2.2 contradicts itself — the acceptance criterion says "without leaving the Initiation screen", the story detail says "new browser tab (TBC)" | New tab | **New tab** with `rel="noopener"`. Flagged for sign-off — this one is unresolved in the source material, not a prototype error |
 | D4 | Actor naming | "Onboarding Expert" throughout | Prototype and swimlane split the work across four roles | **Four roles** — Business/Product, Tax/Domain Expert, Fintua Developer, Administrator, plus L1/L2 approver groups. The story's single actor maps to whoever owns that step |
 | D5 | Add URL field | Story 1.4 needs it for manual continuation after discovery fails | Only renders once discovery has started | **Story.** Present whenever a jurisdiction is selected |
+| D6 | Bulk confirm on review | A self-imposed rule, not the story: confirm per value — "a tax record can't be cleared on trust" | Offered bulk actions on the review grid | **Reversed at the designer's request (2026-10-26).** The Return Types review now has a checkbox per value and a selection bar with bulk **Confirm** and **Delete**. Kept safe: confirming stays reversible (per-row undo and the confirm toast's Undo), and Delete *dismisses* the finding from the review rather than destroying a record |
 
 ## Why this file exists
 

@@ -24,7 +24,7 @@ const button = cva(
           "border border-border-strong bg-surface text-text hover:bg-wash",
         /* A flat grey fill, for a standing action that is neither the primary
            move nor a quiet one — "Save draft" sits beside the page title. */
-        filled: "bg-control text-text hover:bg-control-hover",
+        filled: "border border-border-strong bg-[#fcfcfc] text-text hover:bg-[#f2f2f2]",
         ghost: "text-text-muted hover:bg-wash hover:text-text",
         danger:
           "border border-risk-edge bg-surface text-risk hover:bg-risk-quiet",

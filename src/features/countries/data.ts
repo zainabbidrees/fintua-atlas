@@ -339,7 +339,7 @@ export const STATE_META: Record<
     text: "text-text-muted",
   },
   testing: { label: "In test", dot: "bg-text-faint", text: "text-text-muted" },
-  live: { label: "Live", dot: "bg-settled", text: "text-settled" },
+  live: { label: "Published", dot: "bg-settled", text: "text-settled" },
 };
 
 /** Total obligations already live in Comply, across every published country. */
@@ -349,10 +349,11 @@ export function filingsLive(runs: CountryRun[]): number {
     .reduce((sum, r) => sum + r.filingsConfirmed, 0);
 }
 
-export type FilterId = "all" | "needs_you" | "live";
+export type FilterId = "all" | "needs_you" | "draft" | "live";
 
 export const FILTERS: { id: FilterId; label: string; match: (r: CountryRun) => boolean }[] = [
   { id: "all", label: "All", match: () => true },
   { id: "needs_you", label: "Awaiting you", match: (r) => r.state === "awaiting_you" },
-  { id: "live", label: "Live", match: (r) => r.state === "live" },
+  { id: "draft", label: "Drafts", match: (r) => r.state === "draft" },
+  { id: "live", label: "Published", match: (r) => r.state === "live" },
 ];

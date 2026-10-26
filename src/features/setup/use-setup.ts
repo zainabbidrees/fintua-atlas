@@ -6,7 +6,6 @@ import { COLLIDING_DOCUMENT } from "@/lib/mock/fixtures";
 import type {
   Country,
   Decision,
-  DocumentKind,
   Filing,
   SetupPhase,
   Source,
@@ -76,17 +75,45 @@ export function useSetup() {
     }
   }, []);
 
-  const selectCountry = React.useCallback(
-    (next: Country) => {
-      setCountry(next);
-      void run(next);
-    },
-    [run],
-  );
+  const selectCountry = React.useCallback((next: Country) => {
+    // Selecting a country no longer starts research on its own. The expert
+    // chooses how to begin — a deep search, or a document to research against —
+    // so this only sets the country and clears anything from a prior one.
+    abortRef.current?.abort();
+    setCountry(next);
+    setPhase("empty");
+    setTrail([]);
+    setFilings([]);
+    setSources([]);
+    setError(null);
+    setDocuments([]);
+  }, []);
+
+  /** Begins the deep search for the chosen country — the explicit "go". */
+  const startResearch = React.useCallback(() => {
+    if (country) void run(country);
+  }, [country, run]);
 
   const retry = React.useCallback(() => {
     if (country) void run(country);
   }, [country, run]);
+
+  /** Abandons the whole draft — the expert's own unsaved work on this step —
+      and returns to the pristine empty state. Any research in flight is
+      stopped first, so it can't deliver results into a discarded draft. */
+  const discard = React.useCallback(() => {
+    abortRef.current?.abort();
+    setCountry(null);
+    setPhase("empty");
+    setTrail([]);
+    setFilings([]);
+    setSources([]);
+    setDocuments([]);
+    setDecisions([]);
+    setError(null);
+    setSearching(false);
+    setSearchMessage(null);
+  }, []);
 
   /** Records the expert's reasoning alongside the change. */
   const record = React.useCallback(
@@ -141,7 +168,7 @@ export function useSetup() {
       setSearching(false);
 
       if (!found) {
-        setSearchMessage(`No obligation matching "${term}" was found for ${country.name}.`);
+        setSearchMessage(`No return type matching "${term}" was found for ${country.name}.`);
         return;
       }
       if (filings.some((f) => f.name.toLowerCase() === found.name.toLowerCase())) {
@@ -154,16 +181,15 @@ export function useSetup() {
   );
 
   const addDocument = React.useCallback(
-    (fileName: string, sizeBytes: number, kind: DocumentKind, note: string) => {
+    (fileName: string, sizeBytes: number, url?: string) => {
       setDocuments((d) => [
         ...d,
         {
-          id: `${Date.now()}-${fileName}`,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           fileName,
           sizeBytes,
-          kind,
-          note: note || undefined,
           addedAt: new Date().toISOString(),
+          url,
         },
       ]);
     },
@@ -208,7 +234,9 @@ export function useSetup() {
     searchMessage,
     needsCheck,
     selectCountry,
+    startResearch,
     retry,
+    discard,
     removeFiling,
     keepFiling,
     removeSource,
