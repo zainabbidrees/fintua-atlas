@@ -64,15 +64,22 @@ export function ReturnsScreen({
         <div className="mx-auto grid h-full w-full max-w-[1600px] grid-rows-[auto_minmax(0,1fr)] gap-x-6 [&>*]:min-w-0 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:grid-rows-1">
           {/* The rail is a white panel that runs up to meet the header. It
               stays put while only the findings scroll; a hairline on its right
-              edge sets it apart from the work. */}
-          <div className="min-h-0 overflow-y-auto bg-surface pt-8 lg:border-r lg:border-border lg:pr-6">
-            <ObligationRail
-              obligations={r.obligations}
-              selectedId={r.selectedId}
-              onSelect={r.setSelectedId}
-              outstanding={r.outstanding}
-              isSettled={r.isSettled}
-            />
+              edge sets it apart from the work. The obligation list scrolls if
+              it has to, and the upload bar is pinned to the foot of the rail. */}
+          <div className="flex min-h-0 flex-col bg-surface pt-8 lg:border-r lg:border-border lg:pr-6">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <ObligationRail
+                obligations={r.obligations}
+                selectedId={r.selectedId}
+                onSelect={r.setSelectedId}
+                outstanding={r.outstanding}
+                isSettled={r.isSettled}
+              />
+            </div>
+
+            {/* Supporting material — a form or an advisor's note the research
+                didn't surface — kept at the foot of the rail, always in reach. */}
+            <UploadBar className="shrink-0 pb-6 pt-6" />
           </div>
 
           {/* The one scrolling region on the screen. */}
@@ -200,10 +207,6 @@ function Detail({
           );
         })}
       </div>
-
-      {/* Supporting material for this return — the specialist's own copy of a
-          form or an advisor's note that the research didn't surface. */}
-      <UploadBar className="mt-8" />
     </section>
   );
 }

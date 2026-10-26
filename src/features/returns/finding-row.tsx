@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpRight, Check, ChevronDown, FileText } from "lucide-react";
+import { ArrowUpRight, Check, FileText, PanelRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
+import { PassageDrawer } from "./passage-drawer";
 import type { Finding, FindingState } from "@/lib/types";
 
 /**
@@ -31,7 +31,7 @@ export function FindingRow({
   /* Both the uncertain (needs_review) and the cross-checked values wait on an
      explicit human confirm — nothing is accepted in bulk. */
   const unconfirmed = flagged || finding.state === "corroborated";
-  const [showPassage, setShowPassage] = React.useState(flagged);
+  const [passageOpen, setPassageOpen] = React.useState(false);
 
   /* Confirming is reversible: it fires a toast carrying the value and an Undo
      that restores this exact finding, so there's no modal to dismiss and no
@@ -122,37 +122,24 @@ export function FindingRow({
             <ArrowUpRight className="mt-px size-3 shrink-0" />
           </a>
 
-          {/* The passage toggle, now a button you can see — brand text, a hover
-              fill, and a chevron that turns when it opens. */}
+          {/* Opens the source passage in a side drawer that scrolls to and
+              highlights the exact wording — the quote read in its context. */}
           <button
             type="button"
-            onClick={() => setShowPassage((s) => !s)}
-            aria-expanded={showPassage}
+            onClick={() => setPassageOpen(true)}
             className="-mx-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[13px] font-medium text-brand transition-colors hover:bg-wash active:scale-[0.98]"
           >
-            {showPassage ? "Hide passage" : "Show passage"}
-            <ChevronDown
-              className={cn(
-                "size-3.5 transition-transform duration-200",
-                showPassage && "rotate-180",
-              )}
-            />
+            Show passage
+            <PanelRight className="size-3.5" />
           </button>
         </div>
       </div>
 
-      {showPassage && (
-        <figure className="mt-3 border-l border-border-strong pl-4">
-          <blockquote className="max-w-[60ch] text-[13px] leading-relaxed text-text-muted">
-            {finding.evidence.quote}
-          </blockquote>
-          {finding.evidence.locator && (
-            <figcaption className="mt-1.5 text-[12px] text-text-faint">
-              {finding.evidence.locator}
-            </figcaption>
-          )}
-        </figure>
-      )}
+      <PassageDrawer
+        evidence={finding.evidence}
+        open={passageOpen}
+        onOpenChange={setPassageOpen}
+      />
     </li>
   );
 }

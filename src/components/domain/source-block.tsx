@@ -76,13 +76,13 @@ export function SourceBlock({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "group/source flex h-full items-center gap-3 rounded-lg bg-[#fefefe] p-3 transition-colors hover:bg-surface",
+        "group/source flex h-full items-start gap-3 rounded-lg bg-wash p-3 transition-colors hover:bg-surface",
         className,
       )}
     >
       <SourceMark extension={extension} host={host} />
 
-      <span className="min-w-0 flex-1 self-center">
+      <span className="min-w-0 flex-1">
         {/* Reads as a link by default — brand and underlined — not only on
             hover; the underline strengthens on hover and the arrow stays bare. */}
         <span className="flex items-center gap-1 text-[15px] font-medium text-brand transition-colors group-hover/source:text-brand-hover">

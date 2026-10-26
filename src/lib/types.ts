@@ -143,6 +143,13 @@ export interface Evidence {
   locator?: string;
   /** The actual wording. Shown verbatim so nobody has to take it on trust. */
   quote: string;
+  /**
+   * The surrounding passage from the source, with `quote` appearing in it
+   * verbatim. Shown in the passage drawer, which scrolls to and highlights the
+   * quote so the finding is read in its context. Paragraphs split on a blank
+   * line. Absent when only the quote was captured.
+   */
+  article?: string;
 }
 
 export type FindingState =

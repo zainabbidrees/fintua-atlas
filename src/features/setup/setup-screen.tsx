@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
-  Paperclip,
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -125,18 +124,23 @@ export function SetupScreen() {
             )}
           </section>
 
-          {/* Before a country is chosen, the supporting-material block is shown
-              inert rather than hidden — the expert can see what this step will
-              ask of them before committing to a country. */}
-          {!s.country && (
-            <div aria-disabled className="select-none">
-              <PendingBlock
-                icon={Paperclip}
-                heading={copy.documents.heading}
-                hint={copy.documents.pendingHint}
-              />
-            </div>
-          )}
+          {/* An upload bar from the start: an expert who already holds the
+              documents for this country can add them straight away, before
+              research even runs — not only once the findings are in. */}
+          <div className="mt-6">
+            <AddFileOrLink
+              heading={copy.documents.heading}
+              hint={copy.documents.hint}
+              chooseLabel={copy.documents.dropAction}
+              linkPlaceholder={copy.documents.linkPlaceholder}
+              linkInvalidMessage={copy.documents.linkInvalid}
+              accept={ACCEPTED_FILE_TYPES.join(",")}
+              onFile={handleFile}
+              onLink={(url) => setPendingFile({ name: new URL(url).hostname, size: 0 })}
+            />
+            {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
+            <DocumentList documents={s.documents} onRemove={s.removeDocument} />
+          </div>
 
           {researching && s.country && (
             <section className="mt-5 rounded-xl border border-brand-edge bg-brand-quiet/50 p-5">
@@ -193,22 +197,6 @@ export function SetupScreen() {
             </section>
           )}
 
-          {s.country && (
-            <div className="mt-6">
-              <AddFileOrLink
-                heading={copy.documents.heading}
-                hint={copy.documents.hint}
-                chooseLabel={copy.documents.dropAction}
-                linkPlaceholder={copy.documents.linkPlaceholder}
-                linkInvalidMessage={copy.documents.linkInvalid}
-                accept={ACCEPTED_FILE_TYPES.join(",")}
-                onFile={handleFile}
-                onLink={(url) => setPendingFile({ name: new URL(url).hostname, size: 0 })}
-              />
-              {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
-              <DocumentList documents={s.documents} onRemove={s.removeDocument} />
-            </div>
-          )}
         </div>
       </div>
 
@@ -322,32 +310,3 @@ export function SetupScreen() {
   );
 }
 
-/**
- * What this step will ask for, shown before a country is chosen.
- *
- * Each block carries the mark of the thing it will hold, and the mark sits on
- * the text's optical centre rather than its first line, so the two blocks read
- * as a pair of shelves waiting to be filled.
- */
-function PendingBlock({
-  icon: Icon,
-  heading,
-  hint,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  heading: string;
-  hint: string;
-}) {
-  return (
-    <section className="mt-5 flex items-center gap-4 rounded-xl border border-border bg-surface p-5">
-      <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-surface">
-        <Icon className="size-[18px] text-text-faint" />
-      </span>
-
-      <div className="min-w-0">
-        <h2 className="text-[15px] font-medium text-text-faint">{heading}</h2>
-        <p className="mt-1 text-sm text-text-faint">{hint}</p>
-      </div>
-    </section>
-  );
-}
