@@ -22,7 +22,9 @@ import {
 
 /** Base sheet width in px; zoom scales the whole spread off this. */
 const SHEET_W = 880;
-/** Gap between the two pages of a spread, at base scale. */
+/** How many pages sit side by side in one view. */
+const PAGES_PER_VIEW = 3;
+/** Gap between the pages of a spread, at base scale. */
 const SPREAD_GAP = 28;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
@@ -57,17 +59,17 @@ const COMB =
 export function FormPreview() {
   const doc = FORM_PREVIEW;
   const total = doc.pages.length;
-  const spreads = Math.ceil(total / 2);
-  const SPREAD_W = SHEET_W * 2 + SPREAD_GAP;
+  const spreads = Math.ceil(total / PAGES_PER_VIEW);
+  const SPREAD_W = SHEET_W * PAGES_PER_VIEW + SPREAD_GAP * (PAGES_PER_VIEW - 1);
 
-  // A notebook view: two facing pages at a time. `spread` 0 → pages 1–2, etc.
+  // A notebook view: three pages side by side. `spread` 0 → pages 1–3, etc.
   const [spread, setSpread] = React.useState(0);
   const [zoom, setZoom] = React.useState(0.4);
   const [showBoxes, setShowBoxes] = React.useState(true);
   const [goto, setGoto] = React.useState("");
 
-  const left = spread * 2; // 0-based index of the left page
-  const pages = [doc.pages[left], doc.pages[left + 1]].filter(Boolean);
+  const left = spread * PAGES_PER_VIEW; // 0-based index of the first page shown
+  const pages = doc.pages.slice(left, left + PAGES_PER_VIEW);
 
   const viewportRef = React.useRef<HTMLDivElement>(null);
   const spreadRef = React.useRef<HTMLDivElement>(null);
@@ -109,7 +111,7 @@ export function FormPreview() {
   const go = (s: number) => setSpread(Math.min(spreads - 1, Math.max(0, s)));
   const commitGoto = () => {
     const n = Number(goto);
-    if (Number.isFinite(n) && n >= 1 && n <= total) go(Math.floor((n - 1) / 2));
+    if (Number.isFinite(n) && n >= 1 && n <= total) go(Math.floor((n - 1) / PAGES_PER_VIEW));
     setGoto("");
   };
 
@@ -212,7 +214,7 @@ export function FormPreview() {
         <span className="px-2 tabular-nums text-text-muted">
           {fill(copy.formPreview.pagesOf, {
             from: left + 1,
-            to: Math.min(left + 2, total),
+            to: left + pages.length,
             total,
           })}
         </span>
