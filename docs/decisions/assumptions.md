@@ -36,8 +36,8 @@ confirm or overturn them.
 | A18 | Export PDF prints the ticked pages through the browser's Save as PDF, rather than generating a file | No PDF library in the project; the printed sheets are the same drawing as the thumbnails |
 | A19 | After the last step, the tax expert sends every step for approval; a reviewer approves or sends back **each step on its own**, and the country publishes only when all six are approved | User request and decision (2026-10-29). Replaces Query Builder's direct Publish. Supersedes the two-level release sign-off (A10–A13) for now; that screen is still in `src/features/approval`, unrouted |
 | A20 | A reviewer reads each step as the real screen, locked — every edit control hidden — and can only comment, approve, or ask for changes; asking for changes needs a reason | User request and decision. Viewing tools (tabs, filters, page viewers, exports) stay |
-| A21 | The tax expert can reopen any step in review, edit it, and send it for approval again; a step sent again returns to waiting, marked "Sent again" | User request ("tab is clickable… send for approval again") |
-| A22 | The role is chosen at sign-in (Tax expert / Reviewer) and kept in the browser | User decision, over an on-screen "viewing as" switch. No identity provider yet |
+| A21 | The tax expert can reopen any step in review and edit it with the step's normal footer; sending for approval again happens **only from the last step**, Query Builder. Steps sent back then return to waiting, marked "Sent again"; approved steps stay approved. Comments are read and answered from the approval screen | User request ("tab is clickable… send for approval again"), corrected by the user 2026-10-29: "the send for approval thing must be at the last step, not before that" |
+| A22 | Sign-in never asks for a role: the account decides it. In the product the Comply SSO carries the role (authorisation is the backend's); the prototype stands in by email — `elena.fischer@fintua.com` is the reviewer, anyone else the tax expert | User decision (2026-10-29), replacing a Tax expert / Reviewer choice on the sign-in screen |
 
 ## Known gaps — not yet built
 

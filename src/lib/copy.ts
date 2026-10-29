@@ -37,6 +37,12 @@ export const copy = {
     queryChips: { all: "All", ready: "Ready", missing: "Not generated" },
   },
 
+  /** The brand panel beside the sign-in form. */
+  authPanel: {
+    title: "From a country's tax law to the queries that file it.",
+    subtitle: "Every return type, form and box — researched, mapped and checked in one place.",
+  },
+
   /** Looking back at a finished step from a later one: read, never edited. */
   viewOnly: {
     badge: "View only",
@@ -389,7 +395,6 @@ export const copy = {
      asks for changes. Reviewers comment; they never edit. */
   approvalFlow: {
     roles: { expert: "Tax expert", reviewer: "Reviewer" },
-    signInAs: "Sign in as",
     signOut: "Sign out",
 
     status: {
@@ -403,7 +408,7 @@ export const copy = {
     backLink: "Query Builder",
     heading: "Approval",
     introExpert:
-      "Each step is reviewed on its own. Open a step to read the reviewer's comments, change it, and send it for approval again.",
+      "Each step is reviewed on its own. Read the reviewer's comments here, open a step to change it, then send it for approval again from Query Builder.",
     introReviewer:
       "Open each step to read what the tax expert built, then approve it or ask for changes. You can comment, but not edit.",
     progress: "{approved} of {total} steps approved",
@@ -446,8 +451,6 @@ export const copy = {
     requestCancel: "Cancel",
     requestedToast: "Changes requested on {step}",
     sendAgain: "Send for approval again",
-    sentAgainToast: "{step} sent for approval again",
-    sentAgainNote: "Changed and sent again for approval.",
 
     /* The comments drawer. */
     drawerTitle: "{step} — comments",

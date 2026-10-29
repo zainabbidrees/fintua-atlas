@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Wordmark } from "@/components/brand/logo";
 import { cn } from "@/lib/cn";
-import { copy } from "@/lib/copy";
-import { setRole, type Role } from "@/lib/session";
+import { PEOPLE, roleForEmail, setRole } from "@/lib/session";
 
 /**
  * Prototype sign-in. Nothing is validated, sent or stored — anything you type
@@ -20,25 +19,29 @@ import { setRole, type Role } from "@/lib/session";
 export function AuthForm() {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
-  /* The role decides the view: a tax expert builds and edits; a reviewer
-     reads, comments and approves, starting from the Approvals list. */
-  const [role, setChosen] = React.useState<Role>("expert");
+  /* Prefilled, since nothing is checked: one click signs in. */
+  const [email, setEmail] = React.useState(PEOPLE.expert.email);
 
+  /* The account decides the role — a tax expert builds and edits; a reviewer
+     reads, comments and approves, starting from the Approvals list. Sign-in
+     never asks: in the product the Comply SSO carries it. */
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
+    const role = roleForEmail(email);
     setRole(role);
     setTimeout(() => router.push(role === "reviewer" ? "/approvals" : "/countries"), 400);
   }
 
   return (
     <div className="flex flex-col">
-      <div className="rise" style={{ "--index": 0 } as React.CSSProperties}>
+      {/* On a wide screen the brand panel carries the wordmark. */}
+      <div className="rise lg:hidden" style={{ "--index": 0 } as React.CSSProperties}>
         <Wordmark />
       </div>
 
       <h1
-        className="rise mt-9 text-[22px] font-medium tracking-tight text-heading"
+        className="rise mt-9 text-[22px] font-medium tracking-tight text-heading lg:mt-0"
         style={{ "--index": 1 } as React.CSSProperties}
       >
         Sign in
@@ -63,7 +66,8 @@ export function AuthForm() {
             name="email"
             type="email"
             autoComplete="email"
-            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="you@fintua.com"
           />
         </div>
@@ -88,35 +92,10 @@ export function AuthForm() {
             name="password"
             type="password"
             autoComplete="current-password"
+            defaultValue="prototype"
             placeholder="••••••••"
           />
         </div>
-
-        <fieldset
-          className="rise flex flex-col gap-2"
-          style={{ "--index": 5 } as React.CSSProperties}
-        >
-          <legend className="mb-2 text-sm font-medium text-text">{copy.approvalFlow.signInAs}</legend>
-          <div role="radiogroup" aria-label={copy.approvalFlow.signInAs} className="grid grid-cols-2 gap-2">
-            {(["expert", "reviewer"] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                role="radio"
-                aria-checked={role === r}
-                onClick={() => setChosen(r)}
-                className={cn(
-                  "h-10 rounded-lg border text-sm font-medium transition-[background-color,border-color,transform] duration-200 active:scale-[0.98]",
-                  role === r
-                    ? "border-brand-edge bg-surface-sunken text-brand"
-                    : "border-border-strong bg-surface text-text-muted hover:border-brand-edge hover:text-text",
-                )}
-              >
-                {copy.approvalFlow.roles[r]}
-              </button>
-            ))}
-          </div>
-        </fieldset>
 
         <Button
           type="submit"
@@ -124,7 +103,7 @@ export function AuthForm() {
           size="lg"
           disabled={busy}
           className={cn("rise mt-2 w-full", busy && "cursor-wait")}
-          style={{ "--index": 6 } as React.CSSProperties}
+          style={{ "--index": 5 } as React.CSSProperties}
         >
           {busy ? (
             <>
@@ -142,7 +121,7 @@ export function AuthForm() {
 
       <p
         className="rise mt-10 text-center text-xs leading-relaxed text-text-faint"
-        style={{ "--index": 7 } as React.CSSProperties}
+        style={{ "--index": 6 } as React.CSSProperties}
       >
         Internal tool. Access is managed by your administrator.
         <br />

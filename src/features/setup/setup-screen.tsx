@@ -43,7 +43,6 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(0);
   const readOnly = review.readOnly || viewFrom !== null;
-  const inReview = Boolean(reviewCode) && review.inReview;
   const loaded = React.useRef(false);
   React.useEffect(() => {
     if (!reviewCode || loaded.current) return;
@@ -319,7 +318,7 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
       {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
       {viewFrom !== null && reviewCode ? (
         <ViewOnlyBar countryCode={reviewCode} index={0} from={viewFrom} />
-      ) : inReview && reviewCode ? (
+      ) : review.reviewing && reviewCode ? (
         <ReviewBar countryCode={reviewCode} stepIndex={0} review={review} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">

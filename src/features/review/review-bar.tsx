@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { copy, fill } from "@/lib/copy";
 import { markPublished } from "@/lib/published";
-import { addComment, decideStep, resubmitStep, STEP_COUNT } from "@/lib/review";
+import { addComment, decideStep, STEP_COUNT } from "@/lib/review";
 import { CommentsDrawer } from "./comments-drawer";
 import { StepStatusBadge } from "./status-badge";
 import type { StepReviewState } from "./use-step-review";
@@ -18,14 +18,11 @@ export const reviewHref = (countryCode: string) =>
   `/countries/${countryCode.toLowerCase()}/review`;
 
 /**
- * A step's pinned footer while its country is in review, in place of Save and
- * Continue. Both roles get the way back to the approval screen, the step's
- * status, and its comments. Then the roles part:
- *
- * - The reviewer approves the step, or asks for changes — which needs a
- *   reason, since the expert has to know what to change.
- * - The tax expert, who can edit the step again, sends it for approval again
- *   once it is right; anything unsaved is saved first.
+ * The reviewer's pinned footer on a step in review, in place of Save and
+ * Continue: the way back to the approval screen, the step's status, its
+ * comments, and the decision — approve, or ask for changes, which needs a
+ * reason since the expert has to know what to change. (The tax expert keeps
+ * the step's normal footer, and sends for approval again from the last step.)
  *
  * Approving the last of the six steps publishes the country.
  */
@@ -33,13 +30,10 @@ export function ReviewBar({
   countryCode,
   stepIndex,
   review,
-  onSave,
 }: {
   countryCode: string;
   stepIndex: number;
   review: StepReviewState;
-  /** Saves the step's unsaved edits, before the expert sends it again. */
-  onSave?: () => void;
 }) {
   const t = copy.approvalFlow;
   const router = useRouter();
@@ -50,7 +44,6 @@ export function ReviewBar({
 
   const stepName = copy.page.stepsLabel[stepIndex];
   const comments = step.entries.length;
-  const reviewer = person.role === "reviewer";
 
   function approve() {
     if (!submission || !step) return;
@@ -69,13 +62,6 @@ export function ReviewBar({
     router.push(reviewHref(countryCode));
   }
 
-  function sendAgain() {
-    onSave?.();
-    resubmitStep(countryCode, stepIndex, person, t.sentAgainNote);
-    toast(fill(t.sentAgainToast, { step: stepName }));
-    router.push(reviewHref(countryCode));
-  }
-
   return (
     <>
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
@@ -88,12 +74,10 @@ export function ReviewBar({
           </Button>
 
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-            {reviewer && (
-              <span className="inline-flex items-center gap-1.5 text-[13px] text-text-muted">
-                <Eye className="size-4" />
-                {t.readOnly}
-              </span>
-            )}
+            <span className="inline-flex items-center gap-1.5 text-[13px] text-text-muted">
+              <Eye className="size-4" />
+              {t.readOnly}
+            </span>
             <StepStatusBadge step={step} />
             <Button variant="secondary" onClick={() => setCommentsOpen(true)}>
               <MessageSquare />
@@ -104,25 +88,13 @@ export function ReviewBar({
                 </span>
               )}
             </Button>
-            {reviewer ? (
-              <>
-                <Button variant="secondary" onClick={() => setAsking(true)}>
-                  {t.requestChanges}
-                </Button>
-                <Button
-                  variant="primary"
-                  disabled={step.status === "approved"}
-                  onClick={approve}
-                >
-                  <Check />
-                  {step.status === "approved" ? t.status.approved : t.approve}
-                </Button>
-              </>
-            ) : (
-              <Button variant="primary" onClick={sendAgain}>
-                {t.sendAgain}
-              </Button>
-            )}
+            <Button variant="secondary" onClick={() => setAsking(true)}>
+              {t.requestChanges}
+            </Button>
+            <Button variant="primary" disabled={step.status === "approved"} onClick={approve}>
+              <Check />
+              {step.status === "approved" ? t.status.approved : t.approve}
+            </Button>
           </div>
         </div>
       </div>

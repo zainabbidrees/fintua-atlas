@@ -252,8 +252,8 @@ export function QueryBuilderScreen({
 
       {viewFrom !== null ? (
         <ViewOnlyBar countryCode={countryCode} index={5} from={viewFrom} />
-      ) : review.inReview ? (
-        <ReviewBar countryCode={countryCode} stepIndex={5} review={review} onSave={snapshot} />
+      ) : review.reviewing ? (
+        <ReviewBar countryCode={countryCode} stepIndex={5} review={review} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -286,11 +286,17 @@ export function QueryBuilderScreen({
             </Button>
             <Button
               variant="primary"
-              disabled={agent.running || q.ready === 0 || q.generating}
-              title={q.ready === 0 ? copy.approvalFlow.sendForApprovalBlocked : undefined}
+              /* The first sending needs a query; sending again after changes
+                 does not, since the queries were already sent. */
+              disabled={agent.running || q.generating || (!review.inReview && q.ready === 0)}
+              title={
+                !review.inReview && q.ready === 0
+                  ? copy.approvalFlow.sendForApprovalBlocked
+                  : undefined
+              }
               onClick={sendForApproval}
             >
-              {copy.approvalFlow.sendForApproval}
+              {review.inReview ? copy.approvalFlow.sendAgain : copy.approvalFlow.sendForApproval}
             </Button>
           </div>
         </div>

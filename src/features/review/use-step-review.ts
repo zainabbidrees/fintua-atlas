@@ -21,6 +21,10 @@ export function useStepReview(countryCode: string, stepIndex: number) {
     inReview,
     /* A reviewer never edits, in review or not. */
     readOnly: person.role === "reviewer",
+    /* The reviewer's bar — approve, ask for changes — replaces a step's footer
+       while they review. The expert keeps the normal footer and sends for
+       approval again from the last step only. */
+    reviewing: inReview && person.role === "reviewer",
   };
 }
 

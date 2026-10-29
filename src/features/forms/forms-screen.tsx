@@ -187,7 +187,7 @@ export function FormsScreen({
       {/* Pinned action bar — Continue is reachable without scrolling to the end. */}
       {viewFrom !== null ? (
         <ViewOnlyBar countryCode={countryCode} index={2} from={viewFrom} />
-      ) : review.inReview ? (
+      ) : review.reviewing ? (
         <ReviewBar countryCode={countryCode} stepIndex={2} review={review} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">

@@ -12,14 +12,31 @@ export type Role = "expert" | "reviewer";
 export interface Person {
   name: string;
   initials: string;
+  /** Prefilled at sign-in, so the prototype signs in with one click. */
+  email: string;
   role: Role;
 }
 
 /* The two people the prototype signs in as, one per role. */
 export const PEOPLE: Record<Role, Person> = {
-  expert: { name: "Marco Rossi", initials: "MR", role: "expert" },
-  reviewer: { name: "Elena Fischer", initials: "EF", role: "reviewer" },
+  expert: { name: "Marco Rossi", initials: "MR", email: "marco.rossi@fintua.com", role: "expert" },
+  reviewer: {
+    name: "Elena Fischer",
+    initials: "EF",
+    email: "elena.fischer@fintua.com",
+    role: "reviewer",
+  },
 };
+
+/**
+ * The role an account carries. In the product this comes from the Comply SSO —
+ * authorisation is the backend's, set per account — so sign-in never asks for
+ * it. Here it stands in for that lookup: a known reviewer's email is the
+ * reviewer, anyone else the tax expert.
+ */
+export function roleForEmail(email: string): Role {
+  return email.trim().toLowerCase() === PEOPLE.reviewer.email ? "reviewer" : "expert";
+}
 
 const KEY = "fintua:role";
 const EVENT = "fintua:role-change";

@@ -237,7 +237,7 @@ export function ReturnsScreen({
       {/* Pinned action bar — Continue is reachable without scrolling to the end. */}
       {viewFrom !== null ? (
         <ViewOnlyBar countryCode={countryCode} index={1} from={viewFrom} />
-      ) : review.inReview ? (
+      ) : review.reviewing ? (
         <ReviewBar countryCode={countryCode} stepIndex={1} review={review} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">

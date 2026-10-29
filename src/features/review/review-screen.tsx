@@ -2,14 +2,20 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronRight, CircleCheck } from "lucide-react";
+import { ChevronRight, CircleCheck, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
-import { approvedCount, STEP_COUNT, useSubmission, type StepReview } from "@/lib/review";
+import {
+  addComment,
+  approvedCount,
+  STEP_COUNT,
+  useSubmission,
+  type StepReview,
+} from "@/lib/review";
 import { useSession } from "@/lib/session";
 import { StepHeader, stepHref } from "@/features/approval/parts";
-import { when } from "./comments-drawer";
+import { CommentsDrawer, when } from "./comments-drawer";
 import { StepStatusBadge } from "./status-badge";
 
 /** Where a step opens from the approval screen. Step one lives at
@@ -34,6 +40,8 @@ export function ReviewScreen({
   const t = copy.approvalFlow;
   const person = useSession();
   const submission = useSubmission(countryCode);
+  /* The step whose comments are open, read and answered without leaving here. */
+  const [thread, setThread] = React.useState<number | null>(null);
 
   return (
     <div className="pb-16">
@@ -95,6 +103,7 @@ export function ReviewScreen({
                     index={i}
                     step={step}
                     href={reviewStepHref(countryCode, i)}
+                    onComments={() => setThread(i)}
                   />
                 ))}
               </ol>
@@ -102,6 +111,15 @@ export function ReviewScreen({
           )}
         </div>
       </div>
+      {submission && thread !== null && (
+        <CommentsDrawer
+          open
+          onOpenChange={(open) => !open && setThread(null)}
+          stepName={copy.page.stepsLabel[thread]}
+          entries={submission.steps[thread].entries}
+          onPost={(text) => addComment(countryCode, thread, person, text)}
+        />
+      )}
     </div>
   );
 }
@@ -127,23 +145,34 @@ function Progress({ approved, by }: { approved: number; by: string }) {
 
 /**
  * One step: its number and name, its status, and the latest word on it. The
- * whole row opens the step. A step sent back carries the attention edge, as
- * anything waiting on a person's decision does.
+ * row opens the step; the comments button beside it opens the step's thread
+ * here, so the expert reads what the reviewer asked without leaving. A step
+ * sent back carries the attention edge, as anything waiting on a person's
+ * decision does.
  */
-function StepRow({ index, step, href }: { index: number; step: StepReview; href: string }) {
+function StepRow({
+  index,
+  step,
+  href,
+  onComments,
+}: {
+  index: number;
+  step: StepReview;
+  href: string;
+  onComments: () => void;
+}) {
   const t = copy.approvalFlow;
   const last = step.entries.at(-1);
   const count = step.entries.length;
 
   return (
-    <li className="border-b border-border last:border-b-0">
-      <Link
-        href={href}
-        className={cn(
-          "group flex items-center gap-5 px-5 py-4 transition-colors hover:bg-wash",
-          step.status === "changes" && "shadow-[inset_3px_0_0_var(--attention)]",
-        )}
-      >
+    <li
+      className={cn(
+        "flex items-center border-b border-border transition-colors last:border-b-0 hover:bg-wash",
+        step.status === "changes" && "shadow-[inset_3px_0_0_var(--attention)]",
+      )}
+    >
+      <Link href={href} className="group flex min-w-0 flex-1 items-center gap-5 py-4 pl-5">
         <span
           className={cn(
             "grid size-8 shrink-0 place-items-center rounded-full text-[13px] font-semibold",
@@ -172,12 +201,13 @@ function StepRow({ index, step, href }: { index: number; step: StepReview; href:
               : t.noComments}
           </p>
         </div>
-
-        <span className="hidden shrink-0 text-[13px] text-text-faint sm:block" data-numeric>
-          {count === 0 ? "" : count === 1 ? t.commentCountOne : fill(t.commentCount, { count })}
-        </span>
         <ChevronRight className="size-4 shrink-0 text-text-faint transition-transform group-hover:translate-x-0.5" />
       </Link>
+
+      <Button variant="ghost" size="sm" onClick={onComments} className="mx-3 shrink-0">
+        <MessageSquare />
+        {count === 0 ? t.comments : count === 1 ? t.commentCountOne : fill(t.commentCount, { count })}
+      </Button>
     </li>
   );
 }

@@ -95,7 +95,11 @@ function entry(person: Person, kind: ReviewEntry["kind"], text: string): ReviewE
 
 const freshStep = (): StepReview => ({ status: "waiting", resubmitted: false, entries: [] });
 
-/** Sends every step for approval. Sending again keeps each step's thread. */
+/**
+ * Sends every step for approval, from the last step. Sending again keeps each
+ * step's thread and its approval; a step that was sent back goes to waiting,
+ * marked as sent again, with that recorded in its thread.
+ */
 export function submitForReview(code: string, name: string, by: Person) {
   const all = readAll();
   const key = code.toUpperCase();
@@ -107,11 +111,18 @@ export function submitForReview(code: string, name: string, by: Person) {
       name,
       submittedBy: by.name,
       submittedAt: new Date().toISOString(),
-      steps: Array.from({ length: STEP_COUNT }, (_, i) => {
+      steps: Array.from({ length: STEP_COUNT }, (_, i): StepReview => {
         const step = before?.steps[i];
         if (!step) return freshStep();
-        // An approved step stays approved; anything else is up for review again.
-        return step.status === "approved" ? step : { ...step, status: "waiting" as const };
+        if (step.status === "approved") return step;
+        if (step.status === "changes") {
+          return {
+            status: "waiting",
+            resubmitted: true,
+            entries: [...step.entries, entry(by, "resubmitted", "")],
+          };
+        }
+        return step;
       }),
     },
   });
@@ -141,22 +152,6 @@ export function decideStep(
             status: decision,
             resubmitted: false,
             entries: [...st.entries, entry(by, decision, text)],
-          }
-        : st,
-    ),
-  }));
-}
-
-/** The expert sends one step back for approval after editing it. */
-export function resubmitStep(code: string, step: number, by: Person, text: string) {
-  update(code, (s) => ({
-    ...s,
-    steps: s.steps.map((st, i) =>
-      i === step
-        ? {
-            status: "waiting",
-            resubmitted: true,
-            entries: [...st.entries, entry(by, "resubmitted", text)],
           }
         : st,
     ),
