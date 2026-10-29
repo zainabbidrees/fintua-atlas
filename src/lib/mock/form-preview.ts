@@ -35,13 +35,19 @@ export interface AmountCell {
   /** "money" (default) draws the comb; "yesno" draws a "1 = Ja" cell for the
       questionnaire lines (e.g. the § 15a adjustment checks). */
   variant?: "money" | "yesno";
+  /** Whether the comb carries the two cent cells after the comma. Tax columns
+      do by default; a base column holds whole euros unless this says so. */
+  cents?: boolean;
 }
 
 /** One line of the form. Its `kind` decides how the row is drawn. */
 export interface FormRow {
   /** The number printed in the form's left gutter. */
   n?: number;
-  kind: "section" | "subsection" | "columns" | "note" | "fields" | "labeled" | "amount" | "check";
+  kind: "section" | "subsection" | "columns" | "note" | "fields" | "labeled" | "amount" | "check" | "period";
+  /** For a "period" row: show the "vom" / "bis zum" captions above the two date
+      masks. Only the first period row in a group carries them. */
+  captions?: boolean;
   /** Section title, or the label for a note / labeled / amount row. */
   text?: string;
   /** A secondary line beneath the label. */
@@ -58,10 +64,16 @@ export interface FormRow {
   cols?: { base: string; tax: string };
   /** Bold the label on an amount row — a sub-total or an emphasised line. */
   strong?: boolean;
+  /** A "Summe" line: the printed form rules a heavy line over its tax comb. */
+  sum?: boolean;
   /** For a "check" row: one or more tick-box options, drawn inline. */
   checks?: string[];
   /** Indent a check row under the question it belongs to. */
   indent?: boolean;
+  /** A sum line: the form prints a rule over its amount cells. */
+  total?: boolean;
+  /** The "zu übertragen in Zeile …" notes printed under a sum's cells. */
+  carry?: { base?: string; tax?: string };
 }
 
 export interface FormPage {
@@ -148,26 +160,40 @@ const page1: FormPage = {
       text: "Dauer der Unternehmereigenschaft",
       sub: "(falls nicht vom 1. Januar bis zum 31. Dezember 2025)",
     },
-    {
-      kind: "labeled",
-      n: 18,
-      text: "Die Steuer wurde berechnet nach",
-      sub: "vereinbarten / vereinnahmten Entgelten",
-      code: { num: "133", box: { name: "box_133", tone: "ok", variant: "input" } },
-    },
+    { kind: "period", n: 17, text: "1. Zeitraum", captions: true },
+    { kind: "period", n: 18, text: "2. Zeitraum" },
     {
       kind: "labeled",
       n: 19,
-      text: "Verrechnung des Erstattungsbetrages erwünscht / Erstattungsbetrag abgetreten",
-      code: { num: "129", box: { name: "box_129", tone: "ok", variant: "yesno" } },
+      text: "Die Steuer wurde berechnet nach",
+      sub: "1 = vereinbarten Entgelten (§ 16 Absatz 1 Satz 1 UStG)   2 = vereinnahmten Entgelten (§ 20 UStG)   3 = vereinnahmten Entgelten für einzelne Unternehmensteile (§ 20 Satz 2 oder § 20 Satz 3 UStG)",
+      code: { num: "133", box: { name: "box_133", tone: "ok", variant: "input" } },
+    },
+    {
+      kind: "note",
+      text: "Die Abschlusszahlung ist innerhalb eines Monats nach der Abgabe der Steuererklärung zu entrichten (§ 18 Absatz 4 UStG). Ein Erstattungsbetrag wird auf das dem Finanzamt benannte Konto überwiesen, soweit der Betrag nicht mit Steuerschulden verrechnet wird.",
     },
     {
       kind: "labeled",
       n: 20,
-      text: "Ergänzende Angaben zur Steuererklärung",
+      text: "Verrechnung des Erstattungsbetrages erwünscht / Erstattungsbetrag ist abgetreten",
+      sub: "Geben Sie bitte die Verrechnungswünsche auf einem besonderen Blatt an oder auf dem beim Finanzamt erhältlichen Vordruck „Verrechnungsantrag“.",
+      code: { num: "129", box: { name: "box_129", tone: "ok", variant: "yesno" } },
+    },
+    {
+      kind: "labeled",
+      n: 21,
+      text: "Über die Angaben in der Steuererklärung hinaus sind weitere oder abweichende Angaben oder Sachverhalte zu berücksichtigen.",
+      sub: "Geben Sie bitte diese auf einem gesonderten Blatt an, welches mit der Überschrift „Ergänzende Angaben zur Steuererklärung“ zu kennzeichnen ist.",
       code: { num: "123", box: { name: "box_123", tone: "warn", variant: "yesno" } },
     },
+    {
+      kind: "note",
+      text: "Datenschutzhinweis:",
+      sub: "Die mit der Steuererklärung angeforderten Daten werden auf Grund der §§ 149, 150 AO sowie der §§ 18, 18b UStG erhoben. Die Angabe der Telefonnummer und der E-Mail-Adresse ist freiwillig. Informationen über die Verarbeitung personenbezogener Daten in der Steuerverwaltung und über Ihre Rechte nach der Datenschutz-Grundverordnung sowie über Ihre Ansprechpartner in Datenschutzfragen entnehmen Sie bitte dem allgemeinen Informationsschreiben der Finanzverwaltung. Dieses Informationsschreiben finden Sie unter www.finanzamt.de (unter der Rubrik „Datenschutz“) oder erhalten bei Ihrem Finanzamt.",
+    },
   ],
+  footer: "2025USt2A501",
 };
 
 /* Pages two and three carry the tax-computation boxes; the fields, labels and
@@ -196,13 +222,13 @@ const page2: FormPage = {
     {
       kind: "amount",
       n: 23,
-      text: "Unentgeltliche Wertabgaben — Lieferungen nach § 3 Abs. 1b UStG zu 19 %",
+      text: "Unentgeltliche Wertabgaben — Lieferungen nach § 3 Absatz 1b UStG zu 19 %",
       base: { num: "178", box: { name: "box_178", tone: "warn" } },
     },
     {
       kind: "amount",
       n: 24,
-      text: "Sonstige Leistungen nach § 3 Abs. 9a UStG zu 19 %",
+      text: "Sonstige Leistungen nach § 3 Absatz 9a UStG zu 19 %",
       base: { num: "179", box: { name: "box_179", tone: "warn" } },
     },
 
@@ -216,13 +242,13 @@ const page2: FormPage = {
     {
       kind: "amount",
       n: 26,
-      text: "Unentgeltliche Wertabgaben — Lieferungen nach § 3 Abs. 1b UStG zu 7 %",
+      text: "Unentgeltliche Wertabgaben — Lieferungen nach § 3 Absatz 1b UStG zu 7 %",
       base: { num: "195", box: { name: "box_195", tone: "warn" } },
     },
     {
       kind: "amount",
       n: 27,
-      text: "Sonstige Leistungen nach § 3 Abs. 9a UStG zu 7 %",
+      text: "Sonstige Leistungen nach § 3 Absatz 9a UStG zu 7 %",
       base: { num: "196", box: { name: "box_196", tone: "warn" } },
     },
 
@@ -236,13 +262,13 @@ const page2: FormPage = {
     {
       kind: "amount",
       n: 29,
-      text: "Unentgeltliche Wertabgaben — Lieferungen nach § 3 Abs. 1b UStG zu 0 %",
+      text: "Unentgeltliche Wertabgaben — Lieferungen nach § 3 Absatz 1b UStG zu 0 %",
       base: { num: "158" },
     },
     {
       kind: "amount",
       n: 30,
-      text: "Sonstige Leistungen nach § 3 Abs. 9a UStG zu 0 %",
+      text: "Sonstige Leistungen nach § 3 Absatz 9a UStG zu 0 %",
       base: { num: "159" },
     },
     {
@@ -298,6 +324,7 @@ const page2: FormPage = {
       kind: "amount",
       n: 37,
       text: "Summe der Steuer (zu übertragen in Zeile 103)",
+      sum: true,
       tax: { num: "" },
     },
   ],
@@ -342,7 +369,7 @@ const page3: FormPage = {
       text: "Ausfuhrlieferungen (§ 4 Nummer 1 Buchstabe a UStG)",
       base: { num: "752" },
     },
-    { kind: "amount", n: 42, text: "Umsätze nach § … UStG", base: { num: "753" } },
+    { kind: "amount", n: 42, text: "Umsätze nach § … UStG", base: { num: "" } },
     {
       kind: "amount",
       n: 43,
@@ -353,9 +380,15 @@ const page3: FormPage = {
       kind: "amount",
       n: 44,
       text: "Reiseleistungen nach § 25 Absatz 2 UStG",
+      base: { num: "" },
+    },
+    {
+      kind: "amount",
+      n: 45,
+      text: "Summe der Zeilen 42 bis 44",
+      sum: true,
       base: { num: "237", box: { name: "box_237", tone: "warn" } },
     },
-    { kind: "amount", n: 45, text: "Summe der Zeilen 42 bis 44", base: { num: "" } },
 
     { kind: "subsection", text: "Steuerfreie Umsätze ohne Vorsteuerabzug" },
     { kind: "subsection", text: "a) nicht zum Gesamtumsatz (§ 19 Absatz 2 UStG) gehörend" },
@@ -368,7 +401,7 @@ const page3: FormPage = {
     { kind: "amount", n: 47, text: "nach § 4 Nummer … UStG", base: { num: "287" } },
     { kind: "subsection", text: "b) zum Gesamtumsatz (§ 19 Absatz 2 UStG) gehörend" },
     { kind: "amount", n: 48, text: "nach § 19 Absatz 1 UStG", base: { num: "236" } },
-    { kind: "amount", n: 49, text: "nach § …", base: { num: "240" } },
+    { kind: "amount", n: 49, text: "nach § … UStG", base: { num: "240" } },
 
     { kind: "section", text: "D. Innergemeinschaftliche Erwerbe" },
     { kind: "columns", cols: { base: "Bemessungsgrundlage ohne Umsatzsteuer", tax: "Steuer" } },
@@ -412,6 +445,7 @@ const page3: FormPage = {
       kind: "amount",
       n: 56,
       text: "Summe der Steuer (zu übertragen in Zeile 104)",
+      sum: true,
       tax: { num: "" },
     },
 
@@ -431,6 +465,7 @@ const page3: FormPage = {
       kind: "amount",
       n: 58,
       text: "Summe der Steuer (zu übertragen in Zeile 105)",
+      sum: true,
       tax: { num: "" },
     },
   ],
@@ -444,7 +479,7 @@ const page4: FormPage = {
     {
       kind: "amount",
       n: 59,
-      text: "Lieferungen des ersten Abnehmers",
+      text: "Lieferungen des **ersten Abnehmers**",
       base: { num: "742", units: "base" },
     },
     { kind: "subsection", text: "Lieferungen, für die der letzte Abnehmer die Umsatzsteuer schuldet" },
@@ -462,12 +497,13 @@ const page4: FormPage = {
       n: 63,
       text: "zu anderen Steuersätzen",
       base: { num: "747" },
-      tax: { num: "748" },
+      tax: { num: "748", units: "tax" },
     },
     {
       kind: "amount",
       n: 64,
       text: "Summe der Steuer (zu übertragen in Zeile 106)",
+      sum: true,
       tax: { num: "" },
     },
 
@@ -498,70 +534,71 @@ const page4: FormPage = {
       kind: "amount",
       n: 68,
       text: "Summe der Steuer (zu übertragen in Zeile 107)",
+      sum: true,
       tax: { num: "" },
     },
 
     { kind: "section", text: "H. Ergänzende Angaben zu Umsätzen" },
-    { kind: "columns", cols: { base: "Betrag", tax: "" } },
+    { kind: "columns", cols: { base: "", tax: "Betrag" } },
     {
       kind: "amount",
       n: 69,
       text: "Umsätze, die auf Grund eines Verzichts auf Steuerbefreiung (§ 9 UStG) als steuerpflichtig behandelt worden sind (in Abschnitt B enthalten)",
-      base: { num: "", units: "base" },
+      tax: { num: "", units: "base", cents: false },
     },
     {
       kind: "amount",
       n: 70,
       text: "Steuerpflichtige Umsätze des leistenden Unternehmers, für die der Leistungsempfänger die Steuer nach § 13b Absatz 5 UStG schuldet",
-      base: { num: "209" },
+      tax: { num: "209", cents: false },
     },
     {
       kind: "amount",
       n: 71,
-      text: "Telekommunikations-, Rundfunk- und Fernsehdienstleistungen sowie auf elektronischem Weg erbrachte sonstige Leistungen an im übrigen Gemeinschaftsgebiet ansässige Nichtunternehmer sowie innergemeinschaftliche Fernverkäufe (§ 3a Absatz 5 und § 3c Absatz 1 UStG; in Abschnitt B oder C enthalten)",
-      base: { num: "213" },
+      text: "**Telekommunikations-, Rundfunk- und Fernsehdienstleistungen** sowie **auf elektronischem Weg erbrachte sonstige Leistungen** an im übrigen Gemeinschaftsgebiet ansässige Nichtunternehmer sowie **innergemeinschaftliche Fernverkäufe** in das übrige Gemeinschaftsgebiet unter der Voraussetzung des § 3a Absatz 5 Sätze 3 und 4 UStG und § 3c Absatz 4 Sätze 1 und 2 UStG (in Abschnitt B oder C enthalten)",
+      tax: { num: "213", cents: false },
     },
     {
       kind: "amount",
       n: 72,
-      text: "Telekommunikations-, Rundfunk- und Fernsehdienstleistungen sowie auf elektronischem Weg erbrachte sonstige Leistungen (in anderen EU-Mitgliedstaaten zu versteuern)",
-      base: { num: "214" },
+      text: "**Telekommunikations-, Rundfunk- und Fernsehdienstleistungen** sowie **auf elektronischem Weg erbrachte sonstige Leistungen** an im übrigen Gemeinschaftsgebiet ansässige Nichtunternehmer sowie **innergemeinschaftliche Fernverkäufe** in das übrige Gemeinschaftsgebiet unter der Voraussetzung des § 3a Absatz 5 Sätze 3 und 4 UStG und § 3c Absatz 4 Sätze 1 und 2 UStG (in anderen EU-Mitgliedstaaten zu versteuern)",
+      tax: { num: "214", cents: false },
     },
     {
       kind: "amount",
       n: 73,
       text: "Nicht steuerbare Geschäftsveräußerung im Ganzen gemäß § 1 Absatz 1a UStG",
-      base: { num: "211" },
+      tax: { num: "211", cents: false },
     },
     {
       kind: "amount",
       n: 74,
       text: "Nicht steuerbare sonstige Leistungen gemäß § 18b Satz 1 Nummer 2 UStG",
-      base: { num: "721" },
+      tax: { num: "721", cents: false },
     },
     {
       kind: "amount",
       n: 75,
       text: "Übrige nicht steuerbare Umsätze (Leistungsort nicht im Inland)",
-      base: { num: "205" },
+      tax: { num: "205", cents: false },
     },
     {
       kind: "amount",
       n: 76,
       text: "In den Zeilen 72, 74 und 75 enthaltene Umsätze, die nach § 15 Absatz 2 und 3 UStG den Vorsteuerabzug ausschließen",
-      base: { num: "204" },
+      tax: { num: "204", cents: false },
     },
     {
       kind: "amount",
       n: 77,
       text: "Auf den inländischen Streckenanteil entfallende Umsätze grenzüberschreitender Personenbeförderungen im Luftverkehr (§ 26 Absatz 3 UStG)",
-      base: { num: "212" },
+      tax: { num: "212", cents: false },
     },
     {
       kind: "amount",
       n: 78,
       text: "Minderung der Bemessungsgrundlage nach § 17 Absatz 1 Satz 1 in Verbindung mit Absatz 2 Nummer 1 Satz 1 UStG für uneinbringliche Forderungsentgelte (in Abschnitt B enthalten)",
-      base: { num: "650" },
+      tax: { num: "650", cents: false },
     },
   ],
 };
@@ -627,6 +664,8 @@ const page5: FormPage = {
       kind: "amount",
       n: 87,
       text: "Summe der Vorsteuerbeträge (zu übertragen in Zeile 109)",
+      sum: true,
+      total: true,
       tax: { num: "" },
     },
 
@@ -714,29 +753,32 @@ const page5: FormPage = {
       kind: "amount",
       n: 99,
       text: "zu 1. (z. B. Grundstücke, § 15a Absatz 1 Satz 2 UStG)",
-      base: { num: "", units: "tax" },
+      base: { num: "", units: "tax", cents: true },
       tax: { num: "", units: "tax" },
     },
     {
       kind: "amount",
       n: 100,
       text: "zu 2. (z. B. andere Wirtschaftsgüter, § 15a Absatz 1 Satz 1 UStG)",
-      base: { num: "" },
+      base: { num: "", cents: true },
       tax: { num: "" },
     },
     {
       kind: "amount",
       n: 101,
       text: "zu 3. (z. B. Wirtschaftsgüter, § 15a Absatz 2 UStG)",
-      base: { num: "" },
+      base: { num: "", cents: true },
       tax: { num: "" },
     },
     {
       kind: "amount",
       n: 102,
       text: "Summe",
-      base: { num: "357" },
+      sum: true,
+      total: true,
+      base: { num: "357", cents: true },
       tax: { num: "359" },
+      carry: { base: "zu übertragen in Zeile 110", tax: "zu übertragen in Zeile 112" },
     },
   ],
 };
@@ -882,7 +924,7 @@ const page6: FormPage = {
 };
 
 export const FORM_PREVIEW: FormDoc = {
-  title: "Umsatzsteuer-Voranmeldung (UStVA) 2025 (official PDF)",
+  title: "Umsatzsteuererklärung 2025 (official PDF)",
   heading: "Umsatzsteuererklärung",
   year: "2025",
   pages: [page1, page2, page3, page4, page5, page6],

@@ -2,24 +2,28 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  ArrowRight,
   RotateCcw,
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AddFileOrLink } from "@/components/patterns/add-file-or-link";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { DraftActions } from "@/components/patterns/draft-actions";
 import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { LiveTrail } from "@/components/patterns/live-trail";
+import { SearchAddBar } from "@/components/patterns/search-add-bar";
 import { Stepper } from "@/components/patterns/stepper";
+import { UrlList } from "@/components/patterns/url-list";
+import { ContinueActions } from "@/components/patterns/continue-actions";
 import { CountryPicker } from "@/components/domain/country-picker";
+import { LIVE_CODES } from "@/features/countries/data";
+import { readPublished } from "@/lib/published";
 import { DocumentList } from "@/components/domain/document-list";
-import { FilingCard } from "@/components/domain/filing-card";
+import { FilingTable } from "@/components/domain/filing-table";
 import { copy, fill } from "@/lib/copy";
-import { ACCEPTED_FILE_TYPES, MAX_UPLOAD_BYTES } from "./constants";
 import { useSetup } from "./use-setup";
 import type { Filing } from "@/lib/types";
 
@@ -27,9 +31,24 @@ const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }))
 
 export function SetupScreen() {
   const s = useSetup();
+  const router = useRouter();
+
+  /* Countries already live — from the index and from this browser's publishes —
+     cannot be onboarded again. Read after mount so the first render matches
+     the server. */
+  const [published, setPublished] = React.useState<ReadonlySet<string>>(
+    () => new Set(LIVE_CODES),
+  );
+  React.useEffect(() => {
+    const local = readPublished();
+    if (local.length === 0) return;
+    // Syncing from localStorage after mount is the one case that
+    // legitimately needs setState in an effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPublished(new Set([...LIVE_CODES, ...local.map((p) => p.code)]));
+  }, []);
 
   const [filingToRemove, setFilingToRemove] = React.useState<Filing | null>(null);
-  const [fileError, setFileError] = React.useState<string | null>(null);
   /** Tracked as exclusions, so anything newly found is carried by default. */
   const [excluded, setExcluded] = React.useState<ReadonlySet<string>>(new Set());
 
@@ -43,7 +62,6 @@ export function SetupScreen() {
   function discardDraft() {
     s.discard();
     setExcluded(new Set());
-    setFileError(null);
   }
   const carriedCount = s.filings.filter((f) => !excluded.has(f.id)).length;
   const canContinue = hasResults && s.needsCheck === 0 && carriedCount > 0;
@@ -57,28 +75,19 @@ export function SetupScreen() {
     });
   }
 
-  /* Attach files straight away — one or many at a time. No type to pick and no
-     note to write: the file itself is what the model needs. Invalid files are
-     named back; the valid ones are added. */
-  function handleFiles(files: File[]): boolean {
-    setFileError(null);
-    const rejected: string[] = [];
-    let added = 0;
-    for (const file of files) {
-      if (file.size > MAX_UPLOAD_BYTES) {
-        rejected.push(fill(copy.documents.tooLarge, { name: file.name }));
-        continue;
-      }
-      const ext = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
-      if (!ACCEPTED_FILE_TYPES.includes(ext)) {
-        rejected.push(fill(copy.documents.wrongType, { name: file.name }));
-        continue;
-      }
-      s.addDocument(file.name, file.size);
-      added++;
+  /* Carry only the checked return types into step two, so an unchecked one
+     never reappears there. Keyed by country. */
+  function continueToReturns() {
+    if (!s.country) return;
+    try {
+      localStorage.setItem(
+        `fintua:carried:${s.country.code}`,
+        JSON.stringify(s.filings.filter((f) => !excluded.has(f.id)).map((f) => f.id)),
+      );
+    } catch {
+      /* storage unavailable — step two then shows them all. */
     }
-    if (rejected.length) setFileError(rejected.join(" "));
-    return added > 0;
+    router.push(`/countries/${s.country.code}/returns`);
   }
 
   return (
@@ -126,6 +135,8 @@ export function SetupScreen() {
               label={copy.country.label}
               placeholder={copy.country.placeholder}
               onSelect={s.selectCountry}
+              taken={published}
+              takenLabel={copy.country.taken}
             />
             {!s.country && (
               <p className="mt-3 text-sm text-text-muted">{copy.country.empty}</p>
@@ -157,24 +168,22 @@ export function SetupScreen() {
                   <span aria-hidden className="h-px flex-1 bg-border" />
                 </div>
 
-                {/* Uploading a document is the other way in — adding one begins
-                    the research against it, so there's no separate "go". */}
-                <AddFileOrLink
+                {/* Pointing at sources is the other way in — submitting the
+                    list begins the research against them, so there's no
+                    separate "go". */}
+                <UrlList
                   className="mt-5"
-                  hint={copy.documents.hint}
-                  chooseLabel={copy.documents.dropAction}
-                  linkPlaceholder={copy.documents.linkPlaceholder}
-                  linkInvalidMessage={copy.documents.linkInvalid}
-                  accept={ACCEPTED_FILE_TYPES.join(",")}
-                  onFiles={(files) => {
-                    if (handleFiles(files)) s.startResearch();
-                  }}
-                  onLink={(url) => {
-                    s.addDocument(new URL(url).hostname, 0, url);
+                  heading={copy.documents.urlHeading}
+                  placeholder={copy.documents.linkPlaceholder}
+                  addLabel={copy.documents.addAnotherUrl}
+                  removeLabel={copy.documents.removeUrl}
+                  invalidMessage={copy.documents.linkInvalid}
+                  submitLabel={copy.documents.researchFromUrls}
+                  onSubmit={(urls) => {
+                    for (const url of urls) s.addDocument(new URL(url).hostname, 0, url);
                     s.startResearch();
                   }}
                 />
-                {fileError && <p className="mt-2 text-sm text-risk">{fileError}</p>}
               </div>
             )}
           </section>
@@ -214,30 +223,61 @@ export function SetupScreen() {
                     count: s.filings.length,
                   })}
                 </h2>
-                {s.needsCheck > 0 && (
-                  <JumpToReview count={s.needsCheck} verb="review" />
-                )}
+                <div className="flex items-center gap-3">
+                  {/* The selected count with a Select all beside it — the same
+                      cluster as step two's. Kept visible whenever any row is
+                      ticked, so the control is there on landing rather than
+                      only appearing once a row is unticked. */}
+                  {carriedCount > 0 && (
+                    <div className="inline-flex items-center gap-x-3 rounded-lg border border-border-strong bg-surface px-3 py-1.5 shadow-[var(--shadow-raised)]">
+                      <span className="text-[13px] font-medium text-text">
+                        {fill(copy.filings.selectedCount, { count: carriedCount })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExcluded(new Set())}
+                        className="text-[13px] font-medium text-brand transition-opacity hover:opacity-80"
+                      >
+                        {copy.filings.selectAll}
+                      </button>
+                    </div>
+                  )}
+                  {s.needsCheck > 0 && (
+                    <JumpToReview count={s.needsCheck} verb="review" />
+                  )}
+                </div>
               </div>
 
-              <div className="mt-4 space-y-3">
-                {s.filings.map((filing) => (
-                  <FilingCard
-                    key={filing.id}
-                    filing={filing}
-                    selected={!excluded.has(filing.id)}
-                    onSelectedChange={setCarried}
-                    onKeep={s.keepFiling}
-                    onRemove={setFilingToRemove}
-                  />
-                ))}
-              </div>
+              <FilingTable
+                className="mt-4"
+                filings={s.filings}
+                isSelected={(filing) => !excluded.has(filing.id)}
+                onSelectedChange={setCarried}
+                onKeep={s.keepFiling}
+                onRemove={setFilingToRemove}
+              />
+
+              {/* Two routes for a return type the listing above missed: add the
+                  name straight to the list, or run the public-sources search for
+                  it again. */}
+              <SearchAddBar
+                className="mt-6"
+                placeholder={copy.filings.searchMorePlaceholder}
+                addLabel={copy.filings.addAction}
+                searchLabel={copy.filings.searchAgainAction}
+                onAdd={s.addFilingManually}
+                onSearch={s.addFiling}
+                busy={s.searching}
+                message={s.searchMessage}
+                onDismissMessage={s.clearSearchMessage}
+              />
             </section>
           )}
 
-          {/* What the expert attached as a way in, listed back once research is
-              under way. The upload control itself isn't repeated here — the
-              material is added at the start, beside the deep search — so this is
-              a record of it, not a second place to add more. */}
+          {/* What the expert attached, listed back once research is under way —
+              both the document that may have been the way in and anything added
+              since from the upload bar above. A record of the material, with its
+              own per-row remove. */}
           {s.country && s.phase !== "empty" && s.documents.length > 0 && (
             <section className="mt-7">
               <DocumentList documents={s.documents} onRemove={s.removeDocument} />
@@ -270,37 +310,11 @@ export function SetupScreen() {
             {s.phase === "found" && (s.filings.length === 0 || carriedCount === 0) && (
               <span className="text-sm text-text-muted">{copy.page.blockedNoFilings}</span>
             )}
-            {canContinue && s.country ? (
-              <Button variant="primary" asChild>
-                <Link
-                  href={`/countries/${s.country.code}/returns`}
-                  /* Carry only the checked return types into step two, so an
-                     unchecked one never reappears there. Keyed by country. */
-                  onClick={() => {
-                    try {
-                      localStorage.setItem(
-                        `fintua:carried:${s.country!.code}`,
-                        JSON.stringify(
-                          s.filings
-                            .filter((f) => !excluded.has(f.id))
-                            .map((f) => f.id),
-                        ),
-                      );
-                    } catch {
-                      /* storage unavailable — step two then shows them all. */
-                    }
-                  }}
-                >
-                  {copy.page.continue}
-                  <ArrowRight />
-                </Link>
-              </Button>
-            ) : (
-              <Button variant="primary" disabled>
-                {copy.page.continue}
-                <ArrowRight />
-              </Button>
-            )}
+            <ContinueActions
+              onSave={() => toast(copy.page.savedToast)}
+              continueDisabled={!(canContinue && s.country)}
+              onContinue={continueToReturns}
+            />
           </div>
         </div>
       </div>

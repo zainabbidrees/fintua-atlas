@@ -182,7 +182,7 @@ export function UploadBar({
             dragging
               ? "border-dashed border-brand bg-brand-quiet"
               : emphasis
-                ? "border-attention-edge bg-attention-quiet"
+                ? "border-attention-edge bg-surface"
                 : "border-border-strong bg-surface",
           )}
         >

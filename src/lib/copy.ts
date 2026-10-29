@@ -9,8 +9,9 @@
  * consumer-app chattiness that reads as beneath the reader ("Know something we
  * missed?", "look solid").
  *
- * The five step names are the exception: they match the prototype verbatim, so
- * the team reads one set of names across both.
+ * The step names are the exception: they match the prototype verbatim, so the
+ * team reads one set of names across both. Tax Form Retrieval is the one step
+ * the prototype does not have.
  */
 
 import type { DocumentKind, SourceKind } from "./types";
@@ -18,19 +19,26 @@ import type { DocumentKind, SourceKind } from "./types";
 export const copy = {
   page: {
     title: "Onboard country",
-    specsTitle: "Form annotations and rule mapping",
-    step: "Step 1 of 5 · Select Country",
+    specsTitle: "Form Annotations & Box Mapping",
+    step: "Step 1 of 6 · Select Country",
     stepsLabel: [
       "Select Country",
       "Return Types",
-      "Specs & Datasets",
-      "SQL Review",
-      "Approval & Publish",
+      "Tax Form Retrieval",
+      "Form Annotations & Box Mapping",
+      "Tax Rules Generation",
+      "Query Builder",
     ],
     saveDraft: "Save draft",
     discard: "Discard",
     back: "Back",
     continue: "Continue",
+    saveChanges: "Save changes",
+    savedToast: "Changes saved",
+    /* Asked before Continue moves on to the next step. */
+    confirmContinue: "Are you sure you want to confirm this?",
+    confirmBack: "Back",
+    confirm: "Confirm",
     blockedNeedsCheck: "{count} return type requires review",
     blockedNeedsCheckPlural: "{count} return types require review",
     blockedNoFilings: "At least one return type must be confirmed",
@@ -39,6 +47,19 @@ export const copy = {
       "{count} return types confirmed for {country}, each with supporting evidence. Each is now worked through individually.",
     doneNext: "Continue to Return Types",
     doneReview: "Return to selection",
+  },
+
+  /* The end of step four. The mapping is what the SQL is generated from, so
+     handing it on is a deliberate act: the footer asks to Confirm rather than
+     Continue, and confirms once more before moving on. */
+  confirmMapping: {
+    action: "Confirm",
+    title: "Are you sure you want to confirm this?",
+    cancel: "Back",
+    proceed: "Confirm",
+    /** Added to the dialog when edits are still unsaved — Proceed saves them. */
+    unsaved: "Unsaved changes to {count} rows will be saved.",
+    unsavedOne: "Unsaved changes to 1 row will be saved.",
   },
 
   /* Discarding a draft abandons the expert's own unsaved work on this step, so
@@ -53,6 +74,8 @@ export const copy = {
   },
 
   country: {
+    /** Beside a country in the picker that is already published. */
+    taken: "Published",
     /** "Country" throughout, matching the step's own name and the portal it
         is reached from. The list does carry territories and protocols with
         their own VAT regime — Northern Ireland, Monaco — which "jurisdiction"
@@ -76,8 +99,8 @@ export const copy = {
     /** Shown once a country is chosen: the two ways to begin, neither of which
         runs until the expert picks it. */
     chooseHint:
-      "Search public sources for {country}'s return types, or add a document to research against.",
-    runAction: "Run deep search",
+      "Search public sources for {country}'s return types, or add the source URLs to research against.",
+    runAction: "Search",
   },
 
   filings: {
@@ -88,6 +111,13 @@ export const copy = {
     summaryMixed: "{solid} cross-checked · {checks} requires review",
     summaryMixedPlural: "{solid} cross-checked · {checks} require review",
     localNameMissing: "—",
+    /** Column headers for the return-types table. */
+    columns: {
+      returnType: "Return type",
+      rationale: "Rationale",
+      source: "Source",
+      actions: "Actions",
+    },
     whyLabel: "Rationale",
     foundOnLabel: "Source",
     needsCheck: "Requires review",
@@ -96,6 +126,19 @@ export const copy = {
     searchMore: "Missing a return type?",
     searchMorePlaceholder: "Search by name, e.g. OSS",
     searchMoreAction: "Search",
+    /** The two routes on the bar under the listing: add the typed name straight
+        to the list, or run the public-sources search for it again. */
+    addAction: "Add",
+    searchAgainAction: "Search again",
+    notFound: 'No return type matching "{term}" was found for {country}.',
+    alreadyInScope: "{name} is already in scope.",
+    /** A return type the expert typed in by hand: no source yet, so it carries a
+        plain rationale, lands flagged for review, and shows "Added manually"
+        where a found one shows its source. */
+    manualRationale: "Added manually; applies per the reviewer's judgement.",
+    manualUncertainty:
+      "Added manually — not yet verified against a public source.",
+    manualSourceLabel: "Added manually",
     noneFound:
       "No return types were identified for {country}. Retry the research, or supply the material yourself below.",
     failed:
@@ -104,26 +147,231 @@ export const copy = {
     /** Shown before a country is chosen, so the expert can see what this
         step will produce before committing to one. */
     includeLabel: "Carry {name} into the next step",
+    /** Appears once one return type is ticked, to tick the rest at once. */
+    selectedCount: "{count} selected",
+    selectAll: "Select all",
     pendingHeading: "Return types",
     pendingHint:
       "Each return type identified for the country appears here, with the source it was drawn from.",
   },
 
-  /* A needs-review finding (step two) tints its row amber and carries an alert
-     that opens this modal: the agent's concern in full, and the decision on it.
+  /* A needs-review finding (step two) tints its row amber; clicking the row
+     opens this modal: the agent's concern in full, and the decision on it.
      Confirm accepts the value as it stands; Delete drops the finding from the
      return; Move forward leaves it flagged to come back to. */
   review: {
-    trigger: "Needs review",
-    triggerAria: "Review {label}",
-    concernLabel: "Agent's concern",
-    confirm: "Confirm value",
-    delete: "Delete row",
-    moveOn: "Move forward",
+    confirm: "Confirm",
+    delete: "Delete",
     /* A pinned shortcut to the flagged rows so the expert never scrolls a long
-       return hunting for the two that need them. No count — the rail already
-       carries it; this is the way down, stepping to the next on each click. */
-    jump: "Jump to review",
+       return hunting for the two that need them. Carries the count, so the pill
+       says how many are left as well as being the way down to them. */
+    jump: "{count} to be reviewed",
+  },
+
+  /* Step 2 as a table: one row per return type, each column a thing the expert
+     checks against it. Rates and treatment rules were dropped — the step now
+     carries only what the next steps consume: how often it is filed, when, the
+     sources behind those answers, and the expert's own attachments. */
+  returnsTable: {
+    selectLabel: "Select {name}",
+    columns: {
+      returnType: "Return type",
+      frequency: "Filing frequency",
+      deadline: "Filing deadline",
+      sources: "Sources",
+      attach: "Attachments",
+      status: "Status",
+    },
+    /** Shown where the agent established no value for a column. */
+    none: "—",
+    crossChecked: "Cross-checked",
+    needsReview: "Requires review",
+    confirmed: "Confirmed",
+    confirm: "Confirm",
+    undo: "Undo",
+    researching: "Researching…",
+    /** The pen beside a frequency or deadline value, and the form it opens. The
+        agent's original value is always kept alongside the correction. */
+    edit: "Edit {label}",
+    editValueLabel: "Corrected value",
+    editReasonLabel: "Rationale",
+    editReasonOptional: "(optional)",
+    editReasonPlaceholder: "Retained with the record for audit purposes",
+    editSave: "Update",
+    editCancel: "Cancel",
+    /** The exact date a deadline rule like "EOP + 20 days" falls on next. */
+    nextDue: "Next due {date}",
+    /** Hover text spelling out a deadline rule. */
+    deadlineRuleTitle: "End of the return period, plus {days} days",
+    agentProposed: "Agent proposed “{value}”.",
+    corrected: "Corrected: {reason}",
+    /** The per-row attach control and its popover. */
+    attachAction: "Attach",
+    attachHint: "Add a file or paste a link for this return type.",
+    attachChoose: "Attach a file",
+    attachLinkPlaceholder: "Paste a link…",
+    attachLinkInvalid: "Not a valid web address.",
+    attachNone: "None yet",
+    fileKind: "File",
+    linkKind: "Link",
+    removeAttachment: "Remove {label}",
+    /** Footer gate and the confirm toast. */
+    cleared: "{cleared} of {total} return types cleared",
+    confirmedToast: "{name} confirmed",
+    confirmAll: "Confirm all",
+    confirmSelected: "Confirm selected",
+    confirmedAllToast: "{count} return types confirmed",
+    /** Empty state: nothing was carried in from step one. */
+    empty: "No return types were carried into this step.",
+    emptyHint: "Go back to Select Country to choose the return types to configure.",
+  },
+
+  /* Step 3, Tax Form Retrieval: the official form behind each return type,
+     page by page. The checkbox decides what carries into the specs, as it does
+     everywhere else — an unticked page is kept, just not carried forward. */
+  taxForms: {
+    backLink: "Return Types",
+    title: "Tax return forms",
+    intro:
+      "The official form for each return type, retrieved from its publisher. Untick any page that should not carry into the specs — explanatory notes usually don't.",
+    summary: "{selected} of {pages} pages selected",
+
+    /* The section header for one return type's form. */
+    pagesSelected: "{selected} of {total} pages selected",
+    selectAllPages: "Select all pages",
+    clearPages: "Clear selection",
+    selectForm: "Select every page of {name}",
+    edition: "Edition {edition}",
+    retrieved: "Retrieved {date}",
+    openSource: "Open source",
+    pageCount: "{count} pages",
+    noPages: "No pages selected",
+    retrievingBadge: "Retrieving…",
+    withoutFormBadge: "Without a form",
+
+    /* A page thumbnail, and what each kind of page is called. */
+    pageLabel: "Page {n}",
+    selectPage: "Carry page {n} of {name} forward",
+    openPage: "Open page {n} of {name}",
+    excluded: "Not carried forward",
+    kind: {
+      form: "Form",
+      continuation: "Continuation",
+      instructions: "Notes",
+    },
+
+    /* The page viewer. */
+    viewerOf: "Page {n} of {total}",
+    viewerPrev: "Previous page",
+    viewerNext: "Next page",
+    viewerClose: "Close",
+    viewerCarry: "Carry this page forward",
+    viewerWhy: "Agent's note",
+    viewerKeys: "Use ← and → to move between pages.",
+    viewerNotChosen: "Choose this edition to select its pages.",
+
+    /* Working: still being retrieved. */
+    retrieving: "Retrieving the form",
+    trailLabel: "Activity",
+
+    /* Clash: the agent found two editions that differ. */
+    clashTitle: "Two editions found",
+    clashHint:
+      "The publisher's portal and its own guide carry different editions of this form. Choose the one to use and record why.",
+    useEdition: "Use this edition",
+    clashReasonTitle: "Use the {edition} edition",
+    clashReasonHint:
+      "The other edition is set aside, not deleted. Your reason is kept with the record for audit purposes.",
+    clashReasonPlaceholder: "e.g. the 2026 edition adds code T, which the 2020 one predates",
+    clashConfirm: "Use this edition",
+    clashCancel: "Cancel",
+    chosen: "Chosen over the {other} edition: {reason}",
+    changeChoice: "Change",
+
+    /* Nothing found. */
+    noneTitle: "No form found",
+    retry: "Retry retrieval",
+    attach: "Attach the form",
+    attachHint: "PDF only, up to 20 MB.",
+    attached: "Uploaded by you",
+    attachedPages: "Carried forward whole; pages are read once the file is processed.",
+    fileSize: "{size} MB",
+    removeAttached: "Remove",
+    wrongType: "{name} is not a PDF.",
+    tooLarge: "{name} exceeds the 20 MB limit.",
+    withoutForm: "Continue without a form",
+    withoutFormTitle: "Continue {name} without a form",
+    withoutFormHint:
+      "The specs step will have no form to map for this return type. Your reason is kept with the record for audit purposes.",
+    withoutFormPlaceholder: "e.g. no form is published yet; the return is configured from the schema later",
+    withoutFormConfirm: "Continue without a form",
+    withoutFormCancel: "Cancel",
+    withoutFormDone: "Continuing without a form: {reason}",
+    undo: "Undo",
+
+    /* Export. */
+    export: "Export PDF",
+    exportAll: "All selected pages",
+    exportForm: "{name}",
+    exportCount: "{count} pages",
+    exportNone: "No pages selected",
+    exportFileName: "{country} — tax return forms",
+
+    /* The footer gate. */
+    ready: "{ready} of {total} return types ready",
+    blockedNoPages: "{name} has no pages selected",
+
+    empty: "No return types were carried into this step.",
+    emptyHint: "Go back to Return Types to confirm the return types to configure.",
+  },
+
+  /* Step 5, Tax Rules Generation: the agent turns the confirmed box mapping
+     into the rates, sales and purchase rules Comply files with. It works in
+     the open for a few seconds, then the rules land as three sheets — the
+     column headers are the source workbook's own, fixture data in
+     src/lib/mock/tax-rules.ts. */
+  taxRules: {
+    backLink: "Form Annotations & Box Mapping",
+    title: "Tax Rules Generation",
+    intro:
+      "Rates, and the rules that route each sales and purchase transaction to a return box, generated from the mapping you confirmed.",
+    summary: "{rates} rates · {sales} sales rules · {purchases} purchase rules",
+
+    generatingTitle: "Generating tax rules",
+    generatingHint: "This takes a few seconds.",
+    trailLabel: "Activity",
+    trail: [
+      "Reading the box mapping confirmed at step four",
+      "Matching VAT rates to the return's boxes",
+      "Generating sales rules for each transaction type",
+      "Generating purchase rules and their deductibility",
+      "Checking every rule lands on a return box",
+    ],
+
+    tabs: {
+      rates: "Rates",
+      sales: "Sales",
+      purchases: "Purchases",
+    },
+    /** The sheets are long, so each tab shows its first few rules as a
+        sample and says how many there are in all. */
+    hints: {
+      rates: "{count} rates, columns A to {last}.",
+      sales: "Showing {shown} of {count} sales rules, columns A to {last}.",
+      purchases: "Showing {shown} of {count} purchase rules, columns A to {last}.",
+    },
+    numberColumn: "#",
+    /** The per-row pen, as on the spec sheets at step four. */
+    editColumn: "Edit",
+    editRow: "Edit row {name}",
+    doneEditing: "Done editing row {name}",
+    unsavedRow: "Unsaved changes",
+    save: "Save changes",
+    unsavedCount: "{count} row with unsaved changes",
+    unsavedCountPlural: "{count} rows with unsaved changes",
+    saved: "Changes saved",
+    sheetNotes: "Notes from the sheet",
+    empty: "—",
   },
 
   /* The form-preview panel on the specs step: the official return rendered with
@@ -131,40 +379,214 @@ export const copy = {
      German labels are fixture data in src/lib/mock/form-preview.ts. */
   formPreview: {
     showBoxes: "Show boxes",
-    fitWidth: "Fit width",
-    zoomIn: "Zoom in",
-    zoomOut: "Zoom out",
+    pageLabel: "Page {n}",
+    openPage: "Open page {n}",
     pageOf: "Page {current} of {total}",
-    pagesOf: "Pages {from}–{to} of {total}",
-    goTo: "Go to",
-    first: "First page",
+    boxCount: "{count} boxes",
+    toCheck: "{count} to check",
+    onThisPage: "On this page",
+    toneOk: "Mapped",
+    toneWarn: "Needs a look",
+    toneError: "Not matched",
+    noFields: "No fields mapped on this page.",
     prev: "Previous page",
     next: "Next page",
-    last: "Last page",
+    close: "Close",
+    keys: "Use ← and → to move between pages.",
   },
 
-  /* The field map under the preview: one row per extracted box. Column chrome
-     only — the box names and labels are fixture data in
-     src/lib/mock/field-map.ts. */
+  /* The field map under the preview: one row per return box. Table chrome
+     only — the column headers are the source sheet's own field names (A to
+     AO), and they and the rows are fixture data in src/lib/mock/return-boxes.ts. */
   fieldMap: {
-    heading: "Field map",
-    hint: "{count} boxes extracted from the form — the mapping the SQL spec is built from.",
-    name: "box_name",
-    labelEn: "Label EN",
-    labelLocal: "Label local",
-    type: "Type",
-    required: "Req",
-    calc: "Calc",
-    formula: "Formula",
-    position: "Position",
-    confidence: "Conf",
-    rounding: "Rounding",
-    dataType: "data_type",
-    mandatoryXml: "Mandatory for XML",
-    startDate: "Start date",
-    endDate: "End date",
-    note: "Note",
+    /** The per-row edit control. A row is read-only until opened. */
+    editColumn: "Edit",
+    editRow: "Edit {name}",
+    doneEditing: "Done editing {name}",
+    unsavedRow: "Unsaved changes",
+    /** The footer's save, beside Confirm. */
+    save: "Save changes",
+    unsavedCount: "{count} row with unsaved changes",
+    unsavedCountPlural: "{count} rows with unsaved changes",
+    saved: "Changes saved",
+    /** The four sheets of the spec workbook, one tab each. */
+    tabs: {
+      boxes: "Field map",
+      lists: "List boxes",
+      mandatory: "Mandatory fields",
+      dropdowns: "Dropdown fields",
+    },
+    hints: {
+      boxes: "{count} return boxes, columns B to AO — the mapping the SQL spec is built from.",
+      lists: "{count} subfields across the list boxes — the columns each listed line carries.",
+      mandatory: "{count} fields a TXT or XML submission cannot go without, and when.",
+      dropdowns: "{count} allowed values across the fields that only accept a value from a list.",
+    },
+    /** Shown in a blank cell, so an empty value reads as intended. */
     empty: "—",
+  },
+
+  /* Step six. One row per box annotated at step four: the rule that fills it,
+     read from the step-five tax rules, and the SQL that computes it. The SQL
+     column starts empty; ticked rows are generated, and any query can be
+     written or corrected by hand. */
+  queryBuilder: {
+    backLink: "Tax Rules Generation",
+    heading: "Queries for {count} boxes",
+    intro:
+      "Each box's calculation rule comes from the box annotations and tax rules. Tick the boxes to generate their SQL, then edit any query by hand.",
+    columns: {
+      box: "Box number",
+      rule: "Calculation rules",
+      sql: "SQL query",
+      edit: "Edit",
+    },
+    selectAll: "Select all",
+    deselectAll: "Deselect all",
+    selectBox: "Select {box}",
+    selectedCount: "{count} selected",
+    generate: "Generate query",
+    generatePlural: "Generate queries",
+    generating: "Generating query for {box}",
+    generatedToast: "Query generated for {box}",
+    generatedToastPlural: "{count} queries generated",
+    undo: "Undo",
+    /** The rule's opening line, by what the box adds up. */
+    measure: {
+      net: "Sum of the net amount on",
+      vat: "Sum of the VAT amount on",
+      list: "One line per dispatch, grouped by",
+    },
+    sale: "Sale",
+    purchase: "Purchase",
+    anyRate: "any rate",
+    noLines: "No tax rule names this box yet.",
+    notGenerated: "Not generated",
+    edited: "Edited by hand",
+    editQuery: "Edit query for {box}",
+    sqlLabel: "SQL query for {box}",
+    sqlPlaceholder: "Write the query, or close this and generate it.",
+    save: "Save query",
+    cancel: "Cancel",
+    saveHint: "⌘ Enter to save · Esc to cancel",
+    progress: "{done} of {total} queries ready",
+    saveChanges: "Save changes",
+    savedToast: "Changes saved",
+    publish: "Publish",
+    publishBlocked: "Generate or write at least one query to publish",
+    publishedToast: "Queries published for {country}",
+    empty: "No boxes are annotated yet",
+    emptyBody: "Boxes come from the annotations in step four. Map them there and they appear here with their calculation rules.",
+    emptyAction: "Go to Form Annotations & Box Mapping",
+  },
+
+  /* Step five. Two people sign for the release, then it publishes. The left of
+     the page is the case for signing — what ships, whether it is ready, what a
+     human overruled and why; the right is the sign-off itself. */
+  approval: {
+    backLink: "Tax Rules Generation",
+    title: "Review and publish",
+    introNew:
+      "{country} has not been published before, so everything in {version} is new. Two approvals are needed before it reaches clients.",
+    introReplaces:
+      "{version} replaces {previous} in Comply. Two approvals are needed before it reaches clients.",
+
+    releaseLabel: "Release",
+    firstVersion: "First version",
+    publishesToLabel: "Publishes to",
+    publishesTo: "Comply · production",
+    replacesLabel: "Replaces",
+    replacesNothing: "Nothing — new jurisdiction",
+    scope: {
+      returnTypes: "Return types",
+      boxes: "Return boxes",
+      rules: "Mapping rules",
+      rates: "Rates",
+    },
+
+    readinessHeading: "Readiness",
+    readinessAll: "All {count} checks passed",
+    readinessSome: "{passed} of {count} checks passed",
+    readinessBlocked:
+      "Approval opens once every check passes. Fix the failing check in its step.",
+    openStep: "Open {step}",
+
+    decisionsHeading: "What a human overruled",
+    decisionsIntro:
+      "Everything else came from the research unchanged. These {count} decisions did not, and each carries the reason given at the time.",
+    decisionMeta: "{step} · {by} · {at}",
+
+    signOffHeading: "Sign-off",
+    signOffHint: "Two people, in order, before anything reaches clients.",
+    separation:
+      "The second approver cannot be the person who gave the first approval.",
+    viewAsApprover: "View as second-level approver",
+    viewingAsApprover: "Viewing as Elena Fischer · second-level approver",
+    awaitingYou: "Awaiting your decision",
+    awaitingGroup: "Awaiting {group}",
+    lockedUntilFirst: "Opens once the first approval is in",
+    blockedByReadiness: "Opens once every readiness check passes",
+    approvedBy: "Approved by {name} · {at}",
+    rejectedBy: "Rejected by {name} · {at}",
+    approve: "Approve",
+    reject: "Reject",
+    publishStage: "Publish",
+    publishStageGroup: "Comply · production",
+    publishWaiting: "Unlocks once both approvals are in",
+    publishReady: "Ready. Publish from the bar below.",
+    publishInProgress: "Publishing to Comply",
+    publishStopped: "Stopped by the rejection",
+
+    rejectedTitle: "{version} was rejected and will not publish",
+    rejectedBody:
+      "Fix what the comment points to in the step it concerns, then ask for approval again. Both approvals start over.",
+    rejectedReopen: "Reopen {step}",
+    resubmit: "Ask for approval again",
+
+    approveTitleFirst: "Approve at first level",
+    approveTitleSecond: "Approve for production",
+    rejectTitle: "Reject this version",
+    decisionHint: "A comment is recorded against every decision, approve or reject.",
+    approvePlaceholder: "e.g. rates verified against Royal Decree No 20",
+    rejectPlaceholder: "e.g. box 45 mapping needs counsel sign-off first",
+    cancel: "Cancel",
+
+    publishTitle: "Publish to production",
+    publishHint:
+      "{country} becomes fileable for every Comply client registered there. Record what this release covers.",
+    publishPlaceholder: "e.g. initial Belgian onboarding, effective 1 Jan 2026",
+    publishConfirm: "Publish",
+
+    footerNeedBoth: "Both approvals are needed before publishing",
+    footerRejected: "Rejected · will not publish",
+    footerReady: "Both approvals in",
+    publish: "Publish to Comply",
+    publishing: "Publishing",
+
+    /* The end of the run: a record of what went live, and where to go next. */
+    published: {
+      badge: "Live",
+      backLink: "Countries",
+      title: "{country} is live in Comply",
+      body: "{version} was published {at}. Clients registered in {country} can file these return types from their next period.",
+      recordHeading: "Release record",
+      version: "Version",
+      publishedAt: "Published",
+      publishedBy: "Published by",
+      firstApproval: "First approval",
+      secondApproval: "Second approval",
+      note: "Release note",
+      noteEmpty: "No note recorded",
+      nextHeading: "What happens next",
+      next: [
+        "Clients registered in {country} see these return types from their next filing period.",
+        "Every decision in this run, with its reason, is in the audit log.",
+        "Any later change starts as a new version and passes the same six steps and two approvals.",
+      ],
+      backToCountries: "Back to Countries",
+      auditTrail: "View the audit trail",
+      onboardAnother: "Onboard another country",
+    },
   },
 
   sources: {
@@ -185,6 +607,10 @@ export const copy = {
     dropAction: "Select file",
     linkPlaceholder: "https://…",
     linkInvalid: "Not a valid web address.",
+    urlHeading: "Add URL",
+    addAnotherUrl: "Add another URL",
+    removeUrl: "Remove URL",
+    researchFromUrls: "Research these sources",
     tooLarge: "{name} exceeds the 20 MB limit.",
     wrongType:
       "{name} is an unsupported format. Accepted: PDF, XML, XSD, CSV, XLS, XLSX or TXT.",
@@ -277,6 +703,13 @@ export const copy = {
     countWarningPlural: "{count} warnings",
     countBlocker: "{count} blocker",
     countBlockerPlural: "{count} blockers",
+    /* The tally chips are also the way to each finding: a click opens the file
+       and lands on the next one; the finding then offers the one after it. */
+    jumpToWarning: "Go to the next warning",
+    jumpToBlocker: "Go to the next blocker",
+    nextWarning: "Next warning",
+    nextBlocker: "Next blocker",
+    findingPosition: "{n} of {total}",
     lineLabel: "Line {line}",
     autoFix: "Auto-fix",
     autoFixed: "Fixed",
@@ -339,6 +772,9 @@ export const copy = {
     removePlaceholder: "e.g. onboarding opened in error, duplicate of an existing record",
     removeConfirm: "Remove",
     removeCancel: "Keep {country}",
+
+    /* A country published from the Query Builder. */
+    publishedActivity: "Published from the Query Builder",
   },
 } as const;
 

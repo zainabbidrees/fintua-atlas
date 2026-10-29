@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, Check, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +29,11 @@ import { ValidationPanel } from "./validation-panel";
 
 const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 const GROUPS: ArtifactGroup[] = ["schema", "boxes", "calculations"];
+
+/** The kinds of lint finding the tally chips walk through. */
+type FindingKind = "warn" | "fail";
+/** The finding the expert was last taken to; `seq` re-fires a repeat jump. */
+export type FindingFocus = { key: string; seq: number };
 
 export function BuildScreen({
   countryCode,
@@ -83,6 +88,41 @@ export function BuildScreen({
     return { passed, warnings, blockers };
   }, [artifacts, fixed]);
 
+  /* Every lint finding in reading order — the groups as the page lists them,
+     then each file's checks top to bottom — keyed "artifactId:checkIndex". */
+  const order = React.useMemo(
+    () =>
+      GROUPS.flatMap((g) => artifacts.filter((a) => a.group === g)).flatMap((a) =>
+        a.checks.map((c, i) => ({ key: `${a.id}:${i}`, state: c.state })),
+      ),
+    [artifacts],
+  );
+
+  /* The findings of one kind still open, in that order. A fixed warning drops
+     out, so walking them never lands on one already dealt with. */
+  const openFindings = (kind: FindingKind) =>
+    order.filter((f) => f.state === kind && !fixed.has(f.key)).map((f) => f.key);
+
+  const [focus, setFocus] = React.useState<FindingFocus | null>(null);
+
+  /* Go to the next open finding of a kind after the one last visited, wrapping
+     to the first. Position is read from the full order, so if the last one was
+     fixed in between, the walk carries on from where it stood. */
+  function jumpTo(kind: FindingKind) {
+    const open = openFindings(kind);
+    if (open.length === 0) return;
+    const keys = order.map((f) => f.key);
+    const from = focus ? keys.indexOf(focus.key) : -1;
+    const next = open.find((k) => keys.indexOf(k) > from) ?? open[0];
+    setFocus({ key: next, seq: (focus?.seq ?? 0) + 1 });
+  }
+
+  /** Where the focused finding sits among the open ones of its kind. */
+  function positionOf(key: string, kind: FindingKind) {
+    const open = openFindings(kind);
+    return { n: open.indexOf(key) + 1, total: open.length };
+  }
+
   function resolvedFor(artifactId: string): ReadonlySet<number> {
     const indices = new Set<number>();
     for (const key of fixed) {
@@ -116,7 +156,7 @@ export function BuildScreen({
             className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
-            Specs &amp; Datasets
+            {copy.page.stepsLabel[3]}
           </Link>
 
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
@@ -130,7 +170,7 @@ export function BuildScreen({
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="min-w-max">
-              <Stepper steps={STEPS} currentIndex={3} completedCount={3} />
+              <Stepper steps={STEPS} currentIndex={4} completedCount={4} />
             </div>
           </div>
         </div>
@@ -172,8 +212,16 @@ export function BuildScreen({
                 <Check className="size-3.5" />
                 {fill(copy.build.countPassed, { count: severity.passed })}
               </span>
+              {/* A warning or blocker chip is the way to it: each click opens
+                  the file holding the next one and lands on that finding. */}
               {severity.warnings > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-attention-quiet px-2 py-1 text-attention-text">
+                <button
+                  type="button"
+                  onClick={() => jumpTo("warn")}
+                  aria-label={copy.build.jumpToWarning}
+                  title={copy.build.jumpToWarning}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-attention-quiet px-2 py-1 text-attention-text transition-[filter,transform] hover:brightness-[0.97] active:scale-[0.98]"
+                >
                   <TriangleAlert className="size-3.5" />
                   {fill(
                     severity.warnings === 1
@@ -181,10 +229,17 @@ export function BuildScreen({
                       : copy.build.countWarningPlural,
                     { count: severity.warnings },
                   )}
-                </span>
+                  <ArrowDown className="size-3.5 opacity-70" />
+                </button>
               )}
               {severity.blockers > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-risk-quiet px-2 py-1 text-risk">
+                <button
+                  type="button"
+                  onClick={() => jumpTo("fail")}
+                  aria-label={copy.build.jumpToBlocker}
+                  title={copy.build.jumpToBlocker}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-risk-quiet px-2 py-1 text-risk transition-[filter,transform] hover:brightness-[0.97] active:scale-[0.98]"
+                >
                   <TriangleAlert className="size-3.5" />
                   {fill(
                     severity.blockers === 1
@@ -192,12 +247,13 @@ export function BuildScreen({
                       : copy.build.countBlockerPlural,
                     { count: severity.blockers },
                   )}
-                </span>
+                  <ArrowDown className="size-3.5 opacity-70" />
+                </button>
               )}
             </div>
           </section>
 
-          <div className="mt-8 space-y-10">
+          <div className="mt-10 space-y-8">
             {GROUPS.map((group) => {
               const rows = artifacts.filter((a) => a.group === group);
               if (rows.length === 0) return null;
@@ -207,13 +263,28 @@ export function BuildScreen({
                   <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
                     {ARTIFACT_GROUP_LABEL[group]}
                   </h3>
-                  <ul className="mt-1 border-t border-border">
+                  <ul className="mt-2 border-t border-border">
                     {rows.map((artifact, i) => (
                       <ArtifactRow
                         key={artifact.id}
                         artifact={artifact}
                         index={i}
                         resolved={resolvedFor(artifact.id)}
+                        focus={
+                          focus && focus.key.startsWith(`${artifact.id}:`)
+                            ? {
+                                index: Number(focus.key.split(":")[1]),
+                                seq: focus.seq,
+                                ...positionOf(
+                                  focus.key,
+                                  artifact.checks[Number(focus.key.split(":")[1])].state === "fail"
+                                    ? "fail"
+                                    : "warn",
+                                ),
+                              }
+                            : undefined
+                        }
+                        onNextFinding={(kind) => jumpTo(kind)}
                         onAutoFix={(checkIndex) =>
                           setFixed((prev) => {
                             const next = new Set(prev);
@@ -282,13 +353,13 @@ export function BuildScreen({
             {phase === "applied" ? (
               <Button variant="primary" asChild>
                 <Link href={`/countries/${countryCode}/approval`}>
-                  Continue to Approval &amp; Publish
+                  {copy.page.continue}
                   <ArrowRight />
                 </Link>
               </Button>
             ) : (
               <Button variant="primary" disabled>
-                Continue to Approval &amp; Publish
+                {copy.page.continue}
                 <ArrowRight />
               </Button>
             )}

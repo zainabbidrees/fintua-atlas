@@ -15,9 +15,9 @@ export type RunState =
 export interface CountryRun {
   code: string;
   name: string;
-  /** Which of the five steps it currently sits at. */
+  /** Which of the six steps it currently sits at. */
   step: string;
-  /** Wizard steps finished, out of five. */
+  /** Wizard steps finished, out of six. */
   stepsDone: number;
   filingsConfirmed: number;
   filingsFound: number;
@@ -51,8 +51,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "IT",
     name: "Italy",
-    step: "Approval & Publish",
-    stepsDone: 4,
+    step: "Query Builder",
+    stepsDone: 5,
     filingsConfirmed: 4,
     filingsFound: 4,
     review: 1,
@@ -64,8 +64,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "HU",
     name: "Hungary",
-    step: "Approval & Publish",
-    stepsDone: 4,
+    step: "Query Builder",
+    stepsDone: 5,
     filingsConfirmed: 4,
     filingsFound: 4,
     review: 0,
@@ -77,8 +77,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "PL",
     name: "Poland",
-    step: "SQL Review",
-    stepsDone: 3,
+    step: "Tax Rules Generation",
+    stepsDone: 4,
     filingsConfirmed: 6,
     filingsFound: 6,
     review: 0,
@@ -90,8 +90,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "RO",
     name: "Romania",
-    step: "Specs & Datasets",
-    stepsDone: 2,
+    step: "Form Annotations & Box Mapping",
+    stepsDone: 3,
     filingsConfirmed: 3,
     filingsFound: 7,
     review: 3,
@@ -107,7 +107,7 @@ export const RUNS: CountryRun[] = [
     code: "AT",
     name: "Austria",
     step: "Published",
-    stepsDone: 5,
+    stepsDone: 6,
     filingsConfirmed: 4,
     filingsFound: 4,
     review: 0,
@@ -120,7 +120,7 @@ export const RUNS: CountryRun[] = [
     code: "AU",
     name: "Australia",
     step: "Published",
-    stepsDone: 5,
+    stepsDone: 6,
     filingsConfirmed: 5,
     filingsFound: 5,
     review: 0,
@@ -132,8 +132,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "FR",
     name: "France",
-    step: "Specs & Datasets",
-    stepsDone: 2,
+    step: "Form Annotations & Box Mapping",
+    stepsDone: 3,
     filingsConfirmed: 3,
     filingsFound: 8,
     review: 1,
@@ -158,8 +158,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "NL",
     name: "Netherlands",
-    step: "SQL Review",
-    stepsDone: 3,
+    step: "Tax Rules Generation",
+    stepsDone: 4,
     filingsConfirmed: 5,
     filingsFound: 5,
     review: 0,
@@ -172,7 +172,7 @@ export const RUNS: CountryRun[] = [
     code: "PT",
     name: "Portugal",
     step: "Published",
-    stepsDone: 5,
+    stepsDone: 6,
     filingsConfirmed: 6,
     filingsFound: 6,
     review: 0,
@@ -197,8 +197,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "SE",
     name: "Sweden",
-    step: "Approval & Publish",
-    stepsDone: 4,
+    step: "Query Builder",
+    stepsDone: 5,
     filingsConfirmed: 5,
     filingsFound: 5,
     review: 0,
@@ -224,7 +224,7 @@ export const RUNS: CountryRun[] = [
     code: "DK",
     name: "Denmark",
     step: "Published",
-    stepsDone: 5,
+    stepsDone: 6,
     filingsConfirmed: 7,
     filingsFound: 7,
     review: 0,
@@ -236,8 +236,8 @@ export const RUNS: CountryRun[] = [
   {
     code: "GR",
     name: "Greece",
-    step: "SQL Review",
-    stepsDone: 3,
+    step: "Tax Rules Generation",
+    stepsDone: 4,
     filingsConfirmed: 4,
     filingsFound: 9,
     review: 1,
@@ -249,15 +249,16 @@ export const RUNS: CountryRun[] = [
 ];
 
 /**
- * The five stages a run moves through, in order. The index + 1 is the step
+ * The stages a run moves through, in order. The index + 1 is the step
  * number printed next to the stage, so this list is the single source of that
- * mapping — editing a row's stage sets both the label and the "n/5" together.
+ * mapping — editing a row's stage sets both the label and the "n/6" together.
  */
 export const STAGES = [
   "Return Types",
-  "Specs & Datasets",
-  "SQL Review",
-  "Approval & Publish",
+  "Tax Form Retrieval",
+  "Form Annotations & Box Mapping",
+  "Tax Rules Generation",
+  "Query Builder",
   "Published",
 ] as const;
 
@@ -294,7 +295,7 @@ export function initialsOf(name: string): string {
   return (first + last).toUpperCase();
 }
 
-/** The stored stage if it is one of the five, else the first. */
+/** The stored stage if it is one of the stages, else the first. */
 export function normalizeStage(step: string): Stage {
   return (STAGES as readonly string[]).includes(step)
     ? (step as Stage)
@@ -357,3 +358,52 @@ export const FILTERS: { id: FilterId; label: string; match: (r: CountryRun) => b
   { id: "draft", label: "Drafts", match: (r) => r.state === "draft" },
   { id: "live", label: "Published", match: (r) => r.state === "live" },
 ];
+
+/** The codes already live in Comply, from the fixtures. */
+export const LIVE_CODES: readonly string[] = RUNS.filter((r) => r.state === "live").map(
+  (r) => r.code,
+);
+
+/**
+ * Applies the countries published from the Query Builder: an existing row
+ * becomes Published at the last stage, a country not yet in the index gains a
+ * row, and the newly published ones lead the list so the outcome of the run
+ * is the first thing seen.
+ */
+export function withPublished(
+  rows: CountryRow[],
+  published: { code: string; name: string }[],
+  activity: string,
+): CountryRow[] {
+  if (published.length === 0) return rows;
+  const finished = (row: CountryRow): CountryRow => ({
+    ...row,
+    step: STAGES[STAGES.length - 1],
+    stepsDone: 6,
+    review: 0,
+    version: "v1.0",
+    state: "live",
+    lastActivity: { text: activity, at: "Just now" },
+  });
+  const lead = published.map((p) => {
+    const row = rows.find((r) => r.code === p.code);
+    return finished(
+      row ?? {
+        id: `pub-${p.code}`,
+        code: p.code,
+        name: p.name,
+        step: STAGES[0],
+        stepsDone: 0,
+        filingsConfirmed: 0,
+        filingsFound: 0,
+        review: 0,
+        version: "v1.0",
+        owner: { name: "Marco Rossi", initials: "MR" },
+        lastActivity: { text: activity, at: "Just now" },
+        state: "live",
+      },
+    );
+  });
+  const codes = new Set(published.map((p) => p.code));
+  return [...lead, ...rows.filter((r) => !codes.has(r.code))];
+}

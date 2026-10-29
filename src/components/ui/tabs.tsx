@@ -4,9 +4,14 @@ import * as React from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * A minimal tab list. Selection is the brand's job — that is what brand marks —
- * so the active tab carries a brand underline and the rest stay muted. Arrow
- * keys move between tabs; the panel is the caller's, labelled back to its tab.
+ * A row of outlined pills. Each tab is its own bordered target, so it reads as
+ * something to press; the selected one takes the stepper's own treatment — a
+ * pale brand fill on a brand edge — so selection looks the same everywhere in
+ * the app. No grey tray, no filled badges: the counts are quiet text, there to
+ * say what is behind a tab before it is opened.
+ *
+ * Arrow keys move between tabs; the panel is the caller's, labelled back to its
+ * tab. A row too wide for its container scrolls rather than wraps.
  */
 export function Tabs({
   tabs,
@@ -15,7 +20,7 @@ export function Tabs({
   idBase,
   className,
 }: {
-  tabs: { id: string; label: string }[];
+  tabs: { id: string; label: string; count?: number }[];
   value: string;
   onValueChange: (id: string) => void;
   /** Namespaces the tab/panel ids so `aria-controls` is unique on the page. */
@@ -38,7 +43,11 @@ export function Tabs({
     <div
       role="tablist"
       onKeyDown={onKeyDown}
-      className={cn("flex gap-5 border-b border-border", className)}
+      className={cn(
+        "flex w-max max-w-full gap-2 overflow-x-auto",
+        "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        className,
+      )}
     >
       {tabs.map((t) => {
         const active = t.id === value;
@@ -56,13 +65,27 @@ export function Tabs({
             tabIndex={active ? 0 : -1}
             onClick={() => onValueChange(t.id)}
             className={cn(
-              "-mb-px border-b-2 pb-2.5 text-[13px] font-medium transition-colors",
+              "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-[13px] font-medium",
+              "transition-[background-color,border-color,color,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+              /* Tactile: the tab gives under the press. */
+              "active:scale-[0.97] motion-reduce:active:scale-100",
               active
-                ? "border-brand text-brand"
-                : "border-transparent text-text-muted hover:text-text",
+                ? "border-brand-edge bg-brand-quiet text-brand"
+                : "cursor-pointer border-border-strong bg-surface text-text-muted hover:border-brand-edge hover:text-text",
             )}
           >
             {t.label}
+            {t.count !== undefined && (
+              <span
+                data-numeric
+                className={cn(
+                  "text-[12px] font-normal transition-colors",
+                  active ? "text-brand/70" : "text-text-faint",
+                )}
+              >
+                {t.count}
+              </span>
+            )}
           </button>
         );
       })}

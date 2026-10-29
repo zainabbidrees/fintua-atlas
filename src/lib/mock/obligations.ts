@@ -30,17 +30,6 @@ const GUIDE: Evidence = {
     "Chapter 12 of the implementation guide sets out the filing regimes open to VAT-registered businesses and the thresholds that decide which one applies. It is addressed to established taxable persons and to the advisers who file on their behalf.\n\nA filing regime fixes how often a business reports and pays its VAT, and the deadlines that follow from that frequency. The regime is not a matter of preference alone: it depends on turnover, on the sector in which the business operates, and in some cases on its compliance history.\n\nEvery taxable person is assigned a regime when first registered for VAT. The administration confirms the regime in writing, and any later change takes effect from the start of a return period rather than part-way through one.\n\nThe default is the monthly return. It applies to every taxable person unless an election for the quarterly regime has been made and accepted by the administration.\n\nThe monthly regime suits businesses that regularly recover more VAT than they owe, because it brings forward the moment a refund can be claimed. It also carries the shortest interval between a transaction and the return that reports it.\n\nThe quarterly regime reduces the number of periodic filings from twelve to four a year. It is available only below a turnover threshold, and the business must keep within the conditions for the whole of the period for which it is granted.\n\nTaxable persons whose annual turnover excluding VAT does not exceed EUR 2 500 000 may opt to submit quarterly returns. The option is excluded for certain sectors, including the supply of energy products and mobile telephony, where a lower threshold is set.\n\nA business that crosses the threshold during the year moves to the monthly regime from the first return period of the following quarter. The administration does not apply the change retroactively to periods already filed.\n\nWhere a business is uncertain which regime applies to it, it should file monthly until the position is confirmed, since a missed monthly return carries the same penalty whether or not a quarterly option was in fact available.",
 };
 
-const RATES: Evidence = {
-  sourceTitle: "VAT rates in Belgium",
-  publisher: "Belgian Federal Public Service Finance",
-  url: "https://finances.belgium.be/en/enterprises/vat/vat-rates",
-  locator: "Table 1",
-  quote:
-    "The standard rate of VAT is 21 %. Reduced rates of 6 % and 12 % apply to the categories of goods and services listed in Royal Decree No 20.",
-  article:
-    "Belgium applies one standard rate and two reduced rates of VAT. The rates, and the goods and services they cover, are fixed by Royal Decree and reviewed periodically.\n\nThe rate that applies to a supply is a property of what is supplied, not of who supplies it. The same good carries the same rate whether sold by a manufacturer, a wholesaler or a retailer.\n\nFor a configured return this matters because each rate maps to its own grids. A rate applied in error therefore places the taxable amount in the wrong box, and the error is not visible in the totals.\n\nThe standard rate is the default. A supply carries it unless it is specifically listed, by category, as taking a reduced rate or as exempt.\n\nThe reduced rates are the exception, and the list of what they cover is exhaustive rather than illustrative. A category that is not on the list takes the standard rate even where a lower rate might seem to fit its purpose.\n\nThe categories are revised from time to time, and a supply may move between rates when the decree is amended. The rate in force on the date of the chargeable event is the one that applies.\n\nThe standard rate of VAT is 21 %. Reduced rates of 6 % and 12 % apply to the categories of goods and services listed in Royal Decree No 20. The 6 % rate covers most food, water, books and passenger transport; the 12 % rate covers restaurant and catering services and certain social housing.\n\nA zero rate applies to intra-Community supplies and exports, which are exempt with the right to deduct. These are reported in their own grids, separately from domestic supplies.\n\nSupplies that fall under a reverse-charge mechanism are reported by the supplier without VAT, because the customer accounts for the tax. The rate is still recorded, since it governs the amount the customer must self-assess.",
-};
-
 const DIRECTIVE: Evidence = {
   sourceTitle: "EU VAT Directive 2006/112/EC",
   publisher: "European Union",
@@ -77,6 +66,7 @@ const VAT_RETURN_FINDINGS: Finding[] = [
   {
     id: "be-vat-freq",
     group: "filing",
+    role: "frequency",
     label: "Filing frequency",
     value: "Monthly",
     detail: "Quarterly permitted below €2,500,000 annual turnover",
@@ -86,64 +76,12 @@ const VAT_RETURN_FINDINGS: Finding[] = [
   {
     id: "be-vat-deadline",
     group: "filing",
+    role: "deadline",
     label: "Filing deadline",
-    value: "20th of the following month",
+    value: "EOP + 20 days",
+    detail: "The 20th of the month after the period. Payment is due the same date, through Intervat",
     evidence: INTERVAT,
     state: "corroborated",
-  },
-  {
-    id: "be-vat-payment",
-    group: "filing",
-    label: "Payment deadline",
-    value: "20th of the following month",
-    detail: "Same date as filing",
-    evidence: INTERVAT,
-    state: "corroborated",
-  },
-  {
-    id: "be-vat-channel",
-    group: "filing",
-    label: "Submission channel",
-    value: "Intervat — XML upload",
-    evidence: INTERVAT,
-    state: "corroborated",
-  },
-  {
-    id: "be-vat-standard",
-    group: "rates",
-    label: "Standard rate",
-    value: "21%",
-    evidence: RATES,
-    state: "corroborated",
-  },
-  {
-    id: "be-vat-reduced",
-    group: "rates",
-    label: "Reduced rates",
-    value: "6% and 12%",
-    evidence: RATES,
-    state: "needs_review",
-    concern:
-      "The source lists both rates but defers the category mapping to Royal Decree No 20, which was not retrieved. Which supplies fall under 6% versus 12% is unresolved.",
-  },
-  {
-    id: "be-vat-nil",
-    group: "rules",
-    label: "Nil return",
-    value: "Required",
-    detail: "A return is due even where no transactions occurred",
-    evidence: INTERVAT,
-    state: "corroborated",
-  },
-  {
-    id: "be-vat-correction",
-    group: "rules",
-    label: "Correction mechanism",
-    value: "Adjustment in the next periodic return",
-    evidence: GUIDE,
-    state: "needs_review",
-    concern:
-      "Only one source addresses corrections, and it does not distinguish between adjustments below the tolerance threshold and those requiring a corrective filing.",
   },
 ];
 
@@ -151,6 +89,7 @@ const ESL_FINDINGS: Finding[] = [
   {
     id: "be-esl-freq",
     group: "filing",
+    role: "frequency",
     label: "Filing frequency",
     value: "Monthly",
     detail: "Quarterly where intra-Community supplies stay below €50,000",
@@ -160,49 +99,27 @@ const ESL_FINDINGS: Finding[] = [
   {
     id: "be-esl-deadline",
     group: "filing",
+    role: "deadline",
     label: "Filing deadline",
-    value: "20th of the following month",
+    value: "EOP + 20 days",
+    detail: "The 20th of the month after the period, filed through Intervat",
     evidence: INTERVAT,
-    state: "corroborated",
-  },
-  {
-    id: "be-esl-channel",
-    group: "filing",
-    label: "Submission channel",
-    value: "Intervat — XML upload",
-    evidence: INTERVAT,
-    state: "corroborated",
-  },
-  {
-    id: "be-esl-nil",
-    group: "rules",
-    label: "Nil return",
-    value: "Not required",
-    detail: "No statement is due for periods without intra-Community supplies",
-    evidence: DIRECTIVE,
     state: "corroborated",
   },
 ];
 
 const SAFT_FINDINGS: Finding[] = [
   {
-    id: "be-saft-trigger",
-    group: "rules",
-    label: "When produced",
-    value: "On request by the tax authority",
+    id: "be-saft-freq",
+    group: "filing",
+    role: "frequency",
+    label: "Filing frequency",
+    value: "Not established",
+    detail: "Produced on request by the tax authority, if adopted at all",
     evidence: COMMENTARY,
     state: "needs_review",
     concern:
-      "Sourced only from secondary commentary dated 2019. No implementing decree was found, so whether this obligation exists at all is unconfirmed.",
-  },
-  {
-    id: "be-saft-format",
-    group: "rules",
-    label: "Format",
-    value: "SAF-T XML",
-    evidence: COMMENTARY,
-    state: "needs_review",
-    concern: "No published schema was retrieved. The version is unknown.",
+      "Identified only in secondary commentary from 2019, with nothing from the tax authority to confirm it. Applicability to Belgium is unconfirmed.",
   },
 ];
 
@@ -210,6 +127,7 @@ const LISTING_FINDINGS: Finding[] = [
   {
     id: "be-annual-freq",
     group: "filing",
+    role: "frequency",
     label: "Filing frequency",
     value: "Annual",
     evidence: LISTING,
@@ -218,26 +136,10 @@ const LISTING_FINDINGS: Finding[] = [
   {
     id: "be-annual-deadline",
     group: "filing",
+    role: "deadline",
     label: "Filing deadline",
-    value: "31 March",
-    detail: "For the preceding calendar year",
-    evidence: LISTING,
-    state: "corroborated",
-  },
-  {
-    id: "be-annual-channel",
-    group: "filing",
-    label: "Submission channel",
-    value: "Intervat — XML upload",
-    evidence: INTERVAT,
-    state: "corroborated",
-  },
-  {
-    id: "be-annual-threshold",
-    group: "rules",
-    label: "Reporting threshold",
-    value: "EUR 250 per customer per year",
-    detail: "Customers below the threshold are left out of the listing",
+    value: "EOP + 90 days",
+    detail: "31 March for the preceding calendar year, filed through Intervat",
     evidence: LISTING,
     state: "corroborated",
   },

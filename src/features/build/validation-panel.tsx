@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Check, TriangleAlert } from "lucide-react";
+import { AttentionNote } from "@/components/ui/attention-note";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { copy } from "@/lib/copy";
@@ -98,7 +99,7 @@ function ValidationRow({
         {/* The box number, as the team refers to it on the return. */}
         <span
           className={cn(
-            "mt-0.5 inline-flex h-6 min-w-[1.75rem] shrink-0 items-center justify-center rounded-md px-1.5 font-mono text-[12px] tabular-nums",
+            "mt-0.5 inline-flex h-6 min-w-[1.75rem] shrink-0 items-center justify-center rounded-md px-1.5 text-[12px] font-medium tabular-nums",
             settled
               ? "bg-surface-sunken text-text-muted"
               : "bg-attention-quiet text-attention-text",
@@ -115,10 +116,10 @@ function ValidationRow({
 
           {/* Identity first, then the same identity with the period's figures
               substituted in — the arithmetic is the evidence, so it is shown. */}
-          <p className="mt-1.5 font-mono text-[12px] text-text-muted">
+          <p className="mt-1.5 text-[13px] text-text-muted">
             {check.identity}
           </p>
-          <p className="mt-0.5 font-mono text-[12px] text-text-faint">
+          <p className="mt-0.5 text-[13px] text-text-faint">
             {check.substituted}
           </p>
 
@@ -141,9 +142,7 @@ function ValidationRow({
           </p>
 
           {isClash && check.note && !settled && (
-            <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-attention-text">
-              {check.note}
-            </p>
+            <AttentionNote className="mt-2">{check.note}</AttentionNote>
           )}
 
           {/* Settling a clash captures the why, matching the correction flow in

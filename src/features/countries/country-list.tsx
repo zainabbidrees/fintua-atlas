@@ -15,10 +15,12 @@ import {
   RUNS,
   STATE_META,
   withIds,
+  withPublished,
   type CountryRow,
   type FilterId,
 } from "./data";
 import { findCountry } from "@/lib/mock/countries";
+import { readPublished } from "@/lib/published";
 
 /**
  * The full picture, as a table.
@@ -47,6 +49,17 @@ export function CountryList() {
      it, each given a stable id so a duplicate can share a code without
      colliding as a key. */
   const [all, setAll] = React.useState<CountryRow[]>(() => withIds(RUNS));
+
+  /* Countries published from the Query Builder show as Published and lead
+     the list. Read after mount so the first render matches the server. */
+  React.useEffect(() => {
+    const published = readPublished();
+    if (published.length === 0) return;
+    // Syncing from localStorage after mount is the one case that
+    // legitimately needs setState in an effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAll((rows) => withPublished(rows, published, copy.countries.publishedActivity));
+  }, []);
 
   /* The two row dialogs. Null is closed; a row is the one being acted on. */
   const [editing, setEditing] = React.useState<CountryRow | null>(null);
@@ -231,7 +244,7 @@ export function CountryList() {
                 <Th className="w-[4%] text-right">#</Th>
                 <Th className="w-[16%]">Country</Th>
                 <Th className="w-[11%]">Status</Th>
-                {/* Fits "Approval & Publish 4/5", the longest stage. A clipped
+                {/* Fits "Approval & Publish 5/6", the longest stage. A clipped
                     enum loses its meaning; a clipped sentence still reads, so
                     the activity column is the one that gives way. */}
                 <Th className="w-[15%]">Stage</Th>
@@ -450,7 +463,7 @@ function Row({
         <span className="block truncate whitespace-nowrap">
           <span className="text-[13px] text-text">{run.step}</span>
           <span className="ml-1.5 text-[13px] tabular-nums text-text-faint">
-            {run.stepsDone}/5
+            {run.stepsDone}/6
           </span>
         </span>
       </Td>
@@ -591,7 +604,7 @@ function CompactRow({
             {state.label}
             <span className="text-text-faint">
               {" · "}
-              {run.step} {run.stepsDone}/5 · {run.filingsConfirmed}/
+              {run.step} {run.stepsDone}/6 · {run.filingsConfirmed}/
               {run.filingsFound} obligations
             </span>
           </span>

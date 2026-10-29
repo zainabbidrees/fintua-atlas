@@ -131,7 +131,7 @@ function Body({
             >
               {STAGES.map((s, i) => (
                 <option key={s} value={s}>
-                  {s} · {i + 1}/5
+                  {s} · {i + 1}/6
                 </option>
               ))}
             </Select>

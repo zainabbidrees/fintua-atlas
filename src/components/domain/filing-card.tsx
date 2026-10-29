@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import { AttentionNote } from "@/components/ui/attention-note";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SourceBlock } from "@/components/domain/source-block";
@@ -78,9 +79,7 @@ export function FilingCard({
 
             {/* What the agent is unsure about — stated plainly, not as a score. */}
             {needsCheck && filing.uncertainty && (
-              <p className="mt-2 max-w-[62ch] rounded-md bg-attention-quiet px-3 py-2 text-sm leading-relaxed text-attention-text">
-                {filing.uncertainty}
-              </p>
+              <AttentionNote className="mt-2">{filing.uncertainty}</AttentionNote>
             )}
 
             <div className="mt-3 flex items-center gap-3">

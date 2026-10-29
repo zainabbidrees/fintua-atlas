@@ -108,15 +108,24 @@ export function SourceBlock({
 export function SourceMark({
   extension,
   host,
+  size = "md",
 }: {
   extension: string | null;
   host: string | null;
+  /** "sm" sits on a single 20px text line, for dense table rows. */
+  size?: "sm" | "md";
 }) {
   const [faviconFailed, setFaviconFailed] = React.useState(false);
   const Icon = extension ? (EXTENSION_ICON[extension] ?? File) : Globe;
 
   return (
-    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-surface ring-1 ring-inset ring-border">
+    <span
+      className={
+        size === "sm"
+          ? "grid size-6 shrink-0 place-items-center rounded bg-surface ring-1 ring-inset ring-border"
+          : "grid size-9 shrink-0 place-items-center rounded-md bg-surface ring-1 ring-inset ring-border"
+      }
+    >
       {host && !faviconFailed ? (
         // A plain img: the host is arbitrary and unknown at build time, and a
         // broken favicon has to fall back rather than throw.
@@ -126,11 +135,11 @@ export function SourceMark({
           alt=""
           width={16}
           height={16}
-          className="size-4 object-contain"
+          className={size === "sm" ? "size-3.5 object-contain" : "size-4 object-contain"}
           onError={() => setFaviconFailed(true)}
         />
       ) : (
-        <Icon className="size-4 text-text-faint" />
+        <Icon className={size === "sm" ? "size-3.5 text-text-faint" : "size-4 text-text-faint"} />
       )}
 
       {extension && (

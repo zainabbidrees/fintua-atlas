@@ -33,7 +33,7 @@ export const BE_DECISIONS: DecisionRecord[] = [
     id: "d-rc",
     kind: "resolved",
     subject: "Reverse charge — construction",
-    step: "Specs & Datasets",
+    step: "Form Annotations & Box Mapping",
     reason:
       "Box 45 confirmed with local counsel. Box 47 applies only to exempt supplies, not to reverse-charged work.",
     by: "Marco Rossi",
@@ -43,7 +43,7 @@ export const BE_DECISIONS: DecisionRecord[] = [
     id: "d-margin",
     kind: "dismissed",
     subject: "Margin scheme — second-hand goods",
-    step: "Specs & Datasets",
+    step: "Form Annotations & Box Mapping",
     reason: "Out of scope for this registration; no second-hand trading.",
     by: "Marco Rossi",
     at: "22 Oct, 16:14",
@@ -55,21 +55,25 @@ export const BE_READINESS: ReadinessCheck[] = [
     label: "Obligations confirmed",
     detail: "4 of 4, each with a cited source",
     passed: true,
+    step: 0,
   },
   {
     label: "Nothing awaiting review",
     detail: "No finding or mapping is still open",
     passed: true,
+    step: 1,
   },
   {
     label: "Every transaction type covered",
     detail: "No type can file without a box mapping",
     passed: true,
+    step: 3,
   },
   {
     label: "Applied to test",
     detail: "22 Oct, 23:32 · dry run clean, rolled back",
     passed: true,
+    step: 4,
   },
 ];
 

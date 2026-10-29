@@ -170,9 +170,18 @@ export const FINDING_GROUP_LABEL: Record<FindingGroup, string> = {
   rules: "Treatment & rules",
 };
 
+/**
+ * Which column a finding fills in the Returns table. Step 2 now reads down two
+ * columns — filing frequency and filing deadline — so each finding declares the
+ * one it answers rather than being matched on its label.
+ */
+export type FindingRole = "frequency" | "deadline" | "other";
+
 export interface Finding {
   id: string;
   group: FindingGroup;
+  /** The Returns-table column this finding fills. Absent reads as "other". */
+  role?: FindingRole;
   /** e.g. "Filing frequency". */
   label: string;
   value: string;
@@ -511,6 +520,8 @@ export interface ReadinessCheck {
   label: string;
   detail: string;
   passed: boolean;
+  /** Index of the step that owns this check, so a failure can be opened. */
+  step: number;
 }
 
 export type ApprovalStatus2 = "pending" | "approved" | "rejected";
@@ -527,3 +538,77 @@ export interface ApprovalRecord {
 }
 
 export type PublishPhase = "awaiting" | "ready" | "publishing" | "published";
+
+/* ── Step 3: Tax Form Retrieval ──────────────────────────────────────────
+ *
+ * The official return form behind each confirmed return type, retrieved from
+ * its publisher and laid out page by page. The expert decides which pages carry
+ * into the specs — the checkbox here means the same as everywhere else:
+ * carried forward or not, never deleted.
+ */
+
+/** What a page of a retrieved form is for. Decides the agent's default tick. */
+export type FormPageKind = "form" | "continuation" | "instructions";
+
+/** One numbered grid on a form — the box the specs step will map to. */
+export interface FormGrid {
+  code: string;
+  label: string;
+}
+
+/** A drawable block on a page facsimile. */
+export type FormBlock =
+  | { kind: "masthead"; title: string; subtitle: string; reference: string }
+  | { kind: "identity"; fields: string[] }
+  | { kind: "frame"; title: string; grids: FormGrid[] }
+  | { kind: "table"; title: string; columns: string[]; rows: number }
+  | { kind: "prose"; title: string; paragraphs: string[] }
+  | { kind: "signature"; label: string };
+
+export interface FormPage {
+  id: string;
+  kind: FormPageKind;
+  /** What the page holds, in a few words — "Grids 00–49". */
+  summary: string;
+  /** Why the agent ticked or left it — shown in the page viewer. */
+  note: string;
+  /** The agent's default: field pages ticked, notes and instructions not. */
+  selected: boolean;
+  blocks: FormBlock[];
+}
+
+/** One edition of an official form, as found at one publisher. */
+export interface FormEdition {
+  id: string;
+  /** The form's own title, in its own language. */
+  title: string;
+  /** The publisher's reference for it, e.g. "Form 625". */
+  reference: string;
+  publisher: string;
+  url: string;
+  /** Which edition, as the publisher dates it. */
+  edition: string;
+  retrieved: string;
+  /** Where two editions clash: what sets this one apart, in the agent's words. */
+  difference?: string;
+  pages: FormPage[];
+}
+
+/**
+ * Where retrieval stands for one return type — one of the five states:
+ * still retrieving, found, two editions clashing, or nothing published.
+ */
+export type RetrievalState = "retrieving" | "found" | "clash" | "none";
+
+export interface FormRetrieval {
+  obligationId: string;
+  obligationName: string;
+  localName: string | null;
+  state: RetrievalState;
+  /** One edition when found; two when they clash; none when nothing was. */
+  editions: FormEdition[];
+  /** The live trail while retrieving. */
+  trail?: string[];
+  /** Why nothing was found, in the agent's words. */
+  noneDetail?: string;
+}

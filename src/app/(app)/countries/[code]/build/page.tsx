@@ -1,13 +1,16 @@
 import { notFound } from "next/navigation";
-import { BuildScreen } from "@/features/build/build-screen";
+import { TaxRulesScreen } from "@/features/tax-rules/tax-rules-screen";
 import { findCountry } from "@/lib/mock/countries";
 
-export default async function BuildPage({
+/* Step 5, Tax Rules Generation. The route keeps its old `build` path so the
+   links into it from steps four and six stay put; the SQL Review screen it
+   used to show is still in src/features/build, unrouted. */
+export default async function TaxRulesPage({
   params,
 }: PageProps<"/countries/[code]/build">) {
   const { code } = await params;
   const country = findCountry(code.toUpperCase());
   if (!country) notFound();
 
-  return <BuildScreen countryCode={country.code} countryName={country.name} />;
+  return <TaxRulesScreen countryCode={country.code} countryName={country.name} />;
 }

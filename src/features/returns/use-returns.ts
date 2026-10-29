@@ -29,21 +29,42 @@ export function useReturns(countryCode: string) {
   const selected =
     obligations.find((o) => o.id === selectedId) ?? obligations[0];
 
-  /* Supporting material the expert attaches from the rail. Country-level, not
-     tied to one return, so it reads the same whichever return is open. */
-  const [uploads, setUploads] = React.useState<Upload[]>([]);
+  /* Supporting material the expert attaches, kept per return type: a form or an
+     advisor's note belongs to the return it concerns, so each row carries its
+     own, listed in its own Attach cell. */
+  const [uploadsById, setUploadsById] = React.useState<Record<string, Upload[]>>(
+    {},
+  );
+  const uploadsFor = React.useCallback(
+    (obligationId: string): Upload[] => uploadsById[obligationId] ?? [],
+    [uploadsById],
+  );
   const addUpload = React.useCallback(
-    (item: { label: string; kind: "file" | "link" }) => {
-      setUploads((u) => [
-        ...u,
-        { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...item },
-      ]);
+    (obligationId: string, item: { label: string; kind: "file" | "link" }) => {
+      setUploadsById((map) => ({
+        ...map,
+        [obligationId]: [
+          ...(map[obligationId] ?? []),
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            ...item,
+          },
+        ],
+      }));
     },
     [],
   );
-  const removeUpload = React.useCallback((id: string) => {
-    setUploads((u) => u.filter((x) => x.id !== id));
-  }, []);
+  const removeUpload = React.useCallback(
+    (obligationId: string, uploadId: string) => {
+      setUploadsById((map) => ({
+        ...map,
+        [obligationId]: (map[obligationId] ?? []).filter(
+          (x) => x.id !== uploadId,
+        ),
+      }));
+    },
+    [],
+  );
 
   /* The agent's original finding for each id, so the per-row undo can put a
      confirmed or corrected value back exactly as it was first proposed. */
@@ -224,6 +245,46 @@ export function useReturns(countryCode: string) {
     );
   };
 
+  /** Clears a whole return type in one action — the row-level Confirm. Accepts
+      every value it holds, cross-checked and flagged alike, and moves on to the
+      next return still waiting. */
+  const confirmObligation = (obligationId: string) => {
+    setObligations((all) =>
+      all.map((o) =>
+        o.id === obligationId
+          ? {
+              ...o,
+              findings: o.findings.map((f) =>
+                f.state === "confirmed" || f.state === "edited"
+                  ? f
+                  : { ...f, state: "confirmed" as const, concern: undefined },
+              ),
+            }
+          : o,
+      ),
+    );
+  };
+
+  /** Undo the row-level Confirm: every value in the return goes back to exactly
+      what the agent first proposed. */
+  const resetObligation = React.useCallback(
+    (obligationId: string) => {
+      setObligations((all) =>
+        all.map((o) =>
+          o.id === obligationId
+            ? {
+                ...o,
+                findings: o.findings.map(
+                  (f) => originalById.get(f.id) ?? f,
+                ),
+              }
+            : o,
+        ),
+      );
+    },
+    [originalById],
+  );
+
   /** Accepts every finding the agent corroborated, leaving the flagged ones. */
   const confirmCorroborated = React.useCallback((obligationId: string) => {
     setObligations((all) =>
@@ -265,7 +326,7 @@ export function useReturns(countryCode: string) {
     selected,
     selectedId: selected?.id ?? "",
     setSelectedId,
-    uploads,
+    uploadsFor,
     addUpload,
     removeUpload,
     confirm,
@@ -274,6 +335,8 @@ export function useReturns(countryCode: string) {
     edit,
     confirmMany,
     dismiss,
+    confirmObligation,
+    resetObligation,
     confirmCorroborated,
     outstanding,
     isSettled,

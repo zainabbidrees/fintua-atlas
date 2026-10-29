@@ -5,23 +5,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Loader2,
-  Lock,
   Rocket,
+  RotateCcw,
   TriangleAlert,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { DraftActions } from "@/components/patterns/draft-actions";
-import { Stepper } from "@/components/patterns/stepper";
 import { UploadBar } from "@/components/patterns/upload-bar";
-import { copy } from "@/lib/copy";
-import { DECISION_KIND_LABEL } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { copy, fill } from "@/lib/copy";
+import { DECISION_KIND_LABEL, type DecisionRecord, type ReadinessCheck } from "@/lib/types";
+import { ReleaseCard, StepHeader, stepHref } from "./parts";
+import { Published } from "./published";
+import { SignOffTrack } from "./sign-off-track";
 import { useApproval } from "./use-approval";
-
-const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 
 type Pending = { level: 1 | 2; action: "approved" | "rejected" } | null;
 
@@ -36,6 +38,7 @@ export function ApprovalScreen({
   const a = useApproval(countryCode);
   const [pending, setPending] = React.useState<Pending>(null);
   const [confirmPublish, setConfirmPublish] = React.useState(false);
+  const t = copy.approval;
 
   if (a.phase === "published") {
     return (
@@ -43,253 +46,106 @@ export function ApprovalScreen({
         countryName={countryName}
         version={a.version}
         at={a.publishedAt}
+        by={a.publishedBy}
+        note={a.releaseNote}
+        l1={a.l1}
+        l2={a.l2}
         scope={a.scope}
       />
     );
   }
 
+  const rejection = a.approvals.find((r) => r.status === "rejected");
+
   return (
     <div className="pb-24">
-      <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
-        <div className="mx-auto w-full max-w-[1600px]">
-          <Link
-            href={`/countries/${countryCode}/build`}
-            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
-          >
-            <ArrowLeft className="size-3.5" />
-            SQL Review
-          </Link>
-
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-[22px] font-medium tracking-tight text-heading">
-                {countryName}
-              </h1>
-            </div>
-            <DraftActions onDiscard={() => router.push("/countries")} />
-          </div>
-
-          <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="min-w-max">
-              <Stepper steps={STEPS} currentIndex={4} completedCount={4} />
-            </div>
-          </div>
-        </div>
-      </header>
+      <StepHeader
+        backHref={stepHref(countryCode, 3)}
+        backLabel={t.backLink}
+        title={countryName}
+        actions={<DraftActions onDiscard={() => router.push("/countries")} />}
+        currentIndex={5}
+        completedCount={5}
+      />
 
       <div className="px-6 py-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
-          {/* What is being signed for. Belgium has no prior version, so there is
-              nothing to diff — saying so beats showing an empty comparison. */}
-          <section>
-            <h2 className="text-[17px] font-medium tracking-tight text-heading">
-              Publishing {a.version} of {countryName}
-            </h2>
-            <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-text-muted">
-              {a.previousVersion
-                ? `Replaces ${a.previousVersion} in Comply.`
-                : `${countryName} has not been published before, so everything here is new: `}
-              {!a.previousVersion && (
-                <>
-                  <span className="tabular-nums">{a.scope.obligations}</span>{" "}
-                  return types, <span className="tabular-nums">{a.scope.boxes}</span>{" "}
-                  return boxes,{" "}
-                  <span className="tabular-nums">{a.scope.rules}</span> mapping
-                  rules and <span className="tabular-nums">{a.scope.rates}</span>{" "}
-                  rates.
-                </>
+          {/* The case for signing on the left; the sign-off on the right, held
+              in view while the approver reads down the evidence. Stacks below
+              lg with the evidence first — read, then sign. */}
+          <div className="grid gap-8 [&>*]:min-w-0 lg:grid-cols-[minmax(0,1fr)_23rem] xl:gap-12">
+            <aside className="order-2">
+              <div className="lg:sticky lg:top-8">
+                <SignOffTrack
+                  l1={a.l1}
+                  l2={a.l2}
+                  phase={a.phase}
+                  ready={a.ready}
+                  asApprover={a.asApprover}
+                  onToggleApprover={() => a.setAsApprover((v) => !v)}
+                  onDecide={(level, action) => setPending({ level, action })}
+                />
+              </div>
+            </aside>
+
+            <div className="order-1 space-y-10">
+              <section>
+                <h2 className="text-[22px] font-medium tracking-tight text-heading">
+                  {t.title}
+                </h2>
+                <p className="mt-1.5 max-w-[62ch] text-[14px] leading-relaxed text-text-muted">
+                  {a.previousVersion
+                    ? fill(t.introReplaces, { version: a.version, previous: a.previousVersion })
+                    : fill(t.introNew, { country: countryName, version: a.version })}
+                </p>
+              </section>
+
+              {rejection && (
+                <Rejected
+                  version={a.version}
+                  comment={rejection.comment}
+                  countryCode={countryCode}
+                  onResubmit={a.resubmit}
+                />
               )}
-            </p>
-          </section>
 
-          <section className="mt-9">
-            <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
-              Readiness
-            </h3>
-            <ul className="mt-2 border-t border-border">
-              {a.readiness.map((check) => (
-                <li
-                  key={check.label}
-                  className="flex flex-col gap-1 border-b border-border py-3 last:border-0 sm:flex-row sm:items-baseline sm:gap-3"
-                >
-                  <span className="flex items-baseline gap-3 sm:contents">
-                    <Check
-                      aria-hidden
-                      className={cn(
-                        "size-3.5 shrink-0 translate-y-0.5",
-                        check.passed ? "text-settled" : "text-text-faint",
-                      )}
-                    />
-                    <span className="text-[14px] text-text sm:w-56 sm:shrink-0">
-                      {check.label}
-                    </span>
-                  </span>
-                  <span className="min-w-0 pl-6 text-[13px] text-text-muted sm:pl-0">
-                    {check.detail}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
+              <ReleaseCard
+                version={a.version}
+                previousVersion={a.previousVersion}
+                scope={a.scope}
+              />
 
-          {/* The reason every earlier step asked for a rationale. */}
-          <section className="mt-9">
-            <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
-              What a human overruled
-            </h3>
-            <p className="mt-2 max-w-[64ch] text-[13px] leading-relaxed text-text-muted">
-              Everything else came from the research unchanged. These{" "}
-              <span className="tabular-nums">{a.decisions.length}</span> decisions
-              did not.
-            </p>
+              <Readiness checks={a.readiness} countryCode={countryCode} />
 
-            <ul className="mt-4 border-t border-border">
-              {a.decisions.map((d, i) => (
-                <li
-                  key={d.id}
-                  className="rise border-b border-border py-4 last:border-0"
-                  style={{ "--index": i } as React.CSSProperties}
-                >
-                  <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                    <span className="text-[14px] font-medium text-text">
-                      {d.subject}
-                    </span>
-                    <span className="text-[12px] text-text-faint">
-                      {DECISION_KIND_LABEL[d.kind]} · {d.step} · {d.by} · {d.at}
-                    </span>
-                  </div>
-                  <p className="mt-1 max-w-[70ch] text-[13px] leading-relaxed text-text-muted">
-                    {d.reason}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </section>
+              <Decisions decisions={a.decisions} countryCode={countryCode} />
 
-          <section className="mt-9">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-              <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
-                Approvals
-              </h3>
-              <button
-                type="button"
-                onClick={() => a.setAsApprover((v) => !v)}
-                className="text-[13px] font-medium text-brand underline decoration-brand/40 underline-offset-2 transition-colors hover:decoration-brand"
-              >
-                {a.asApprover
-                  ? "Viewing as Elena Fischer · second-level approver"
-                  : "View as second-level approver"}
-              </button>
+              {/* Supporting material for the sign-off — a counsel note or
+                  evidence an approver wants on the record with their decision. */}
+              <UploadBar />
             </div>
-
-            <ul className="mt-2 border-t border-border">
-              {a.approvals.map((rec) => {
-                const locked = rec.level === 2 && !a.l2Unlocked;
-                const mine = rec.level === 1 ? !a.asApprover : a.asApprover;
-                const actionable = rec.status === "pending" && !locked && mine;
-
-                return (
-                  <li
-                    key={rec.level}
-                    className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b border-border py-4 last:border-0"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                        <span className="text-[14px] font-medium text-text">
-                          {rec.label}
-                        </span>
-                        <span className="text-[12px] text-text-faint">
-                          {rec.group}
-                        </span>
-                      </div>
-
-                      <p className="mt-1 text-[13px] text-text-muted">
-                        {rec.status === "approved" && (
-                          <span className="text-settled">
-                            Approved by {rec.decidedBy} · {rec.decidedAt}
-                          </span>
-                        )}
-                        {rec.status === "rejected" && (
-                          <span className="text-risk">
-                            Rejected by {rec.decidedBy} · {rec.decidedAt}
-                          </span>
-                        )}
-                        {rec.status === "pending" &&
-                          (locked
-                            ? "Opens once the first approval is in"
-                            : mine
-                              ? "Awaiting your decision"
-                              : `Awaiting ${rec.group}`)}
-                      </p>
-
-                      {rec.comment && (
-                        <p className="mt-1.5 max-w-[70ch] border-l border-border-strong pl-3 text-[13px] leading-relaxed text-text-muted">
-                          {rec.comment}
-                        </p>
-                      )}
-                    </div>
-
-                    {actionable && (
-                      <div className="flex items-center gap-3">
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() =>
-                            setPending({ level: rec.level, action: "approved" })
-                          }
-                        >
-                          Approve
-                        </Button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPending({ level: rec.level, action: "rejected" })
-                          }
-                          className="text-[13px] font-medium text-text-muted transition-colors hover:text-risk"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-
-                    {rec.status === "pending" && locked && (
-                      <Lock aria-hidden className="mt-1 size-3.5 shrink-0 text-text-faint" />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-
-          {a.rejected && (
-            <p className="mt-6 flex max-w-[70ch] items-start gap-2 text-[13px] leading-relaxed text-risk">
-              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-              This version was rejected and will not publish. Address the comment
-              above in the relevant step, then request approval again.
-            </p>
-          )}
-
-          {/* Supporting material for the sign-off — a counsel note or evidence
-              an approver wants on the record with their decision. */}
-          <UploadBar className="mt-9" />
+          </div>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
+      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={`/countries/${countryCode}/build`}>
+            <Link href={stepHref(countryCode, 3)}>
               <ArrowLeft />
               {copy.page.back}
             </Link>
           </Button>
 
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-            {!a.bothApproved && !a.rejected && (
-              <span className="text-sm text-text-muted">
-                Both approvals are needed before publishing
-              </span>
-            )}
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 text-sm",
+                a.rejected ? "text-risk" : a.bothApproved ? "text-settled" : "text-text-muted",
+              )}
+            >
+              {a.bothApproved && <Check className="size-4" />}
+              {a.rejected ? t.footerRejected : a.bothApproved ? t.footerReady : t.footerNeedBoth}
+            </span>
             <Button
               variant="primary"
               disabled={!a.bothApproved || a.phase === "publishing"}
@@ -299,12 +155,12 @@ export function ApprovalScreen({
               {a.phase === "publishing" ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Publishing
+                  {t.publishing}
                 </>
               ) : (
                 <>
                   <Rocket />
-                  Publish to Comply
+                  {t.publish}
                 </>
               )}
             </Button>
@@ -319,17 +175,15 @@ export function ApprovalScreen({
         onOpenChange={(open) => !open && setPending(null)}
         title={
           pending?.action === "rejected"
-            ? "Reject this version"
-            : `Approve ${pending?.level === 1 ? "at first level" : "for production"}`
+            ? t.rejectTitle
+            : pending?.level === 1
+              ? t.approveTitleFirst
+              : t.approveTitleSecond
         }
-        hint="A comment is recorded against every decision."
-        placeholder={
-          pending?.action === "rejected"
-            ? "e.g. box 45 mapping needs counsel sign-off first"
-            : "e.g. rates verified against Royal Decree No 20"
-        }
-        confirmLabel={pending?.action === "rejected" ? "Reject" : "Approve"}
-        cancelLabel="Cancel"
+        hint={t.decisionHint}
+        placeholder={pending?.action === "rejected" ? t.rejectPlaceholder : t.approvePlaceholder}
+        confirmLabel={pending?.action === "rejected" ? t.reject : t.approve}
+        cancelLabel={t.cancel}
         destructive={pending?.action === "rejected"}
         onConfirm={(reason) => {
           if (pending) a.decide(pending.level, pending.action, reason);
@@ -340,61 +194,195 @@ export function ApprovalScreen({
       <ConfirmWithReason
         open={confirmPublish}
         onOpenChange={setConfirmPublish}
-        title="Publish to production"
-        hint={`${countryName} becomes fileable for every Comply client. Record what this release covers.`}
-        placeholder="e.g. initial Belgian onboarding, effective 1 Jan 2026"
-        confirmLabel="Publish"
-        cancelLabel="Cancel"
+        title={t.publishTitle}
+        hint={fill(t.publishHint, { country: countryName })}
+        placeholder={t.publishPlaceholder}
+        confirmLabel={t.publishConfirm}
+        cancelLabel={t.cancel}
         destructive={false}
-        onConfirm={() => {
+        onConfirm={(note) => {
           setConfirmPublish(false);
-          a.publish();
+          a.publish(note);
         }}
       />
     </div>
   );
 }
 
-function Published({
-  countryName,
-  version,
-  at,
-  scope,
-}: {
-  countryName: string;
-  version: string;
-  at: string | null;
-  scope: { obligations: number; rules: number; rates: number; boxes: number };
-}) {
+/** A section label in the style the other steps use for their groups. */
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[100dvh] flex-col justify-center px-6 py-16 sm:px-12">
-      <div className="mx-auto w-full max-w-xl">
-        <span className="grid size-11 place-items-center rounded-full bg-settled-quiet">
-          <Check className="size-5 text-settled" />
-        </span>
+    <h3 className="text-[12px] font-medium uppercase tracking-[0.12em] text-text-faint">
+      {children}
+    </h3>
+  );
+}
 
-        <h1 className="mt-6 text-[26px] font-semibold leading-tight tracking-tight text-text">
-          {countryName} is live in Comply.
-        </h1>
-        <p className="mt-2 max-w-[56ch] text-[15px] leading-relaxed text-text-muted">
-          {version} published {at}. Clients registered in {countryName} can file{" "}
-          <span className="tabular-nums">{scope.obligations}</span> return types
-          from the next period. Every decision in this onboarding is recorded in
-          the audit log.
-        </p>
+/** The gate: every check must pass before either approval opens. */
+function Readiness({
+  checks,
+  countryCode,
+}: {
+  checks: ReadinessCheck[];
+  countryCode: string;
+}) {
+  const t = copy.approval;
+  const passed = checks.filter((c) => c.passed).length;
+  const all = passed === checks.length;
 
-        <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
-          <Button variant="primary" asChild>
-            <Link href="/countries">Back to Countries</Link>
-          </Button>
-          <Link
-            href="/audit-log"
-            className="text-[13px] font-medium text-text-muted transition-colors hover:text-text"
-          >
-            View the audit trail
-          </Link>
-        </div>
+  return (
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <SectionLabel>{t.readinessHeading}</SectionLabel>
+        <Badge tone={all ? "settled" : "attention"}>
+          {all ? <Check className="size-3" /> : <TriangleAlert className="size-3" />}
+          {all
+            ? fill(t.readinessAll, { count: checks.length })
+            : fill(t.readinessSome, { passed, count: checks.length })}
+        </Badge>
       </div>
-    </div>
+
+      {!all && <p className="mt-2 text-[13px] text-attention-text">{t.readinessBlocked}</p>}
+
+      <ul className="mt-3 divide-y divide-border rounded-xl border border-border bg-surface">
+        {checks.map((check, i) => (
+          <li
+            key={check.label}
+            className={cn(
+              "rise flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5",
+              !check.passed && "bg-attention-quiet/40",
+            )}
+            style={{ "--index": i } as React.CSSProperties}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "flex size-5 shrink-0 items-center justify-center rounded-full",
+                check.passed ? "bg-settled-quiet text-settled" : "bg-attention-quiet text-attention-text",
+              )}
+            >
+              {check.passed ? <Check className="size-3" /> : <TriangleAlert className="size-3" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <span className="block text-[14px] font-medium text-text">{check.label}</span>
+              <span className="mt-0.5 block text-[13px] text-text-muted">{check.detail}</span>
+            </div>
+            <StepLink href={stepHref(countryCode, check.step)} step={check.step} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The reason every earlier step asked for a rationale. */
+function Decisions({
+  decisions,
+  countryCode,
+}: {
+  decisions: DecisionRecord[];
+  countryCode: string;
+}) {
+  const t = copy.approval;
+  if (decisions.length === 0) return null;
+
+  return (
+    <section>
+      <SectionLabel>{t.decisionsHeading}</SectionLabel>
+      <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-text-muted">
+        {fill(t.decisionsIntro, { count: decisions.length })}
+      </p>
+
+      <ul className="mt-3 divide-y divide-border rounded-xl border border-border bg-surface">
+        {decisions.map((d, i) => {
+          const stepIndex = copy.page.stepsLabel.indexOf(d.step as (typeof copy.page.stepsLabel)[number]);
+          return (
+            <li
+              key={d.id}
+              className="rise grid gap-x-6 gap-y-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+              style={{ "--index": i } as React.CSSProperties}
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <p className="text-[14px] font-medium text-text">{d.subject}</p>
+                  <Badge>{DECISION_KIND_LABEL[d.kind]}</Badge>
+                </div>
+                <p className="mt-1 max-w-[70ch] text-[13px] leading-relaxed text-text-muted">
+                  {d.reason}
+                </p>
+                <p className="mt-1.5 text-[12px] text-text-faint">
+                  {fill(t.decisionMeta, { step: d.step, by: d.by, at: d.at })}
+                </p>
+              </div>
+              {stepIndex >= 0 && (
+                <div className="sm:pt-0.5">
+                  <StepLink href={stepHref(countryCode, stepIndex)} step={stepIndex} />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** A quiet way back to the step a check or decision belongs to. */
+function StepLink({ href, step }: { href: string; step: number }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-text-muted transition-colors hover:text-text"
+    >
+      {fill(copy.approval.openStep, { step: copy.page.stepsLabel[step] })}
+      <ArrowRight className="size-3.5" />
+    </Link>
+  );
+}
+
+/** A rejection stops the release. Say so, show why, and give the way back. */
+function Rejected({
+  version,
+  comment,
+  countryCode,
+  onResubmit,
+}: {
+  version: string;
+  comment?: string;
+  countryCode: string;
+  onResubmit: () => void;
+}) {
+  const t = copy.approval;
+  return (
+    <section className="rounded-xl border border-risk-edge bg-risk-quiet/50 p-5">
+      <h3 className="flex items-center gap-2 text-[15px] font-medium text-risk">
+        <TriangleAlert className="size-4 shrink-0" />
+        {fill(t.rejectedTitle, { version })}
+      </h3>
+      {comment && (
+        <p className="mt-2 max-w-[70ch] border-l-2 border-risk-edge pl-3 text-[14px] leading-relaxed text-text">
+          {comment}
+        </p>
+      )}
+      <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-text-muted">
+        {t.rejectedBody}
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {/* The steps a fix can land in. Select Country is left out: changing
+            the country is a new onboarding, not a fix. */}
+        {[1, 2, 3].map((i) => (
+          <Button key={i} size="sm" variant="secondary" asChild>
+            <Link href={stepHref(countryCode, i)}>
+              {fill(t.rejectedReopen, { step: copy.page.stepsLabel[i] })}
+            </Link>
+          </Button>
+        ))}
+        <Button size="sm" variant="ghost" onClick={onResubmit}>
+          <RotateCcw />
+          {t.resubmit}
+        </Button>
+      </div>
+    </section>
   );
 }

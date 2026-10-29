@@ -3,16 +3,23 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Download } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DraftActions } from "@/components/patterns/draft-actions";
 import { Stepper } from "@/components/patterns/stepper";
 import { UploadBar } from "@/components/patterns/upload-bar";
-import { copy } from "@/lib/copy";
+import { copy, fill } from "@/lib/copy";
 import { DATASET_LABEL, type Dataset } from "@/lib/types";
 import { FieldMapTable } from "./field-map-table";
 import { FormPreview } from "./form-preview";
 import { useRules } from "./use-rules";
+import { useSpecSheets } from "./use-spec-sheets";
 
 const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 
@@ -25,6 +32,21 @@ export function RulesScreen({
 }) {
   const router = useRouter();
   const r = useRules(countryCode);
+  const [confirming, setConfirming] = React.useState(false);
+  /* The spec sheets' edits live here, so Save changes in the footer reaches
+     them. */
+  const sheets = useSpecSheets();
+  const unsaved = sheets.changed.size;
+
+  function saveChanges() {
+    sheets.save();
+    toast(copy.fieldMap.saved);
+  }
+
+  function proceed() {
+    if (unsaved > 0) sheets.save();
+    router.push(`/countries/${countryCode.toLowerCase()}/build`);
+  }
   /* Every dataset across the three parts, for the single spec-wide export. */
   const allDatasets = r.stages.flatMap((stage) =>
     stage.datasets.map((id) => r.view(id)),
@@ -35,11 +57,11 @@ export function RulesScreen({
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
-            href={`/countries/${countryCode}/returns`}
+            href={`/countries/${countryCode.toLowerCase()}/forms`}
             className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
-            Return Types
+            {copy.page.stepsLabel[2]}
           </Link>
 
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
@@ -51,7 +73,7 @@ export function RulesScreen({
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="min-w-max">
-              <Stepper steps={STEPS} currentIndex={2} completedCount={2} />
+              <Stepper steps={STEPS} currentIndex={3} completedCount={3} />
             </div>
           </div>
         </div>
@@ -91,7 +113,7 @@ export function RulesScreen({
           {/* The field map behind that form — every extracted box as an editable
               row, the mapping the spec is built from. */}
           <div className="mb-12">
-            <FieldMapTable />
+            <FieldMapTable s={sheets} />
           </div>
         </div>
       </div>
@@ -99,22 +121,59 @@ export function RulesScreen({
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={`/countries/${countryCode}/returns`}>
+            <Link href={`/countries/${countryCode.toLowerCase()}/forms`}>
               <ArrowLeft />
               {copy.page.back}
             </Link>
           </Button>
 
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-            <Button variant="primary" asChild>
-              <Link href={`/countries/${countryCode}/build`}>
-                Continue to SQL Review
-                <ArrowRight />
-              </Link>
+            {unsaved > 0 && (
+              <span className="text-sm text-text-muted" data-numeric>
+                {fill(
+                  unsaved === 1 ? copy.fieldMap.unsavedCount : copy.fieldMap.unsavedCountPlural,
+                  { count: unsaved },
+                )}
+              </span>
+            )}
+            <Button variant="secondary" disabled={unsaved === 0} onClick={saveChanges}>
+              {copy.fieldMap.save}
+            </Button>
+            <Button variant="primary" onClick={() => setConfirming(true)}>
+              <Check />
+              {copy.confirmMapping.action}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* The one stop before Tax Rules Generation: the mapping is what the SQL is built
+          from, so moving on is confirmed rather than a plain Continue. */}
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogContent>
+          <DialogTitle>{copy.confirmMapping.title}</DialogTitle>
+          {unsaved > 0 && (
+            <p className="mt-3 rounded-md bg-surface-sunken px-3 py-2 text-sm text-text-muted">
+              {unsaved === 1
+                ? copy.confirmMapping.unsavedOne
+                : fill(copy.confirmMapping.unsaved, { count: unsaved })}
+            </p>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConfirming(false)}>
+              {copy.confirmMapping.cancel}
+            </Button>
+            <Button
+              variant="primary"
+              autoFocus
+              onClick={proceed}
+            >
+              {copy.confirmMapping.proceed}
+              <ArrowRight />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

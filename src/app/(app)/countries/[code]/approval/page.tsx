@@ -1,13 +1,16 @@
 import { notFound } from "next/navigation";
-import { ApprovalScreen } from "@/features/approval/approval-screen";
+import { QueryBuilderScreen } from "@/features/query-builder/query-builder-screen";
 import { findCountry } from "@/lib/mock/countries";
 
-export default async function ApprovalPage({
+/* Step 6, Query Builder. The route keeps its old `approval` path so the links
+   into it from step five stay put; the Approval & Publish screen it used to
+   show is still in src/features/approval, unrouted. */
+export default async function QueryBuilderPage({
   params,
 }: PageProps<"/countries/[code]/approval">) {
   const { code } = await params;
   const country = findCountry(code.toUpperCase());
   if (!country) notFound();
 
-  return <ApprovalScreen countryCode={country.code} countryName={country.name} />;
+  return <QueryBuilderScreen countryCode={country.code} countryName={country.name} />;
 }

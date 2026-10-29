@@ -9,7 +9,7 @@ team. Identified 2026-10-22, during discovery.
 
 | ID | Subject | Story says | Prototype does | Built |
 |---|---|---|---|---|
-| D1 | Country dropdown | Story 1.1: already-onboarded countries appear "with no difference from other countries"; the list is not filtered | Greys them out, disables them, adds an "onboarded" tag | **Story.** Unfiltered, undifferentiated |
+| D1 | Country dropdown | Story 1.1: already-onboarded countries appear "with no difference from other countries"; the list is not filtered | Greys them out, disables them, adds an "onboarded" tag | **Reversed at the designer's request (2026-10-28)** so a country is not onboarded twice. Published countries stay in the list (search still finds them) but carry a "Published" tag and cannot be picked. Published means live in the index, or published from the Query Builder in this browser |
 | D2 | During discovery | Story 1.3: all other content greyed out and non-interactive | Shows skeleton rows, leaves Add URL visible | **Story** for behaviour, prototype for appearance: interaction blocked, skeletons kept as the visual |
 | D3 | Source title link | Story 2.2 contradicts itself — the acceptance criterion says "without leaving the Initiation screen", the story detail says "new browser tab (TBC)" | New tab | **New tab** with `rel="noopener"`. Flagged for sign-off — this one is unresolved in the source material, not a prototype error |
 | D4 | Actor naming | "Onboarding Expert" throughout | Prototype and swimlane split the work across four roles | **Four roles** — Business/Product, Tax/Domain Expert, Fintua Developer, Administrator, plus L1/L2 approver groups. The story's single actor maps to whoever owns that step |

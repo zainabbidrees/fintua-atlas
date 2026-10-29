@@ -7,7 +7,7 @@ export interface Step {
 }
 
 /**
- * Where you are in the five steps.
+ * Where you are in the six steps.
  *
  * Later steps read as locked rather than merely dim — an expert should be able
  * to tell at a glance that they're unreachable, not just unvisited.

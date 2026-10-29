@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountryList } from "@/features/countries/country-list";
-import { RUNS, filingsLive } from "@/features/countries/data";
+import { CountrySummary } from "@/features/countries/country-summary";
 
 /**
  * A portal index, not a landing page.
@@ -14,9 +14,6 @@ import { RUNS, filingsLive } from "@/features/countries/data";
  * the work and the way in, not the pitch.
  */
 export default function CountriesPage() {
-  const live = RUNS.filter((r) => r.state === "live").length;
-  const obligations = filingsLive(RUNS);
-
   return (
     <div className="px-6 py-8 sm:px-12">
       <div className="mx-auto w-full max-w-[1600px]">
@@ -25,12 +22,7 @@ export default function CountriesPage() {
             <h1 className="text-[20px] font-medium tracking-tight text-heading">
               Countries
             </h1>
-            <p className="mt-0.5 text-[13px] text-text-muted">
-              <span className="tabular-nums">{RUNS.length}</span> jurisdictions ·{" "}
-              <span className="tabular-nums">{live}</span> published ·{" "}
-              <span className="tabular-nums">{obligations}</span> obligations
-              filing
-            </p>
+            <CountrySummary />
           </div>
 
           <Button variant="primary" asChild>

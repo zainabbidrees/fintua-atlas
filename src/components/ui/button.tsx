@@ -26,6 +26,10 @@ const button = cva(
            move nor a quiet one — "Save draft" sits beside the page title. */
         filled: "border border-border-strong bg-[#fcfcfc] text-text hover:bg-[#f2f2f2]",
         ghost: "text-text-muted hover:bg-wash hover:text-text",
+        /* A light yellow fill, for the one action that settles a decision
+           only a person can make — the family of the note that asks for it. */
+        attention:
+          "border border-attention-edge bg-attention-fill text-on-attention hover:bg-attention-fill-hover",
         danger:
           "border border-risk-edge bg-surface text-risk hover:bg-risk-quiet",
       },

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Check, ChevronDown, Minus, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { AttentionNote } from "@/components/ui/attention-note";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/cn";
 import type { Dataset, RuleColumn, RuleRow } from "@/lib/types";
@@ -172,15 +173,12 @@ function Row({
         <tr className="border-b border-border last:border-0">
           {/* px-2 lines the box up with the cell contents above it. */}
           <td colSpan={span} className="px-2 pb-3.5 pt-1">
-            {/* The concern reads in a filled amber box — the same treatment step
-                two gives a finding that needs review, so a flag reads the same
-                way across the flow. */}
-            <div className="max-w-[80ch] rounded-lg border border-attention-edge bg-attention-quiet px-3.5 py-2.5">
-              <p className="flex items-start gap-2 text-[13px] leading-relaxed text-attention-text">
-                <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-                <span>{row.issue}</span>
-              </p>
-            </div>
+            {/* The concern reads in the same amber note every step uses for a
+                flag. The icon stays: alert icons belong to table data. */}
+            <AttentionNote className="flex max-w-[80ch] items-start gap-2">
+              <TriangleAlert className="mt-1 size-3.5 shrink-0" />
+              <span>{row.issue}</span>
+            </AttentionNote>
             <button
               type="button"
               onClick={onResolve}

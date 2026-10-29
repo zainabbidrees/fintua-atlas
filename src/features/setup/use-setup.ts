@@ -3,6 +3,7 @@
 import * as React from "react";
 import { researchCountry, searchForFiling } from "@/lib/mock/research";
 import { COLLIDING_DOCUMENT } from "@/lib/mock/fixtures";
+import { copy, fill } from "@/lib/copy";
 import type {
   Country,
   Decision,
@@ -12,6 +13,19 @@ import type {
   TrailEntry,
   UserDocument,
 } from "@/lib/types";
+
+/** Stands in for a source on a return type the expert typed in by hand. Its
+    empty URL is the signal the listing reads to show "Added manually" instead
+    of a link. */
+const MANUAL_SOURCE: Source = {
+  id: "manual",
+  title: "",
+  url: "",
+  publisher: "",
+  lastUpdated: null,
+  kind: "other",
+  whatsInIt: "",
+};
 
 /**
  * All the state for the set-up step.
@@ -168,16 +182,51 @@ export function useSetup() {
       setSearching(false);
 
       if (!found) {
-        setSearchMessage(`No return type matching "${term}" was found for ${country.name}.`);
+        setSearchMessage(
+          fill(copy.filings.notFound, { term, country: country.name }),
+        );
         return;
       }
       if (filings.some((f) => f.name.toLowerCase() === found.name.toLowerCase())) {
-        setSearchMessage(`${found.name} is already in scope.`);
+        setSearchMessage(fill(copy.filings.alreadyInScope, { name: found.name }));
         return;
       }
       setFilings((f) => [...f, found]);
     },
     [country, filings],
+  );
+
+  /**
+   * Adds a return type the expert names, straight to the list — the other route
+   * on the bar, beside the search. No public source backs it, so it lands
+   * flagged for review with a "Added manually" source, for the expert to confirm
+   * once they've substantiated it.
+   */
+  const addFilingManually = React.useCallback(
+    (name: string) => {
+      const cleaned = name.trim();
+      if (!cleaned) return;
+      if (filings.some((f) => f.name.toLowerCase() === cleaned.toLowerCase())) {
+        setSearchMessage(fill(copy.filings.alreadyInScope, { name: cleaned }));
+        return;
+      }
+      setFilings((f) => [
+        ...f,
+        {
+          id: `manual-${Date.now()}`,
+          name: cleaned,
+          localName: null,
+          frequency: null,
+          whyItApplies: copy.filings.manualRationale,
+          foundOn: MANUAL_SOURCE,
+          certainty: "needs_check",
+          uncertainty: copy.filings.manualUncertainty,
+          origin: "added",
+        },
+      ]);
+      setSearchMessage(null);
+    },
+    [filings],
   );
 
   const addDocument = React.useCallback(
@@ -241,6 +290,7 @@ export function useSetup() {
     keepFiling,
     removeSource,
     addFiling,
+    addFilingManually,
     addDocument,
     removeDocument,
     findCollision,

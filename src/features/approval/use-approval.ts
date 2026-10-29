@@ -18,6 +18,9 @@ export function useApproval(countryCode: string) {
   );
   const [phase, setPhase] = React.useState<PublishPhase>("awaiting");
   const [publishedAt, setPublishedAt] = React.useState<string | null>(null);
+  /** What the publisher recorded about the release — kept for the record. */
+  const [releaseNote, setReleaseNote] = React.useState("");
+  const [publishedBy, setPublishedBy] = React.useState<string | null>(null);
   /** Level 2 is reserved for the approvers group; this makes both views reviewable. */
   const [asApprover, setAsApprover] = React.useState(false);
 
@@ -60,15 +63,25 @@ export function useApproval(countryCode: string) {
   /** Level 2 cannot be asked for until level 1 has passed. */
   const l2Unlocked = l1.status === "approved";
   const rejected = approvals.some((a) => a.status === "rejected");
+  /** Approval stays shut while any readiness check is failing. */
+  const ready = data.readiness.every((c) => c.passed);
   const bothApproved = l1.status === "approved" && l2.status === "approved";
 
-  const publish = React.useCallback(() => {
+  const publish = React.useCallback((note: string) => {
+    setReleaseNote(note);
+    setPublishedBy(asApprover ? "Elena Fischer" : "Marco Rossi");
     setPhase("publishing");
     timer.current = setTimeout(() => {
       setPhase("published");
       setPublishedAt(stamp());
     }, 1800);
-  }, []);
+  }, [asApprover]);
+
+  /** After a rejection is addressed, both approvals start over — a fix can
+      change what the first approver signed for. */
+  const resubmit = React.useCallback(() => {
+    setApprovals(structuredClone(data.approvals));
+  }, [data.approvals]);
 
   return {
     ...data,
@@ -77,12 +90,16 @@ export function useApproval(countryCode: string) {
     l2,
     l2Unlocked,
     rejected,
+    ready,
     bothApproved,
     phase,
     publishedAt,
+    releaseNote,
+    publishedBy,
     asApprover,
     setAsApprover,
     decide,
     publish,
+    resubmit,
   };
 }

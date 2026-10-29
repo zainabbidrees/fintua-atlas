@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { AttentionNote } from "@/components/ui/attention-note";
 import { Tabs, TabPanel } from "@/components/ui/tabs";
 import { copy, fill } from "@/lib/copy";
 import { cn } from "@/lib/cn";
@@ -68,7 +69,7 @@ function ResultPreview({ dryRun }: { dryRun: DryRun }) {
 
       {dryRun.results.map((result) => (
         <div key={result.fileName}>
-          <p className="mb-2 font-mono text-[12px] text-text-muted">
+          <p className="mb-2 text-[12px] text-text-muted">
             {fill(b.resultFor, { file: result.fileName })}
           </p>
           <div className="overflow-x-auto rounded-lg border border-border">
@@ -78,7 +79,7 @@ function ResultPreview({ dryRun }: { dryRun: DryRun }) {
                   {result.columns.map((col) => (
                     <th
                       key={col}
-                      className="whitespace-nowrap px-3 py-2 font-mono text-[11px] font-medium text-text-muted"
+                      className="whitespace-nowrap px-3 py-2 text-[12px] font-medium text-text-muted"
                     >
                       {col}
                     </th>
@@ -123,12 +124,16 @@ function QueryPlan({ plan }: { plan: ExplainNode[] }) {
           <li
             key={i}
             className={cn(
-              "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-3 py-2.5",
-              flagged ? "bg-attention-quiet" : "bg-surface-sunken",
+              "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2.5",
+              // A flagged step keeps a plain surface with an amber edge; the
+              // amber note inside says why.
+              flagged
+                ? "border-attention-edge bg-surface"
+                : "border-transparent bg-surface-sunken",
             )}
           >
-            <span className="font-mono text-[13px] text-text">{node.op}</span>
-            <span className="font-mono text-[12px] text-text-muted">{node.target}</span>
+            <span className="text-[13px] font-medium text-text">{node.op}</span>
+            <span className="text-[13px] text-text-muted">{node.target}</span>
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium",
@@ -152,11 +157,13 @@ function QueryPlan({ plan }: { plan: ExplainNode[] }) {
               />
               {SCAN_LABEL[node.scan]}
             </span>
-            <span className="w-full text-[12px] text-text-muted sm:ml-auto sm:w-auto" data-numeric>
+            <span className="w-full text-[12px] text-text-muted sm:ml-auto sm:w-auto">
               {node.detail}
             </span>
             {flagged && (
-              <p className="w-full text-[12px] text-attention-text">{b.scanFlag}</p>
+              <AttentionNote className="mt-1 w-full max-w-none text-[12px]">
+                {b.scanFlag}
+              </AttentionNote>
             )}
           </li>
         );

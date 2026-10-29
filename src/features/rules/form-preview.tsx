@@ -1,15 +1,16 @@
 "use client";
 
 import * as React from "react";
+import { ArrowLeft, ArrowRight, Maximize2, X } from "lucide-react";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Maximize2,
-  Minus,
-  Plus,
-} from "lucide-react";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScaleToFit } from "@/components/ui/scale-to-fit";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
 import {
@@ -17,265 +18,343 @@ import {
   type AmountCell,
   type BoxTone,
   type FormBox,
+  type FormPage,
   type FormRow,
 } from "@/lib/mock/form-preview";
 
-/** Base sheet width in px; zoom scales the whole spread off this. */
+/** Base sheet size in px; every view scales off this. The height is a little
+    over A4 so the longest page (page 3) fits whole — every sheet is drawn at
+    this height, so the pages stay one paper size. */
 const SHEET_W = 880;
-/** How many pages sit side by side in one view. */
-const PAGES_PER_VIEW = 3;
-/** Gap between the pages of a spread, at base scale. */
-const SPREAD_GAP = 28;
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 2;
+const SHEET_H = 1408;
+
+/* The same strip of pages as the Tax Form Retrieval step: two up on a phone,
+   then as many as fit. */
+const PAGE_GRID =
+  "grid grid-cols-2 gap-x-5 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]";
 
 /* The box fill/outline and its name tab, by extraction state. The outline and
    tab only paint while the boxes are shown; underneath, the comb of input cells
    is always there. */
-const TONE_FILL: Record<BoxTone, string> = {
-  ok: "border-settled bg-settled-quiet",
-  warn: "border-attention-edge bg-attention-quiet",
-  error: "border-risk-edge bg-risk-quiet",
-};
 const TONE_TAB: Record<BoxTone, string> = {
   ok: "bg-settled text-on-brand",
   warn: "bg-attention text-on-brand",
   error: "bg-risk text-on-brand",
 };
 
-/* The comb of empty input cells printed on the real form. */
-const COMB =
-  "repeating-linear-gradient(90deg, transparent 0 15px, color-mix(in oklch, var(--settled) 35%, transparent) 15px 16px)";
+/* The box name rides on a filled pill above its field — green/amber/red by tone,
+   bold white type. Sized to read as the primary mark on the sheet, the way the
+   official annotated form prints it: it takes its own width and sits proud of
+   the comb rather than tucking into a corner tab. */
+const PILL =
+  "absolute -top-[17px] left-0 z-10 w-max rounded-md px-2 py-[3px] text-[13px] font-bold leading-none shadow-sm";
+
+/** Every mapped box on a page, wherever the row keeps it. */
+function boxesOf(page: FormPage): FormBox[] {
+  return page.rows.flatMap((row) => [
+    ...(row.boxes ?? []),
+    ...(row.code ? [row.code.box] : []),
+    ...(row.base?.box ? [row.base.box] : []),
+    ...(row.tax?.box ? [row.tax.box] : []),
+  ]);
+}
+
+function toneCounts(page: FormPage): Record<BoxTone, number> {
+  const counts: Record<BoxTone, number> = { ok: 0, warn: 0, error: 0 };
+  for (const box of boxesOf(page)) counts[box.tone]++;
+  return counts;
+}
 
 /**
- * The return PDF with the agent's extracted boxes drawn over it.
+ * The return PDF with the agent's extracted boxes drawn over it, read the same
+ * way as the Tax Form Retrieval step: every page as a thumbnail, and any page
+ * opened at reading size with Previous / Next to move through the form.
  *
- * A stand-in for the real document (see src/lib/mock/form-preview.ts): a sheet
- * that zooms and pages like a PDF viewer, with a labelled, colour-coded box over
- * each field the agent mapped — green where it mapped cleanly, amber where it
- * wants a look, red where nothing matched. "Show boxes" lifts the overlay to
- * read the bare form underneath.
+ * A stand-in for the real document (see src/lib/mock/form-preview.ts), with a
+ * labelled, colour-coded box over each field the agent mapped — green where it
+ * mapped cleanly, amber where it wants a look, red where nothing matched.
+ * "Show boxes" lifts the overlay to read the bare form underneath.
  */
 export function FormPreview() {
   const doc = FORM_PREVIEW;
-  const total = doc.pages.length;
-  const spreads = Math.ceil(total / PAGES_PER_VIEW);
-  const SPREAD_W = SHEET_W * PAGES_PER_VIEW + SPREAD_GAP * (PAGES_PER_VIEW - 1);
-
-  // A notebook view: three pages side by side. `spread` 0 → pages 1–3, etc.
-  const [spread, setSpread] = React.useState(0);
-  const [zoom, setZoom] = React.useState(0.4);
   const [showBoxes, setShowBoxes] = React.useState(true);
-  const [goto, setGoto] = React.useState("");
-
-  const left = spread * PAGES_PER_VIEW; // 0-based index of the first page shown
-  const pages = doc.pages.slice(left, left + PAGES_PER_VIEW);
-
-  const viewportRef = React.useRef<HTMLDivElement>(null);
-  const spreadRef = React.useRef<HTMLDivElement>(null);
-  const [spreadH, setSpreadH] = React.useState(0);
-  const didFit = React.useRef(false);
-
-  // The spread is laid out at SPREAD_W and transform-scaled, so its measured
-  // height is the un-zoomed one; the spacer below multiplies it back up.
-  React.useEffect(() => {
-    const el = spreadRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setSpreadH(el.offsetHeight));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [spread]);
-
-  const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
-  const step = (d: number) => setZoom((z) => clamp(Math.round((z + d) * 100) / 100));
-  const fitWidth = () => {
-    const vp = viewportRef.current;
-    if (!vp) return;
-    setZoom(clamp((vp.clientWidth - 48) / SPREAD_W));
-  };
-
-  // Once the first spread is measured, size it so both whole pages sit inside
-  // the viewport without a scroll — the "opened notebook" the step lands on.
-  React.useEffect(() => {
-    if (didFit.current || !spreadH) return;
-    const vp = viewportRef.current;
-    if (!vp) return;
-    const z = clamp(
-      Math.min((vp.clientWidth - 48) / SPREAD_W, (vp.clientHeight - 48) / spreadH),
-    );
-    setZoom(z);
-    didFit.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spreadH]);
-
-  const go = (s: number) => setSpread(Math.min(spreads - 1, Math.max(0, s)));
-  const commitGoto = () => {
-    const n = Number(goto);
-    if (Number.isFinite(n) && n >= 1 && n <= total) go(Math.floor((n - 1) / PAGES_PER_VIEW));
-    setGoto("");
-  };
+  const [viewing, setViewing] = React.useState<number | null>(null);
 
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-raised)]">
-      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
         <h3 className="mr-auto min-w-0 truncate text-[14px] font-medium text-heading">
           {doc.title}
         </h3>
+        <BoxesSwitch on={showBoxes} onChange={setShowBoxes} />
+      </div>
 
-        <div className="flex items-center gap-1">
-          <IconButton label={copy.formPreview.zoomOut} onClick={() => step(-0.1)} disabled={zoom <= MIN_ZOOM}>
-            <Minus className="size-4" />
-          </IconButton>
-          <span className="w-11 text-center text-[13px] tabular-nums text-text-muted">
-            {Math.round(zoom * 100)}%
-          </span>
-          <IconButton label={copy.formPreview.zoomIn} onClick={() => step(0.1)} disabled={zoom >= MAX_ZOOM}>
-            <Plus className="size-4" />
-          </IconButton>
-        </div>
-
-        <button
-          type="button"
-          onClick={fitWidth}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-text-muted transition-colors hover:bg-wash hover:text-text"
-        >
-          <Maximize2 className="size-3.5" />
-          {copy.formPreview.fitWidth}
-        </button>
-
-        {/* Show boxes toggle */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showBoxes}
-          onClick={() => setShowBoxes((s) => !s)}
-          className="inline-flex items-center gap-2 text-[13px] font-medium text-text-muted"
-        >
-          <span
-            className={cn(
-              "relative h-5 w-9 shrink-0 rounded-full transition-colors",
-              showBoxes ? "bg-brand" : "bg-border-strong",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-0.5 size-4 rounded-full bg-surface shadow-sm transition-[left]",
-                showBoxes ? "left-[18px]" : "left-0.5",
-              )}
+      <div className="bg-wash p-6">
+        <ol className={PAGE_GRID}>
+          {doc.pages.map((page, i) => (
+            <PageThumb
+              key={i}
+              page={page}
+              index={i}
+              showBoxes={showBoxes}
+              onOpen={() => setViewing(i)}
             />
-          </span>
-          {copy.formPreview.showBoxes}
-        </button>
+          ))}
+        </ol>
       </div>
 
-      {/* Viewport — a fixed, compact height so the opened spread lands in view
-          without scrolling the page to find it. */}
-      <div
-        ref={viewportRef}
-        className="h-[460px] overflow-auto bg-surface-sunken p-6 [scrollbar-width:thin]"
-      >
-        <div
-          style={{ width: SPREAD_W * zoom, height: spreadH ? spreadH * zoom : undefined }}
-          className="mx-auto"
-        >
-          <div
-            ref={spreadRef}
-            style={{
-              width: SPREAD_W,
-              gap: SPREAD_GAP,
-              transform: `scale(${zoom})`,
-              transformOrigin: "top left",
-            }}
-            className="flex items-start"
-          >
-            {pages.map((p, i) => (
-              <div key={left + i} style={{ width: SHEET_W }} className="shrink-0">
-                <Sheet
-                  doc={doc}
-                  page={p}
-                  pageNumber={left + i + 1}
-                  showBoxes={showBoxes}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Pager */}
-      <div className="flex items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-[13px]">
-        <IconButton label={copy.formPreview.first} onClick={() => go(0)} disabled={spread === 0}>
-          <ChevronsLeft className="size-4" />
-        </IconButton>
-        <IconButton label={copy.formPreview.prev} onClick={() => go(spread - 1)} disabled={spread === 0}>
-          <ChevronLeft className="size-4" />
-        </IconButton>
-        <span className="px-2 tabular-nums text-text-muted">
-          {fill(copy.formPreview.pagesOf, {
-            from: left + 1,
-            to: left + pages.length,
-            total,
-          })}
-        </span>
-        <IconButton
-          label={copy.formPreview.next}
-          onClick={() => go(spread + 1)}
-          disabled={spread === spreads - 1}
-        >
-          <ChevronRight className="size-4" />
-        </IconButton>
-        <IconButton
-          label={copy.formPreview.last}
-          onClick={() => go(spreads - 1)}
-          disabled={spread === spreads - 1}
-        >
-          <ChevronsRight className="size-4" />
-        </IconButton>
-
-        <span className="ml-3 text-text-faint">{copy.formPreview.goTo}</span>
-        <input
-          value={goto}
-          onChange={(e) => setGoto(e.target.value.replace(/[^0-9]/g, ""))}
-          onKeyDown={(e) => e.key === "Enter" && commitGoto()}
-          onBlur={commitGoto}
-          inputMode="numeric"
-          aria-label={copy.formPreview.goTo}
-          placeholder={String(left + 1)}
-          className="h-7 w-12 rounded-md border border-border bg-surface px-2 text-center tabular-nums text-text focus:border-brand focus:outline-none"
+      {viewing !== null && (
+        <PageViewer
+          index={viewing}
+          onIndexChange={setViewing}
+          onClose={() => setViewing(null)}
+          showBoxes={showBoxes}
+          onShowBoxesChange={setShowBoxes}
         />
-      </div>
+      )}
     </section>
   );
 }
 
-/** A quiet square icon button for the toolbar and pager. */
-function IconButton({
-  label,
-  onClick,
-  disabled,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
+/** "Show boxes" — lifts the mapping overlay off every sheet, here and in the viewer. */
+function BoxesSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
   return (
     <button
       type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-wash hover:text-text disabled:pointer-events-none disabled:opacity-40"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className="inline-flex items-center gap-2 text-[13px] font-medium text-text-muted"
     >
-      {children}
+      <span
+        className={cn(
+          "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+          on ? "bg-brand" : "bg-border-strong",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 size-4 rounded-full bg-surface shadow-sm transition-[left]",
+            on ? "left-[18px]" : "left-0.5",
+          )}
+        />
+      </span>
+      {copy.formPreview.showBoxes}
     </button>
   );
 }
 
-/** The sheet itself — masthead, then the page's numbered lines. */
+/** One page of the form as a thumbnail; the whole sheet opens it. */
+function PageThumb({
+  page,
+  index,
+  showBoxes,
+  onOpen,
+}: {
+  page: FormPage;
+  index: number;
+  showBoxes: boolean;
+  onOpen: () => void;
+}) {
+  const n = index + 1;
+  const counts = toneCounts(page);
+  const toCheck = counts.warn + counts.error;
+
+  return (
+    <li className="rise min-w-0" style={{ "--index": index } as React.CSSProperties}>
+      <div className="group relative">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={fill(copy.formPreview.openPage, { n })}
+          className="block w-full overflow-hidden rounded-[3px] bg-white text-left shadow-[var(--shadow-raised)] ring-1 ring-border-strong transition-shadow duration-200 hover:shadow-[var(--shadow-overlay)]"
+        >
+          <ScaleToFit width={SHEET_W} height={SHEET_H}>
+            <Sheet doc={FORM_PREVIEW} page={page} pageNumber={n} showBoxes={showBoxes} />
+          </ScaleToFit>
+        </button>
+
+        {/* The way in, surfaced on hover — the whole sheet is the target. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-2 top-2 flex size-7 items-center justify-center rounded-md bg-surface text-text-muted opacity-0 shadow-[var(--shadow-raised)] transition-opacity group-hover:opacity-100"
+        >
+          <Maximize2 className="size-3.5" />
+        </span>
+      </div>
+
+      <p className="mt-3 flex items-baseline gap-1.5 text-[12.5px]">
+        <span className="font-medium text-text" data-numeric>
+          {fill(copy.formPreview.pageLabel, { n })}
+        </span>
+        {page.footer && <span className="truncate text-text-faint">· {page.footer}</span>}
+      </p>
+      <p className="mt-0.5 truncate text-[12px]" data-numeric>
+        <span className="text-text-muted">
+          {fill(copy.formPreview.boxCount, { count: counts.ok + toCheck })}
+        </span>
+        {toCheck > 0 && (
+          <span className="text-attention-text">
+            {" · "}
+            {fill(copy.formPreview.toCheck, { count: toCheck })}
+          </span>
+        )}
+      </p>
+    </li>
+  );
+}
+
+/**
+ * A page at reading size, with its mapping summary beside it. Previous / Next
+ * and the arrow keys move through the form without leaving the viewer.
+ */
+function PageViewer({
+  index,
+  onIndexChange,
+  onClose,
+  showBoxes,
+  onShowBoxesChange,
+}: {
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+  showBoxes: boolean;
+  onShowBoxesChange: (on: boolean) => void;
+}) {
+  const t = copy.formPreview;
+  const doc = FORM_PREVIEW;
+  const total = doc.pages.length;
+  const page = doc.pages[index];
+  const counts = toneCounts(page);
+  const go = (i: number) => onIndexChange(Math.min(total - 1, Math.max(0, i)));
+
+  const rows: { tone: BoxTone; label: string; dot: string }[] = [
+    { tone: "ok", label: t.toneOk, dot: "bg-settled" },
+    { tone: "warn", label: t.toneWarn, dot: "bg-attention" },
+    { tone: "error", label: t.toneError, dot: "bg-risk" },
+  ];
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="flex h-[min(60rem,calc(100dvh-2rem))] w-[min(80rem,calc(100vw-2rem))] flex-col overflow-hidden p-0 lg:flex-row"
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") go(index + 1);
+          if (e.key === "ArrowLeft") go(index - 1);
+        }}
+      >
+        <div className="min-h-0 flex-1 overflow-auto bg-wash p-4 sm:p-8 [scrollbar-width:thin]">
+          <div className="mx-auto w-full max-w-[760px] shadow-[var(--shadow-overlay)]">
+            <ScaleToFit width={SHEET_W} height={SHEET_H}>
+              <Sheet doc={doc} page={page} pageNumber={index + 1} showBoxes={showBoxes} />
+            </ScaleToFit>
+          </div>
+        </div>
+
+        <aside className="flex shrink-0 flex-col gap-5 border-t border-border p-5 lg:w-80 lg:border-l lg:border-t-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DialogTitle>{doc.title}</DialogTitle>
+              <DialogDescription className="mt-1 text-[13px]" data-numeric>
+                {fill(t.pageOf, { current: index + 1, total })}
+                {page.footer && <span className="text-text-faint"> · {page.footer}</span>}
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="sm" aria-label={t.close} className="-mr-2 -mt-1 px-2">
+                <X />
+              </Button>
+            </DialogClose>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+              {t.onThisPage}
+            </p>
+            <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+              {rows.map((row) => (
+                <li key={row.tone} className="flex items-center gap-2.5 px-3 py-2 text-[13px]">
+                  <span aria-hidden className={cn("size-2 rounded-full", row.dot)} />
+                  <span className="flex-1 text-text-muted">{row.label}</span>
+                  <span className="font-medium text-text" data-numeric>
+                    {counts[row.tone]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <BoxesSwitch on={showBoxes} onChange={onShowBoxesChange} />
+
+          <div className="mt-auto">
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                onClick={() => go(index - 1)}
+                disabled={index === 0}
+              >
+                <ArrowLeft />
+                {t.prev}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                onClick={() => go(index + 1)}
+                disabled={index === total - 1}
+              >
+                {t.next}
+                <ArrowRight />
+              </Button>
+            </div>
+            <p className="mt-2.5 hidden text-center text-[12px] text-text-faint lg:block">
+              {t.keys}
+            </p>
+          </div>
+        </aside>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── The sheet ──────────────────────────────────────────────────────────────
+   A facsimile of the official Umsatzsteuererklärung page, drawn to match the
+   printed form: a mint panel inside a green frame, black crop marks, the line
+   numbers in the margin outside the frame, green line codes, and white digit
+   cells. The greens and the ink here are the form's own print colours — the
+   document's content, not the app's colour system — so they are fixed values
+   rather than tokens. */
+
+/* One digit cell, and the gap between cells, at base scale. */
+const CELL = 17;
+const CELL_H = 21;
+const GAP = 3;
+/* Both money columns share a width so their combs line up down the page; the
+   combs sit right-aligned inside them, as on the form. */
+const COL_W = 248;
+/* Digits per comb: whole-euro columns carry eight; a tax column carries seven
+   euro digits and two cents. */
+const EUR_WHOLE = 8;
+const EUR_TAX = 7;
+const CENTS = 2;
+
+const combWidth = (n: number) => n * CELL + (n - 1) * GAP;
+
+/** Renders **bold** runs in a label, as the form sets key phrases in bold. */
+function rich(text: string) {
+  return text.split("**").map((part, i) =>
+    i % 2 ? (
+      <strong key={i} className="font-bold">
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
+
 function Sheet({
   doc,
   page,
@@ -288,324 +367,419 @@ function Sheet({
   showBoxes: boolean;
 }) {
   return (
-    <div className="rounded-sm bg-surface p-6 text-text shadow-sm ring-1 ring-border">
-      {/* Masthead */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex items-stretch gap-4">
-          {/* A stand-in barcode strip. */}
-          <div
-            aria-hidden
-            className="w-6 shrink-0"
-            style={{
-              background:
-                "repeating-linear-gradient(90deg, var(--text) 0 1px, transparent 1px 2px, var(--text) 2px 4px, transparent 4px 7px)",
-            }}
-          />
-          <div>
-            <h4 className="text-[22px] font-bold leading-none tracking-tight">
-              {doc.heading}
-            </h4>
-            <p className="mt-1 text-[11px] text-text-faint">
-              Finanzamt · Steuernummer
-            </p>
+    <div
+      lang="de"
+      className="relative flex flex-col bg-white text-[#1d2420] shadow-sm ring-1 ring-black/5"
+      // One paper size for every page, so the panel runs to the foot as on paper.
+      style={{ minHeight: SHEET_H, padding: "34px 46px 22px" }}
+    >
+      <CropMarks />
+
+      {/* The machine-readable strip in the right margin. */}
+      <div
+        aria-hidden
+        className="absolute right-[14px] top-[70px] h-[190px] w-[16px]"
+        style={{
+          background:
+            "repeating-linear-gradient(180deg, #1d2420 0 2px, transparent 2px 4px, #1d2420 4px 5px, transparent 5px 8px, #1d2420 8px 11px, transparent 11px 13px)",
+        }}
+      />
+
+      {/* Above the frame: the tax-number box on its top edge and the page
+          number centred; the first page carries the form's title instead. */}
+      <div className="relative h-[30px]">
+        {pageNumber === 1 ? (
+          <div className="flex h-full items-end justify-between pb-1">
+            <span className="text-[20px] font-bold leading-none">{doc.heading}</span>
+            <span className="text-[20px] font-bold leading-none tabular-nums">{doc.year}</span>
           </div>
-        </div>
-        <div className="text-right">
-          <span className="text-[26px] font-bold leading-none tracking-tight">
-            {doc.year}
-          </span>
-          <div className="mt-2 grid size-9 place-items-center rounded border border-settled text-[13px] font-semibold text-settled">
-            {10 + pageNumber}
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="absolute bottom-[-1.5px] left-[18px] h-[26px] w-[236px] border-[1.5px] border-[#4f9a6b] bg-white px-1.5">
+              <span className="block text-[9px] leading-[11px]">Steuernummer</span>
+            </div>
+            <span className="absolute inset-x-0 top-[2px] text-center text-[12px]">
+              - {pageNumber} -
+            </span>
+          </>
+        )}
       </div>
 
-      {page.rows.length > 0 ? (
-        <div className="mt-5 space-y-1.5">
-          {page.rows.map((row, i) => (
-            <Row key={i} row={row} showBoxes={showBoxes} />
-          ))}
-        </div>
-      ) : (
-        <div className="mt-5 grid h-80 place-items-center rounded-sm border border-dashed border-border text-[12px] text-text-faint">
-          No fields mapped on this page.
-        </div>
-      )}
+      <div className="relative flex-1 border-[1.5px] border-[#4f9a6b] bg-[#e2eee6] px-3 pb-5">
+        {page.rows.length > 0 ? (
+          <div
+            className="grid items-end gap-x-[14px] gap-y-[8px]"
+            style={{ gridTemplateColumns: `minmax(0,1fr) ${COL_W}px ${COL_W}px` }}
+          >
+            {page.rows.map((row, i) => (
+              <Row key={i} row={row} first={i === 0} showBoxes={showBoxes} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid h-80 place-items-center text-[12px] opacity-60">
+            {copy.formPreview.noFields}
+          </div>
+        )}
+      </div>
 
-      {/* The page code printed in the form's bottom corners. */}
-      {page.footer && (
-        <div className="mt-6 flex items-end justify-between border-t border-settled/40 pt-2 text-[10px] font-semibold tabular-nums text-text-faint">
-          <span>{page.footer}</span>
-          <span>{page.footer}</span>
-        </div>
-      )}
+      {/* The page code printed in both bottom corners. */}
+      <div className="flex justify-between px-[36px] pt-[10px] text-[12.5px] font-bold">
+        <span>{page.footer}</span>
+        <span>{page.footer}</span>
+      </div>
     </div>
   );
 }
 
-function Row({ row, showBoxes }: { row: FormRow; showBoxes: boolean }) {
+/** The four printer's crop marks at the corners of the sheet. */
+function CropMarks() {
+  const mark = "pointer-events-none absolute size-[20px] border-[#1d2420]";
+  return (
+    <>
+      <span aria-hidden className={cn(mark, "left-[22px] top-[18px] border-l-[2.5px] border-t-[2.5px]")} />
+      <span aria-hidden className={cn(mark, "right-[22px] top-[18px] border-r-[2.5px] border-t-[2.5px]")} />
+      <span aria-hidden className={cn(mark, "bottom-[14px] left-[22px] border-b-[2.5px] border-l-[2.5px]")} />
+      <span aria-hidden className={cn(mark, "bottom-[14px] right-[22px] border-b-[2.5px] border-r-[2.5px]")} />
+    </>
+  );
+}
+
+/** The printed line number, set in the margin outside the frame. */
+function LineNo({ n }: { n?: number }) {
+  if (n == null) return null;
+  return (
+    <span className="absolute bottom-[3px] right-full mr-[18px] text-[9px] tabular-nums">
+      {n}
+    </span>
+  );
+}
+
+function Row({
+  row,
+  first,
+  showBoxes,
+}: {
+  row: FormRow;
+  first: boolean;
+  showBoxes: boolean;
+}) {
+  // A section: a full-width green rule with the title on a black label.
   if (row.kind === "section") {
     return (
-      <div className="mt-4 bg-text px-2.5 py-1 text-[12px] font-semibold text-surface">
-        {row.text}
+      <div
+        className={cn(
+          "col-span-full -mx-3",
+          first ? "" : "mt-2 border-t-[1.5px] border-[#4f9a6b]",
+        )}
+      >
+        <span className="inline-block bg-[#1d2420] px-[6px] py-[2px] text-[12.5px] font-bold leading-tight text-white">
+          {row.text}
+        </span>
       </div>
     );
   }
 
-  // A rate-group heading inside a section, e.g. "Umsätze zum allgemeinen Steuersatz".
+  // A group heading inside a section, set bold in the label column.
   if (row.kind === "subsection") {
+    // Fills its grid row, so the lines after it start in the label column.
     return (
-      <div className="mt-3 pl-8 text-[12px] font-bold leading-snug text-text">
-        {row.text}
-      </div>
+      <>
+        <div className="mt-3 text-[11px] font-bold leading-[1.28]">{rich(row.text ?? "")}</div>
+        <div />
+        <div />
+      </>
     );
   }
 
-  // The captions over the two money columns on the computation pages.
+  // The captions over the money columns, centred over each comb.
   if (row.kind === "columns") {
     return (
-      <div className="mt-2 flex items-stretch gap-3">
-        <div className="w-5 shrink-0" />
-        <div className="flex min-w-0 flex-1 items-end gap-3">
-          <div className="min-w-0 flex-1" />
-          <div className="w-40 shrink-0 text-center text-[10px] font-medium leading-tight text-text-muted">
-            {row.cols?.base}
-          </div>
-          <div className="w-40 shrink-0 text-center text-[10px] font-medium leading-tight text-text-muted">
-            {row.cols?.tax}
-          </div>
-        </div>
-      </div>
+      <>
+        <div />
+        <ColumnCaption text={row.cols?.base} />
+        <ColumnCaption text={row.cols?.tax} />
+      </>
     );
   }
 
-  // A computation line: label on the left, a base-amount column and an optional
-  // tax column on the right — the two line up down the page.
   if (row.kind === "amount") {
+    // With no left-hand amount the label runs on into that column, as the
+    // form's long single-column lines do.
+    const span = !row.base;
     return (
-      <div className="flex items-stretch gap-3">
-        <div className="w-5 shrink-0 pt-1.5 text-right text-[10px] tabular-nums text-text-faint">
-          {row.n ?? ""}
-        </div>
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <p
-            className={cn(
-              "min-w-0 flex-1 py-0.5 text-[12px] leading-snug text-text",
-              row.strong ? "font-bold" : "font-medium",
-            )}
-          >
-            {row.text}
-          </p>
-          <AmountBox cell={row.base} showBoxes={showBoxes} />
-          <AmountBox cell={row.tax} showBoxes={showBoxes} />
-        </div>
-      </div>
+      <>
+        <Label n={row.n} span={span} strong={row.strong}>
+          {rich(row.text ?? "")}
+        </Label>
+        {!span && <AmountBox cell={row.base} column="base" showBoxes={showBoxes} />}
+        <AmountBox cell={row.tax} column="tax" sum={row.sum} showBoxes={showBoxes} />
+      </>
     );
   }
 
-  // The § 15a adjustment "changed by…" lines — one or more tick-box options.
+  // A "Dauer der Unternehmereigenschaft" line: vom / bis zum day-month masks.
+  if (row.kind === "period") {
+    return (
+      <>
+        <Label n={row.n}>{row.text}</Label>
+        <div className="flex justify-end">
+          <LetterComb letters="TTMM" caption={row.captions ? "vom" : undefined} />
+        </div>
+        <div className="flex justify-end">
+          <LetterComb letters="TTMM" caption={row.captions ? "bis zum" : undefined} />
+        </div>
+      </>
+    );
+  }
+
+  // Tick-box options, drawn inline.
   if (row.kind === "check") {
     return (
-      <div className="flex items-start gap-3">
-        <div className="w-5 shrink-0 pt-0.5 text-right text-[10px] tabular-nums text-text-faint">
-          {row.n ?? ""}
-        </div>
-        <div
-          className={cn(
-            "flex min-w-0 flex-1 flex-wrap items-start gap-x-5 gap-y-1",
-            row.indent && "pl-6",
-          )}
-        >
-          {row.checks?.map((c, i) => (
-            <span
-              key={i}
-              className="flex min-w-0 items-start gap-1.5 text-[12px] leading-snug text-text"
-            >
-              <span
-                aria-hidden
-                className="mt-0.5 size-3.5 shrink-0 rounded-[2px] border border-border-strong bg-surface"
-              />
-              {c && <span className="min-w-0">{c}</span>}
-            </span>
-          ))}
-        </div>
+      <div className={cn("relative col-span-full flex flex-wrap gap-x-6 gap-y-1", row.indent && "pl-6")}>
+        <LineNo n={row.n} />
+        {row.checks?.map((c, i) => (
+          <span key={i} className="flex items-start gap-2 text-[11px] leading-[1.28]">
+            <span aria-hidden className="mt-px size-[15px] shrink-0 bg-white" />
+            {c}
+          </span>
+        ))}
       </div>
     );
   }
 
+  // Free-text fields: one or more white combs across the line.
+  if (row.kind === "fields") {
+    return (
+      <div className="relative col-span-full flex items-end gap-[12px] pt-4">
+        <LineNo n={row.n} />
+        {row.boxes?.map((box, i) => (
+          <FieldComb key={i} box={box} showBoxes={showBoxes} />
+        ))}
+      </div>
+    );
+  }
+
+  // A note or a labelled line with a coded cell on the right.
+  const note = row.kind === "note";
   return (
-    <div className="flex items-stretch gap-3">
-      {/* Left gutter: the printed line number. */}
-      <div className="w-5 shrink-0 pt-1.5 text-right text-[10px] tabular-nums text-text-faint">
-        {row.n ?? ""}
-      </div>
-
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {row.kind === "fields" ? (
-          <div className="flex flex-1 items-end gap-2 pt-2">
-            {row.boxes?.map((box, i) => (
-              <Box key={i} box={box} showBoxes={showBoxes} />
-            ))}
-          </div>
-        ) : (
-          <div className="min-w-0 flex-1 py-1">
-            {row.text && (
-              <p
-                className={cn(
-                  "text-[12px] leading-snug",
-                  row.kind === "note"
-                    ? "font-normal text-text-muted"
-                    : "font-medium text-text",
-                )}
-              >
-                {row.text}
-              </p>
-            )}
-            {row.sub && (
-              <p className="text-[11px] leading-snug text-text-muted">{row.sub}</p>
-            )}
-          </div>
+    <>
+      <Label n={row.n} span wide={!row.code}>
+        {row.text && (
+          <span className={cn("block", note ? "font-normal" : "font-medium")}>
+            {rich(row.text)}
+          </span>
         )}
+        {row.sub && <span className="mt-0.5 block text-[11px] leading-[1.3] opacity-80">{row.sub}</span>}
+      </Label>
+      {row.code && (
+        <div className="flex justify-end">
+          <CodedCell num={row.code.num} box={row.code.box} showBoxes={showBoxes} />
+        </div>
+      )}
+    </>
+  );
+}
 
-        {row.code && <CodeBox num={row.code.num} box={row.code.box} showBoxes={showBoxes} />}
-      </div>
+/** The label of a line, with its number in the margin. */
+function Label({
+  n,
+  span = false,
+  wide = false,
+  strong = false,
+  children,
+}: {
+  n?: number;
+  span?: boolean;
+  wide?: boolean;
+  strong?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative hyphens-auto text-[11px] leading-[1.28]",
+        wide ? "col-span-3" : span ? "col-span-2" : "col-span-1",
+        strong && "font-bold",
+      )}
+    >
+      <LineNo n={n} />
+      {children}
     </div>
+  );
+}
+
+/** A money-column caption, centred over the comb rather than the code. */
+function ColumnCaption({ text }: { text?: string }) {
+  return (
+    <div className="self-end pl-[40px] text-center text-[10px] leading-[1.25]">{text}</div>
+  );
+}
+
+/** A run of white digit cells. */
+function Cells({ n }: { n: number }) {
+  return (
+    <span className="flex" style={{ gap: GAP }}>
+      {Array.from({ length: n }, (_, i) => (
+        <span key={i} className="block bg-white" style={{ width: CELL, height: CELL_H }} />
+      ))}
+    </span>
   );
 }
 
 /**
- * One money column on a computation line — the line code, then the comb cell,
- * with the box overlay on top when the agent mapped it. A fixed width (and an
- * empty placeholder when there's no cell) keeps the base and tax columns lined
- * up down the page. */
-function AmountBox({ cell, showBoxes }: { cell?: AmountCell; showBoxes: boolean }) {
-  if (!cell) return <div aria-hidden className="w-40 shrink-0" />;
+ * One money column on a line: the green code, then the comb. Whole-euro combs
+ * end ",—"; a tax comb carries a comma and two cent cells. The EUR / Ct
+ * captions print only at the head of a group, and a "Summe" line gets the heavy
+ * rule over its tax comb.
+ */
+function AmountBox({
+  cell,
+  column,
+  sum = false,
+  showBoxes,
+}: {
+  cell?: AmountCell;
+  column: "base" | "tax";
+  sum?: boolean;
+  showBoxes: boolean;
+}) {
+  if (!cell) return <div aria-hidden />;
 
-  // A questionnaire "1 = Ja" cell rather than a money comb.
   if (cell.variant === "yesno") {
     return (
-      <div className="flex w-40 shrink-0 items-start justify-end gap-1.5">
-        {cell.num && (
-          <span className="pt-1 text-[11px] font-semibold tabular-nums text-settled">
-            {cell.num}
-          </span>
-        )}
-        <div className="flex h-6 items-center gap-1 rounded-[3px] border border-border bg-surface px-1.5 text-[10px] text-text-muted">
-          <span className="grid size-4 place-items-center border border-border text-[9px]">
-            1
-          </span>
-          = Ja
-        </div>
+      <div className="flex justify-end">
+        <CodedCell num={cell.num} box={{ name: "", tone: "ok", variant: "yesno" }} showBoxes={false} />
       </div>
     );
   }
 
+  const cents = cell.cents ?? column === "tax";
+  const eur = cents ? EUR_TAX : EUR_WHOLE;
+  const mapped = Boolean(cell.box && showBoxes);
+
   return (
-    <div className="flex w-40 shrink-0 items-start gap-1.5">
-      <span className="pt-1.5 text-[11px] font-semibold tabular-nums text-settled">
+    // A comb that carries the EUR / Ct captions takes the room for them above,
+    // as the form opens a little space at the head of each group.
+    <div className={cn("flex items-end justify-end gap-[6px]", cell.units && "pt-[14px]")}>
+      <span className="w-[34px] pb-[4px] text-right text-[10.5px] font-bold tabular-nums text-[#3a9a5b]">
         {cell.num}
       </span>
-      <div className="relative min-w-0 flex-1">
-        {cell.units && (
-          <div className="pointer-events-none absolute -top-2.5 right-0 flex items-center gap-5 text-[8px] font-semibold leading-none text-settled">
-            <span>EUR</span>
-            {cell.units === "tax" && <span>Ct</span>}
-          </div>
+
+      <div
+        className={cn(
+          "relative flex items-end",
+          mapped && cell.box && cn("rounded-[3px] outline outline-2 outline-offset-2", TONE_OUTLINE[cell.box.tone]),
         )}
-        {cell.box && showBoxes && (
+      >
+        {mapped && cell.box && (
+          <span className={cn(PILL, "-top-[24px]", TONE_TAB[cell.box.tone])}>{cell.box.name}</span>
+        )}
+
+        {/* The heavy rule a "Summe" line carries over its comb. */}
+        {sum && (
+          <span aria-hidden className="absolute -top-[6px] left-0 right-0 h-[2.5px] bg-[#3f8a5a]" />
+        )}
+
+        {cell.units && (
           <span
-            className={cn(
-              "absolute -top-2 left-1 z-10 max-w-full truncate rounded px-1 py-[1px] text-[9px] font-medium leading-none",
-              TONE_TAB[cell.box.tone],
-            )}
+            aria-hidden
+            className="pointer-events-none absolute -top-[13px] left-0 flex text-[8.5px] font-bold leading-none text-[#3a9a5b]"
           >
-            {cell.box.name}
+            <span className="text-center" style={{ width: combWidth(eur) }}>
+              EUR
+            </span>
+            {cents && (
+              <span className="text-center" style={{ width: combWidth(CENTS), marginLeft: 10 }}>
+                Ct
+              </span>
+            )}
           </span>
         )}
-        <div
-          className={cn(
-            "h-7 rounded-[3px] border",
-            cell.box && showBoxes ? TONE_FILL[cell.box.tone] : "border-border bg-surface",
-          )}
-          style={{
-            backgroundImage: COMB,
-            backgroundSize: "100% 60%",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+
+        <Cells n={eur} />
+        {cents ? (
+          <>
+            <span className="w-[10px] pb-[1px] text-center text-[12px] font-bold leading-none">,</span>
+            <Cells n={CENTS} />
+          </>
+        ) : (
+          <span className="w-[20px] pb-[2px] pl-[3px] text-[12px] font-bold leading-none">,—</span>
+        )}
       </div>
     </div>
   );
 }
 
-/** A field box: the name tab over the comb of input cells. */
-function Box({ box, showBoxes }: { box: FormBox; showBoxes: boolean }) {
+/* The outline a mapped box draws around its comb, by extraction state. */
+const TONE_OUTLINE: Record<BoxTone, string> = {
+  ok: "outline-settled",
+  warn: "outline-attention",
+  error: "outline-risk",
+};
+
+/** A free-text field as the form prints it: a long white comb. */
+function FieldComb({ box, showBoxes }: { box: FormBox; showBoxes: boolean }) {
   return (
     <div className="relative min-w-0" style={{ flexGrow: box.grow ?? 1, flexBasis: 0 }}>
-      {showBoxes && (
-        <span
-          className={cn(
-            "absolute -top-2 left-1 z-10 max-w-full truncate rounded px-1 py-[1px] text-[9px] font-medium leading-none",
-            TONE_TAB[box.tone],
-          )}
-        >
-          {box.name}
-        </span>
-      )}
+      {showBoxes && <span className={cn(PILL, "-top-[24px]", TONE_TAB[box.tone])}>{box.name}</span>}
       <div
         className={cn(
-          "h-7 rounded-[3px] border",
-          showBoxes ? TONE_FILL[box.tone] : "border-border bg-surface",
+          "rounded-[1px]",
+          showBoxes && cn("outline outline-2 outline-offset-2", TONE_OUTLINE[box.tone]),
         )}
-        style={{ backgroundImage: COMB, backgroundSize: "100% 60%", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
+        style={{
+          height: CELL_H,
+          background: `repeating-linear-gradient(90deg, #fff 0 ${CELL}px, transparent ${CELL}px ${CELL + GAP}px)`,
+        }}
       />
     </div>
   );
 }
 
-/** The right-aligned numbered box — a yes/no cell, a date mask or a value. */
-function CodeBox({ num, box, showBoxes }: { num: string; box: FormBox; showBoxes: boolean }) {
+/** A comb with a printed letter in each cell — TTMM, TTMMJJ. */
+function LetterComb({ letters, caption }: { letters: string; caption?: string }) {
   return (
-    <div className="flex shrink-0 items-center gap-1.5">
-      {num && <span className="text-[11px] font-semibold tabular-nums text-settled">{num}</span>}
-      <div className="relative">
-        {showBoxes && (
+    <div className="relative">
+      {caption && (
+        <span className="absolute -top-[16px] left-0 text-[10.5px]">{caption}</span>
+      )}
+      <span className="flex" style={{ gap: GAP }}>
+        {letters.split("").map((l, i) => (
           <span
-            className={cn(
-              "absolute -top-2 left-0 z-10 rounded px-1 py-[1px] text-[9px] font-medium leading-none",
-              TONE_TAB[box.tone],
-            )}
+            key={i}
+            className="grid place-items-center bg-white text-[10px] text-[#1d2420]/35"
+            style={{ width: CELL, height: CELL_H }}
           >
-            {box.name}
+            {l}
           </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/** The right-hand coded cell of a labelled line — a "1 = Ja" tick, a date or a digit. */
+function CodedCell({ num, box, showBoxes }: { num: string; box: FormBox; showBoxes: boolean }) {
+  const mapped = showBoxes && box.name !== "";
+  return (
+    <div className="flex items-end gap-[6px]">
+      {num && (
+        <span className="pb-[4px] text-[10.5px] font-bold tabular-nums text-[#3a9a5b]">{num}</span>
+      )}
+      <div
+        className={cn(
+          "relative flex items-end gap-[6px]",
+          mapped && cn("rounded-[3px] outline outline-2 outline-offset-2", TONE_OUTLINE[box.tone]),
         )}
-        {box.variant === "yesno" ? (
-          <div
-            className={cn(
-              "flex h-7 items-center gap-1 rounded-[3px] border px-1.5 text-[10px] text-text-muted",
-              showBoxes ? TONE_FILL[box.tone] : "border-border bg-surface",
-            )}
-          >
-            <span className="grid size-5 place-items-center border border-border text-[9px]">1</span>
-            = Ja
-          </div>
-        ) : box.variant === "date" ? (
-          <div
-            className={cn(
-              "flex h-7 items-center rounded-[3px] border px-1 font-mono text-[10px] tracking-[0.3em] text-text-faint",
-              showBoxes ? TONE_FILL[box.tone] : "border-border bg-surface",
-            )}
-          >
-            TTMMJJ
-          </div>
+      >
+        {mapped && <span className={cn(PILL, "-top-[24px] left-auto right-0", TONE_TAB[box.tone])}>{box.name}</span>}
+        {box.variant === "date" ? (
+          <LetterComb letters="TTMMJJ" />
         ) : (
-          <div
-            className={cn(
-              "h-7 w-28 rounded-[3px] border",
-              showBoxes ? TONE_FILL[box.tone] : "border-border bg-surface",
-            )}
-          />
+          <Cells n={1} />
+        )}
+        {box.variant === "yesno" && (
+          <span className="pb-[5px] text-[11px]">1 = Ja</span>
         )}
       </div>
     </div>
