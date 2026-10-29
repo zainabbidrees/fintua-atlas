@@ -2,6 +2,7 @@
 
 import { ArrowUpRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useReadOnly } from "@/components/patterns/read-only";
 import {
   SourceMark,
   extensionOf,
@@ -24,6 +25,7 @@ export function DocumentList({
   documents: UserDocument[];
   onRemove: (doc: UserDocument) => void;
 }) {
+  const readOnly = useReadOnly();
   if (documents.length === 0) return null;
 
   return (
@@ -70,6 +72,7 @@ export function DocumentList({
                 </span>
               </div>
 
+              {!readOnly && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -79,6 +82,7 @@ export function DocumentList({
               >
                 <Trash2 />
               </Button>
+              )}
             </li>
           );
         })}

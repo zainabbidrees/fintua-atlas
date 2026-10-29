@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useReadOnly } from "@/components/patterns/read-only";
 import { Input, Textarea } from "@/components/ui/input";
 import { AttentionNote } from "@/components/ui/attention-note";
 import {
@@ -85,11 +86,14 @@ function sourcesOf(o: ObligationRun): Evidence[] {
  */
 export function ReturnsTable({
   r,
+  rows = r.obligations,
   selected,
   onSelectedChange,
   onOpenSource,
 }: {
   r: ReturnType<typeof useReturns>;
+  /** The rows to show — the filtered page; every return type by default. */
+  rows?: ObligationRun[];
   selected: ReadonlySet<string>;
   onSelectedChange: (id: string, selected: boolean) => void;
   onOpenSource: (evidence: Evidence) => void;
@@ -128,14 +132,14 @@ export function ReturnsTable({
             </tr>
           </thead>
           <tbody>
-            {r.obligations.map((o, i) => (
+            {rows.map((o, i) => (
               <ReturnRow
                 key={o.id}
                 o={o}
-                last={i === r.obligations.length - 1}
+                last={i === rows.length - 1}
                 nextFlagged={
-                  rowStateOf(r.obligations[i + 1] ?? o) === "needs_review" &&
-                  i + 1 < r.obligations.length
+                  rowStateOf(rows[i + 1] ?? o) === "needs_review" &&
+                  i + 1 < rows.length
                 }
                 r={r}
                 selected={selected.has(o.id)}
@@ -194,7 +198,10 @@ function ReturnRow({
     });
   }
 
-  const tick = (
+  /* A reviewer reads the findings; ticking, editing, attaching and confirming
+     are the expert's. */
+  const readOnly = useReadOnly();
+  const tick = readOnly ? null : (
     <Checkbox
       checked={selected}
       onCheckedChange={(next) => onSelectedChange(o.id, next === true)}
@@ -343,6 +350,7 @@ function ValueCell({
   onEdit: (finding: Finding, value: string, reason: string) => void;
 }) {
   const [editing, setEditing] = React.useState(false);
+  const readOnly = useReadOnly();
 
   if (!finding || !finding.value) {
     return <span className="text-text-faint">{copy.returnsTable.none}</span>;
@@ -382,14 +390,16 @@ function ValueCell({
         >
           {finding.value}
         </p>
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          aria-label={fill(copy.returnsTable.edit, { label: finding.label })}
-          className="grid size-5 shrink-0 place-items-center rounded text-text-faint transition-colors hover:bg-wash hover:text-text"
-        >
-          <Pencil className="size-3.5" strokeWidth={1.75} />
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            aria-label={fill(copy.returnsTable.edit, { label: finding.label })}
+            className="grid size-5 shrink-0 place-items-center rounded text-text-faint transition-colors hover:bg-wash hover:text-text"
+          >
+            <Pencil className="size-3.5" strokeWidth={1.75} />
+          </button>
+        )}
       </div>
       {finding.detail && (
         <p className="mt-1 text-[13px] leading-5 text-text-muted">
@@ -557,9 +567,14 @@ function AttachCell({
 }) {
   const [open, setOpen] = React.useState(false);
   const uploads = r.uploadsFor(o.id);
+  const readOnly = useReadOnly();
 
   return (
     <div>
+      {readOnly && uploads.length === 0 && (
+        <span className="text-[13px] text-text-faint">{copy.returnsTable.noAttachments}</span>
+      )}
+      {!readOnly && (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button size="sm" variant="secondary" className="-my-1.5">
@@ -587,9 +602,10 @@ function AttachCell({
           />
         </PopoverContent>
       </Popover>
+      )}
 
       {uploads.length > 0 && (
-        <ul className="mt-4 space-y-1.5">
+        <ul className={cn("space-y-1.5", !readOnly && "mt-4")}>
           {uploads.map((u) => (
             <li
               key={u.id}
@@ -601,6 +617,7 @@ function AttachCell({
                 <Link2 className="size-3 shrink-0 text-text-faint" />
               )}
               <span className="min-w-0 flex-1 truncate">{u.label}</span>
+              {!readOnly && (
               <button
                 type="button"
                 onClick={() => r.removeUpload(o.id, u.id)}
@@ -611,6 +628,7 @@ function AttachCell({
               >
                 <Trash2 className="size-3" />
               </button>
+              )}
             </li>
           ))}
         </ul>
@@ -648,6 +666,23 @@ function StatusAction({
     needs_review: "bg-attention",
     cross_checked: "bg-border-strong",
   }[state];
+  const readOnly = useReadOnly();
+
+  /* Read-only, the status stands alone in the flow: there is no action
+     beneath it to float above. */
+  if (readOnly) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-2 whitespace-nowrap text-[13px] font-medium leading-5",
+          tone,
+        )}
+      >
+        <span aria-hidden className={cn("size-1.5 rounded-full", dot)} />
+        {label}
+      </span>
+    );
+  }
 
   return (
     // The button is the only thing in the flow, so it centres on the row's

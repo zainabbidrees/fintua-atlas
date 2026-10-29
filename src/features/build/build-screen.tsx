@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { DraftActions } from "@/components/patterns/draft-actions";
 import { Stepper } from "@/components/patterns/stepper";
+import { ONBOARDING_STEPS } from "@/components/domain/onboarding-steps";
 import { UploadBar } from "@/components/patterns/upload-bar";
 import { copy, fill } from "@/lib/copy";
 import { artifactsFor, crossFieldFor, dryRunFor, BE_RECONCILE_PERIOD } from "@/lib/mock/build";
@@ -27,7 +28,7 @@ import { ArtifactRow } from "./artifact-row";
 import { DryRunOutput } from "./dry-run-output";
 import { ValidationPanel } from "./validation-panel";
 
-const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
+const STEPS = ONBOARDING_STEPS;
 const GROUPS: ArtifactGroup[] = ["schema", "boxes", "calculations"];
 
 /** The kinds of lint finding the tally chips walk through. */
@@ -335,7 +336,7 @@ export function BuildScreen({
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href={`/countries/${countryCode}/rules`}>

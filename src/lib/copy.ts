@@ -17,6 +17,33 @@
 import type { DocumentKind, SourceKind } from "./types";
 
 export const copy = {
+  /** The filter above, and the pagination beneath, every listing. */
+  list: {
+    clear: "Clear filter",
+    all: "All",
+    showing: "Showing {from}–{to} of {total}",
+    previous: "Previous",
+    next: "Next",
+    page: "Page {page} of {pages}",
+    pagination: "Pagination",
+    noMatch: "Nothing matches “{query}”",
+    noMatchHint: "Try another word, or clear the filter.",
+    noneInView: "Nothing in this view",
+    noneInViewHint: "Pick another filter to see the rest.",
+    filterRows: "Filter rows",
+    filterReturns: "Filter return types",
+    filterBoxes: "Filter boxes",
+    returnsChips: { all: "All", review: "To confirm", confirmed: "Confirmed" },
+    queryChips: { all: "All", ready: "Ready", missing: "Not generated" },
+  },
+
+  /** Looking back at a finished step from a later one: read, never edited. */
+  viewOnly: {
+    badge: "View only",
+    note: "{step}, as it was left. Nothing here can be changed.",
+    back: "Back to {step}",
+  },
+
   page: {
     title: "Onboard country",
     specsTitle: "Form Annotations & Box Mapping",
@@ -33,6 +60,8 @@ export const copy = {
     discard: "Discard",
     back: "Back",
     continue: "Continue",
+    /** Read out after a step the AI does the work of. */
+    aiStep: "(AI)",
     saveChanges: "Save changes",
     savedToast: "Changes saved",
     /* Asked before Continue moves on to the next step. */
@@ -173,6 +202,8 @@ export const copy = {
      carries only what the next steps consume: how often it is filed, when, the
      sources behind those answers, and the expert's own attachments. */
   returnsTable: {
+    /** An Attach cell a reviewer reads, with nothing attached. */
+    noAttachments: "None attached",
     selectLabel: "Select {name}",
     columns: {
       returnType: "Return type",
@@ -309,6 +340,18 @@ export const copy = {
     withoutFormDone: "Continuing without a form: {reason}",
     undo: "Undo",
 
+    /* Replace: the expert swaps a retrieved form for their own file. */
+    replace: "Replace form",
+    replaceTitle: "Replace {name} with {file}",
+    replaceHint:
+      "The retrieved form is set aside, not deleted. Your reason is kept with the record for audit purposes.",
+    replacePlaceholder: "e.g. the publisher sent us a corrected edition directly",
+    replaceConfirm: "Replace form",
+    replaceCancel: "Cancel",
+    replacedBadge: "Replaced by you",
+    replacedReason: "Replaces the retrieved form: {reason}",
+    restore: "Restore retrieved form",
+
     /* Export. */
     export: "Export PDF",
     exportAll: "All selected pages",
@@ -323,6 +366,148 @@ export const copy = {
 
     empty: "No return types were carried into this step.",
     emptyHint: "Go back to Return Types to confirm the return types to configure.",
+  },
+
+  /* Step 4's choice of return type: which form, annotations and field map the
+     step shows. */
+  returnTypeSpecs: {
+    label: "Return type",
+    pdfLine: "{reference} · {title} · Edition {edition} (official PDF)",
+    notAnnotatedTitle: "No boxes annotated for {name} yet",
+    notAnnotatedHint:
+      "The form above is the one carried in from Tax Form Retrieval. Its boxes and field map appear here once the agent has annotated it.",
+    noFieldMapTitle: "No field map for {name} yet",
+    noFieldMapHint:
+      "Its boxes are drawn on the form above, but the spec workbook has no box details for this return type yet.",
+    noFormTitle: "{name} has no form",
+    noFormHint:
+      "No form was found for {name} at Tax Form Retrieval, so there is nothing to annotate.",
+  },
+
+  /* The approval workflow after the last step: the tax expert sends every step
+     for approval, and a reviewer reads each one — locked — and approves it or
+     asks for changes. Reviewers comment; they never edit. */
+  approvalFlow: {
+    roles: { expert: "Tax expert", reviewer: "Reviewer" },
+    signInAs: "Sign in as",
+    signOut: "Sign out",
+
+    status: {
+      waiting: "Waiting for review",
+      approved: "Approved",
+      changes: "Changes requested",
+    },
+    resubmitted: "Sent again",
+
+    /* The approval screen. */
+    backLink: "Query Builder",
+    heading: "Approval",
+    introExpert:
+      "Each step is reviewed on its own. Open a step to read the reviewer's comments, change it, and send it for approval again.",
+    introReviewer:
+      "Open each step to read what the tax expert built, then approve it or ask for changes. You can comment, but not edit.",
+    progress: "{approved} of {total} steps approved",
+    submittedBy: "Sent by {name}, {date}",
+    stepLabel: "Step {n}",
+    commentCount: "{count} comments",
+    commentCountOne: "1 comment",
+    noComments: "No comments",
+    lastBy: "{name}: {text}",
+    allApproved: "Every step is approved — {country} is published.",
+    notSubmitted: "{country} hasn't been sent for approval yet.",
+    notSubmittedHint: "Finish the Query Builder, then send every step for approval from there.",
+    notSubmittedAction: "Go to Query Builder",
+
+    /* The Approvals list in the sidebar. */
+    listTitle: "Approvals",
+    listIntro: "Countries sent for approval, and how far each one has got.",
+    listEmpty: "Nothing has been sent for approval.",
+    listEmptyHint:
+      "A country appears here once its tax expert sends it for approval from the Query Builder.",
+    listColumns: {
+      country: "Country",
+      submitted: "Sent",
+      progress: "Steps approved",
+      status: "Status",
+    },
+    open: "Open",
+
+    /* The bar a step shows while it is in review, in place of its footer. */
+    backToApproval: "Back to approval",
+    readOnly: "Read-only while you review",
+    comments: "Comments",
+    approve: "Approve step",
+    approvedToast: "{step} approved",
+    requestChanges: "Request changes",
+    requestTitle: "Request changes to {step}",
+    requestHint: "Say what needs to change. The tax expert sees it beside the step.",
+    requestPlaceholder: "e.g. box_05 should map to the reduced rate, not the standard one",
+    requestConfirm: "Request changes",
+    requestCancel: "Cancel",
+    requestedToast: "Changes requested on {step}",
+    sendAgain: "Send for approval again",
+    sentAgainToast: "{step} sent for approval again",
+    sentAgainNote: "Changed and sent again for approval.",
+
+    /* The comments drawer. */
+    drawerTitle: "{step} — comments",
+    emptyThread: "No comments yet.",
+    commentPlaceholder: "Add a comment",
+    post: "Post comment",
+    close: "Close",
+    entryKind: {
+      comment: "commented",
+      approved: "approved this step",
+      changes: "asked for changes",
+      resubmitted: "sent it for approval again",
+    },
+
+    /* Step six's last action. */
+    sendForApproval: "Send for approval",
+    sendForApprovalBlocked: "Generate or write at least one query first",
+    sentToast: "{country} sent for approval",
+  },
+
+  /* What the agent shows for the few seconds it works on arriving at a step,
+     before that step's results land. */
+  agentRuns: {
+    trailLabel: "Activity",
+    hint: "This takes a few seconds.",
+    returns: {
+      title: "Researching return types",
+      trail: [
+        "Reading the tax authority's filing obligations",
+        "Checking frequencies and thresholds",
+        "Matching each return type to its source",
+        "Flagging anything that needs a person's decision",
+      ],
+    },
+    forms: {
+      title: "Retrieving tax return forms",
+      trail: [
+        "Finding each return type's official form",
+        "Downloading the current editions",
+        "Comparing editions across sources",
+        "Sorting form pages from explanatory notes",
+      ],
+    },
+    specs: {
+      title: "Annotating the form",
+      trail: [
+        "Reading the form page by page",
+        "Locating every numbered box",
+        "Mapping boxes to fields",
+        "Drafting the specs",
+      ],
+    },
+    queries: {
+      title: "Preparing the query builder",
+      trail: [
+        "Reading the box annotations",
+        "Matching boxes to tax rules",
+        "Writing each box's calculation rule",
+      ],
+    },
   },
 
   /* Step 5, Tax Rules Generation: the agent turns the confirmed box mapping
@@ -357,14 +542,13 @@ export const copy = {
         sample and says how many there are in all. */
     hints: {
       rates: "{count} rates, columns A to {last}.",
-      sales: "Showing {shown} of {count} sales rules, columns A to {last}.",
-      purchases: "Showing {shown} of {count} purchase rules, columns A to {last}.",
+      sales: "{count} sales rules, columns A to {last}.",
+      purchases: "{count} purchase rules, columns A to {last}.",
     },
-    numberColumn: "#",
     /** The per-row pen, as on the spec sheets at step four. */
     editColumn: "Edit",
-    editRow: "Edit row {name}",
-    doneEditing: "Done editing row {name}",
+    editRow: "Edit {name}",
+    doneEditing: "Done editing {name}",
     unsavedRow: "Unsaved changes",
     save: "Save changes",
     unsavedCount: "{count} row with unsaved changes",
@@ -372,6 +556,39 @@ export const copy = {
     saved: "Changes saved",
     sheetNotes: "Notes from the sheet",
     empty: "—",
+    /** A row's other actions, beside its pen — as on the spec sheets. */
+    duplicateRow: "Duplicate {name}",
+    deleteRow: "Delete {name}",
+    duplicated: "{name} duplicated",
+    deleteTitle: "Delete {name}?",
+    deleteHint: "It leaves the sheet when you save. Say why — the reason is kept with the record.",
+    deletePlaceholder: "e.g. this transaction type does not apply to the return",
+    deleteConfirm: "Delete",
+    deleteCancel: "Keep it",
+    deleted: "{name} deleted",
+    deletedReason: "Reason: {reason}",
+    undo: "Undo",
+    /** Adding a rule, on any sheet. */
+    addRow: "Add row",
+    rowAdded: "New rule added at the end",
+    /** What a rule is called before it has a type or a rate. */
+    newRule: "New rule",
+    /** Adding a column, on the sales and purchase sheets. */
+    addColumn: "Add column",
+    addColumnTitle: "Add a column to {sheet}",
+    addColumnHint:
+      "It goes at the end of the sheet, as column {letter}, and every rule gets a cell in it. It stays unsaved until you save.",
+    columnName: "Column name",
+    columnNamePlaceholder: "e.g. Reverse charge",
+    columnNameHint: "The header, as the workbook would show it.",
+    columnNameRequired: "Give the column a name.",
+    columnNameTaken: "{name} is already a column of this sheet.",
+    columnValue: "Value for every rule",
+    columnValuePlaceholder: "e.g. N/A",
+    columnValueHint: "Optional. Leave it blank to fill the rules in one by one.",
+    cancel: "Cancel",
+    confirmAddColumn: "Add column",
+    columnAdded: "{name} added as column {letter}",
   },
 
   /* The form-preview panel on the specs step: the official return rendered with
@@ -379,6 +596,8 @@ export const copy = {
      German labels are fixture data in src/lib/mock/form-preview.ts. */
   formPreview: {
     showBoxes: "Show boxes",
+    exportPdf: "Export annotated PDF",
+    exportFileName: "{name} — annotated form",
     pageLabel: "Page {n}",
     openPage: "Open page {n}",
     pageOf: "Page {current} of {total}",
@@ -393,6 +612,9 @@ export const copy = {
     next: "Next page",
     close: "Close",
     keys: "Use ← and → to move between pages.",
+    addedCount: "{count} added",
+    addedByYou: "Added by you",
+    addOnPage: "Add a box on this page",
   },
 
   /* The field map under the preview: one row per return box. Table chrome
@@ -418,12 +640,81 @@ export const copy = {
     },
     hints: {
       boxes: "{count} return boxes, columns B to AO — the mapping the SQL spec is built from.",
-      lists: "{count} subfields across the list boxes — the columns each listed line carries.",
+      lists: "{count} columns across the list boxes — what each listed line carries.",
       mandatory: "{count} fields a TXT or XML submission cannot go without, and when.",
       dropdowns: "{count} allowed values across the fields that only accept a value from a list.",
     },
     /** Shown in a blank cell, so an empty value reads as intended. */
     empty: "—",
+    /** An open row's calculation cell while is_calculated is unticked. */
+    calculationLocked: "Tick is_calculated to write a calculation",
+    /** The return type's four sheets, as one CSV. */
+    exportCsv: "Export CSV",
+    exportFileName: "{name} spec",
+    /** Not a column of the source sheet: the form page a box sits on, set when
+        the expert adds a box the agent missed. */
+    pageColumn: "page_reference",
+    /** The row's own actions, in its first column. */
+    actionsColumn: "Actions",
+    duplicateRow: "Duplicate {name}",
+    deleteRow: "Delete {name}",
+    rowFallback: "row {n}",
+    duplicated: "{name} duplicated",
+    deleteTitle: "Delete {name}?",
+    deleteHint: "It leaves the field map when you save. Say why — the reason is kept with the record.",
+    deletePlaceholder: "e.g. not on the 2025 edition of the form",
+    deleteConfirm: "Delete",
+    deleteCancel: "Keep it",
+    deleted: "{name} deleted",
+    deletedReason: "Reason: {reason}",
+    undo: "Undo",
+    /** Adding a box the agent did not extract. */
+    addBox: "Add box",
+    addBoxTitle: "Add a box",
+    addBoxHint: "For a field the agent missed. It joins the field map as an unsaved row until you save.",
+    boxName: "Box name",
+    boxNamePlaceholder: "e.g. box_99",
+    boxNameHint: "As the return names it — letters, numbers and underscores.",
+    boxNameRequired: "Give the box a name.",
+    boxNameInvalid: "Use letters, numbers and underscores only.",
+    boxNameTaken: "{name} is already in the field map.",
+    description: "Description",
+    descriptionPlaceholder: "What the box reports",
+    descriptionHint: "Optional. You can fill in the rest of its columns in the field map.",
+    page: "Page on the form",
+    pageRequired: "Pick the page the box sits on.",
+    pageOption: "Page {n}",
+    cancel: "Cancel",
+    confirmAdd: "Add box",
+    added: "{name} added to page {page}",
+    show: "Show",
+    /** Adding an allowed value to a drop-down box. */
+    addValue: "Add value",
+    addValueTitle: "Add a dropdown value",
+    addValueHint:
+      "Pick the drop-down box it belongs to, then its key and the value shown for it. It joins the sheet as an unsaved row until you save.",
+    baseBox: "Box",
+    baseBoxHint: "Only boxes whose field_type is drop-down are listed.",
+    baseBoxRequired: "Pick the box the value belongs to.",
+    noDropdownBoxes: "No box in this field map is a drop-down yet.",
+    noDropdownBoxesHint:
+      "Set a box's field_type to drop-down in the Field map tab and it is listed here.",
+    existingValues: "Already on {box}: {values}",
+    key: "Key",
+    keyPlaceholder: "e.g. Q",
+    keyHint: "The code stored.",
+    keyRequired: "Give it a key.",
+    keyTaken: "{key} is already a value of {box}.",
+    value: "Value",
+    valuePlaceholder: "e.g. Quarterly",
+    valueHint: "What the choice reads as.",
+    valueRequired: "Give the key a value.",
+    valueLocal: "Value in the local language",
+    valueLocalPlaceholder: "e.g. Negyedéves",
+    valueLocalHint: "Optional.",
+    confirmAddValue: "Add value",
+    addedValue: "{key} added to {box}",
+    close: "Close",
   },
 
   /* Step six. One row per box annotated at step four: the rule that fills it,

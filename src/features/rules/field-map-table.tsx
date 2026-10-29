@@ -1,13 +1,31 @@
 "use client";
 
 import * as React from "react";
-import { Check, Pencil } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useReadOnly } from "@/components/patterns/read-only";
+import {
+  ListFilter,
+  NoMatch,
+  Pagination,
+  matches,
+  usePaged,
+} from "@/components/patterns/list-controls";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
 import { FLAG_COLUMNS } from "@/lib/mock/return-boxes";
-import { SHEETS, rowKey, type Row, type Sheet, type SpecSheets } from "./use-spec-sheets";
+import {
+  PAGE_COLUMN,
+  SHEETS,
+  rowKey,
+  type Row,
+  type Sheet,
+  type SpecSheets,
+} from "./use-spec-sheets";
 
 /* Flag columns across every sheet — a checkbox wherever the cell holds TRUE
    or FALSE. */
@@ -24,6 +42,7 @@ const FLAGS: ReadonlySet<string> = new Set([
 const CONTENT_WIDTH: Partial<Record<string, number>> = {
   box_name: 144,
   subfield_name: 248,
+  column_name: 248,
   display_name: 112,
   field_name: 224,
   submission_type: 136,
@@ -46,6 +65,7 @@ const CONTENT_WIDTH: Partial<Record<string, number>> = {
 /* Codes and orders keep tabular figures so digits sit in step, but stay
    left-aligned: they are identifiers to read, not amounts to compare. */
 const NUMERIC: ReadonlySet<string> = new Set([
+  PAGE_COLUMN,
   "return_box_value",
   "max_length",
   "position_nr",
@@ -87,15 +107,21 @@ type Column = { col: string; sheetIndex: number };
 /* A sheet's internal row id (column A) is not shown: it is a database key,
    not something the expert reads or corrects. Every other column keeps its
    sheet letter, so a cell still traces back to the source. */
-function visibleColumns(columns: readonly string[]): Column[] {
-  return columns
+function visibleColumns(sheet: Sheet): Column[] {
+  const columns = sheet.columns
     .map((col, sheetIndex) => ({ col, sheetIndex }))
     .filter(({ col }) => col !== "id");
+  /* The field map also carries the form page each box sits on, right after
+     the pinned name. It is not a sheet column, so it has no letter (-1). */
+  if (sheet.id === "boxes") columns.splice(PINNED, 0, { col: PAGE_COLUMN, sheetIndex: -1 });
+  return columns;
 }
 
 /* The row's edit control leads every row, in a narrow column of its own, so it
    is reachable at any scroll position and sits beside the name it edits. */
-const EDIT_W = 48;
+const EDIT_W = 112;
+const ACTION =
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-[background-color,color,transform] active:scale-[0.94]";
 
 /* After it, the first two columns — on the field map, iso_code and box_name —
    stay put while the rest scroll sideways, so every row keeps its name in view
@@ -143,13 +169,67 @@ function columnLetter(index: number): string {
  * are held as a draft until Save changes in the footer. The SQL spec
  * downstream is built from all four sheets.
  */
-export function FieldMapTable({ s }: { s: SpecSheets }) {
+export function FieldMapTable({
+  s,
+  onAddBox,
+  onAddValue,
+  reveal = 0,
+  revealValues = 0,
+}: {
+  s: SpecSheets;
+  /** Opens the Add box dialog; the field map tab shows the button when given. */
+  onAddBox?: () => void;
+  /** Opens the Add value dialog; the dropdown tab shows the button when given. */
+  onAddValue?: () => void;
+  /** Bumped after a box is added: the field map tab opens on its last page. */
+  reveal?: number;
+  /** Bumped after a dropdown value is added: that tab opens on its last page. */
+  revealValues?: number;
+}) {
   const t = copy.fieldMap;
   const [tab, setTab] = React.useState<Sheet["id"]>("boxes");
-  const current = SHEETS.find((sheet) => sheet.id === tab) ?? SHEETS[0];
+
+  /* The row waiting on a reason before it is deleted. */
+  const [deleting, setDeleting] = React.useState<RowRef | null>(null);
+
+  function act(action: RowAction, ref: RowRef) {
+    if (action === "delete") {
+      setDeleting(ref);
+      return;
+    }
+    const id = s.duplicateRow(ref.sheet.id, ref.index, ref.sheet.rowName);
+    /* Open the copy, so the expert can change what makes it different. */
+    s.toggleEditing(rowKey(ref.sheet.id, { id }, 0));
+    toast(fill(t.duplicated, { name: ref.name }));
+  }
+
+  function confirmDelete(reason: string) {
+    if (!deleting) return;
+    const { sheet, index, row, name } = deleting;
+    s.deleteRow(sheet.id, index);
+    toast(fill(t.deleted, { name }), {
+      description: fill(t.deletedReason, { reason }),
+      action: { label: t.undo, onClick: () => s.restoreRow(sheet.id, index, row) },
+    });
+  }
+
+  /* A new box lands at the end of the field map, so bring that tab forward. */
+  const [revealed, setRevealed] = React.useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    setTab("boxes");
+  }
+  const [revealedValues, setRevealedValues] = React.useState(revealValues);
+  if (revealValues !== revealedValues) {
+    setRevealedValues(revealValues);
+    setTab("dropdowns");
+  }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-raised)]">
+    <section
+      id="field-map"
+      className="scroll-mt-6 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-raised)]"
+    >
       <div className="px-4 pt-4">
         <Tabs
           idBase="spec-sheet"
@@ -161,9 +241,6 @@ export function FieldMapTable({ s }: { s: SpecSheets }) {
             count: s.rows[sheet.id].length,
           }))}
         />
-        <p className="py-3 text-[13px] text-text-muted" data-numeric>
-          {fill(t.hints[current.id], { count: s.rows[current.id].length })}
-        </p>
       </div>
 
       {SHEETS.map((sheet) => (
@@ -171,17 +248,129 @@ export function FieldMapTable({ s }: { s: SpecSheets }) {
           key={sheet.id}
           id={sheet.id}
           idBase="spec-sheet"
-          className={cn("border-t border-border", sheet.id !== tab && "hidden")}
+          className={cn(sheet.id !== tab && "hidden")}
         >
-          <SheetTable sheet={sheet} s={s} />
+          <SheetTable
+            sheet={sheet}
+            s={s}
+            reveal={sheet.id === "boxes" ? reveal : sheet.id === "dropdowns" ? revealValues : 0}
+            onAdd={sheet.id === "boxes" ? onAddBox : sheet.id === "dropdowns" ? onAddValue : undefined}
+            addLabel={sheet.id === "dropdowns" ? copy.fieldMap.addValue : copy.fieldMap.addBox}
+            onAction={act}
+          />
         </TabPanel>
       ))}
+
+      {/* Deleting keeps its why — the same pattern as every other removal. */}
+      <ConfirmWithReason
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={fill(t.deleteTitle, { name: deleting?.name ?? "" })}
+        hint={t.deleteHint}
+        placeholder={t.deletePlaceholder}
+        confirmLabel={t.deleteConfirm}
+        cancelLabel={t.deleteCancel}
+        onConfirm={confirmDelete}
+      />
     </section>
   );
 }
 
-function SheetTable({ sheet, s }: { sheet: Sheet; s: SpecSheets }) {
-  const columns = visibleColumns(sheet.columns);
+type RowAction = "duplicate" | "delete";
+/** A row as an action needs it: where it is, what it holds, what it is called. */
+type RowRef = { sheet: Sheet; index: number; row: Row; name: string };
+
+/* Each sheet filters and pages on its own, so switching tabs keeps your place.
+   Rows carry their index in the full sheet, which is what edits are keyed on. */
+function SheetTable({
+  sheet,
+  s,
+  reveal,
+  onAdd,
+  addLabel,
+  onAction,
+}: {
+  sheet: Sheet;
+  s: SpecSheets;
+  reveal: number;
+  onAdd?: () => void;
+  addLabel: string;
+  onAction: (action: RowAction, ref: RowRef) => void;
+}) {
+  const [term, setTerm] = React.useState("");
+  const readOnly = useReadOnly();
+  const entries = s.rows[sheet.id]
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => matches(term, Object.values(row)));
+  const paged = usePaged(entries);
+
+  /* After an add: drop the filter and go to the last page, where the new row
+     is. The page is clamped, so asking for one past the end lands there. */
+  const [revealed, setRevealed] = React.useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    setTerm("");
+    paged.setPage(Number.MAX_SAFE_INTEGER);
+  }
+
+  return (
+    <>
+      <ListFilter
+        className="border-b border-border px-4 py-3"
+        leading={
+          <p className="text-[13px] text-text-muted" data-numeric>
+            {fill(copy.fieldMap.hints[sheet.id], { count: s.rows[sheet.id].length })}
+          </p>
+        }
+        value={term}
+        onChange={(v) => {
+          setTerm(v);
+          paged.setPage(1);
+        }}
+        placeholder={copy.list.filterRows}
+        actions={
+          onAdd && !readOnly && (
+            <Button
+              variant="secondary"
+              onClick={onAdd}
+              className="h-9 shrink-0 active:scale-[0.98]"
+            >
+              <Plus />
+              {addLabel}
+            </Button>
+          )
+        }
+      />
+      {entries.length === 0 ? (
+        <NoMatch query={term} onClear={() => setTerm("")} />
+      ) : (
+        <SheetGrid sheet={sheet} s={s} entries={paged.items} onAction={onAction} />
+      )}
+      <Pagination
+        className="border-t border-border px-4 py-3"
+        page={paged.page}
+        pages={paged.pages}
+        start={paged.start}
+        shown={paged.items.length}
+        total={paged.total}
+        onPageChange={paged.setPage}
+      />
+    </>
+  );
+}
+
+function SheetGrid({
+  sheet,
+  s,
+  entries,
+  onAction,
+}: {
+  sheet: Sheet;
+  s: SpecSheets;
+  entries: { row: Row; index: number }[];
+  onAction: (action: RowAction, ref: RowRef) => void;
+}) {
+  const columns = visibleColumns(sheet);
   const tableWidth = EDIT_W + columns.reduce((sum, c) => sum + columnWidth(c.col), 0);
 
   return (
@@ -202,7 +391,7 @@ function SheetTable({ sheet, s }: { sheet: Sheet; s: SpecSheets }) {
         <thead className="bg-surface">
           <tr className="text-left">
             <th className="sticky left-0 z-[1] border-b border-border bg-surface">
-              <span className="sr-only">{copy.fieldMap.editColumn}</span>
+              <span className="sr-only">{copy.fieldMap.actionsColumn}</span>
             </th>
             {columns.map(({ col, sheetIndex }, i) => (
               <th
@@ -215,27 +404,32 @@ function SheetTable({ sheet, s }: { sheet: Sheet; s: SpecSheets }) {
                 )}
               >
                 <span className="block text-[11px] leading-4 text-text-faint" data-numeric>
-                  {columnLetter(sheetIndex)}
+                  {sheetIndex < 0 ? "\u00a0" : columnLetter(sheetIndex)}
                 </span>
                 <span className="block truncate text-[12px] leading-4 text-text-muted" title={col}>
-                  {col}
+                  {col === PAGE_COLUMN ? copy.fieldMap.pageColumn : col}
                 </span>
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {s.rows[sheet.id].map((row, r) => {
+          {entries.map(({ row, index: r }) => {
             const key = rowKey(sheet.id, row, r);
+            const name =
+              row[sheet.rowName] || fill(copy.fieldMap.rowFallback, { n: r + 1 });
+            const ref = { sheet, index: r, row, name };
             return (
               <SheetRow
                 key={key}
                 row={row}
                 columns={columns}
-                name={row[sheet.rowName] ?? ""}
+                name={name}
                 editing={s.editing.has(key)}
                 changed={s.changed.has(key)}
                 onToggleEditing={() => s.toggleEditing(key)}
+                onDuplicate={() => onAction("duplicate", ref)}
+                onDelete={() => onAction("delete", ref)}
                 onCellChange={(col, value) => s.setCell(sheet.id, r, col, value)}
               />
             );
@@ -253,6 +447,8 @@ function SheetRow({
   editing,
   changed,
   onToggleEditing,
+  onDuplicate,
+  onDelete,
   onCellChange,
 }: {
   row: Row;
@@ -261,17 +457,25 @@ function SheetRow({
   editing: boolean;
   changed: boolean;
   onToggleEditing: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
   onCellChange: (col: string, value: string) => void;
 }) {
   const t = copy.fieldMap;
+  /* A reviewer reads every row; the actions are the expert's. */
+  const readOnly = useReadOnly();
   /* The row open for editing is tinted, so it is plain which one the inputs
      belong to. */
   const background = editing ? "bg-brand-quiet" : "bg-surface";
 
   return (
     <tr className={background}>
+      {/* Edit, Duplicate, Delete — the row's own actions, always in reach.
+          While the row is open they give way to its one tick, so the only
+          thing to do there is finish. Delete is the risk colour on hover only:
+          at rest the three are equal and quiet. */}
       <td className={cn("sticky left-0 z-[1] border-b border-border py-1.5 pl-2", background)}>
-        <span className="relative flex">
+        <span className={cn("relative flex items-center gap-0.5", readOnly && "invisible")}>
           <button
             type="button"
             onClick={onToggleEditing}
@@ -279,7 +483,7 @@ function SheetRow({
             aria-label={fill(editing ? t.doneEditing : t.editRow, { name })}
             title={fill(editing ? t.doneEditing : t.editRow, { name })}
             className={cn(
-              "inline-flex size-8 items-center justify-center rounded-md transition-colors",
+              ACTION,
               editing
                 ? "bg-brand text-on-brand hover:bg-brand-hover"
                 : "text-text-faint hover:bg-wash hover:text-text",
@@ -287,11 +491,33 @@ function SheetRow({
           >
             {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
           </button>
+          {!editing && (
+            <>
+              <button
+                type="button"
+                onClick={onDuplicate}
+                aria-label={fill(t.duplicateRow, { name })}
+                title={fill(t.duplicateRow, { name })}
+                className={cn(ACTION, "text-text-faint hover:bg-wash hover:text-text")}
+              >
+                <Copy className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label={fill(t.deleteRow, { name })}
+                title={fill(t.deleteRow, { name })}
+                className={cn(ACTION, "text-text-faint hover:bg-risk-quiet hover:text-risk")}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </>
+          )}
           {/* An unsaved change, marked on the row it lives in. */}
           {changed && !editing && (
             <span
               aria-label={t.unsavedRow}
-              className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-brand"
+              className="absolute left-[26px] top-0.5 size-1.5 rounded-full bg-brand"
             />
           )}
         </span>
@@ -299,6 +525,9 @@ function SheetRow({
       {columns.map(({ col }, i) => {
         const value = row[col] ?? "";
         const isFlag = FLAGS.has(col) && (value === "TRUE" || value === "FALSE");
+        /* A box's calculation is written only while it is calculated: the
+           field opens with is_calculated ticked, and unticking clears it. */
+        const locked = col === "calculation" && row.is_calculated !== "TRUE";
         return (
           <td
             key={col}
@@ -314,7 +543,10 @@ function SheetRow({
                 <Checkbox
                   checked={value === "TRUE"}
                   disabled={!editing}
-                  onCheckedChange={(v) => onCellChange(col, v === true ? "TRUE" : "FALSE")}
+                  onCheckedChange={(v) => {
+                    onCellChange(col, v === true ? "TRUE" : "FALSE");
+                    if (col === "is_calculated" && v !== true) onCellChange("calculation", "");
+                  }}
                   aria-label={`${col} ${name}`}
                   /* Read-only reads as a plain tick, not a dimmed, broken one. */
                   className="disabled:cursor-default disabled:opacity-100"
@@ -326,11 +558,11 @@ function SheetRow({
                    line, with the full text on hover. */
                 value={editing ? value : value.replace(/\s*\n\s*/g, " ")}
                 onChange={(e) => onCellChange(col, e.target.value)}
-                readOnly={!editing}
-                tabIndex={editing ? undefined : -1}
-                title={value || undefined}
+                readOnly={!editing || locked}
+                tabIndex={editing && !locked ? undefined : -1}
+                title={value || (editing && locked ? copy.fieldMap.calculationLocked : undefined)}
                 aria-label={`${col} ${name}`}
-                placeholder={copy.fieldMap.empty}
+                placeholder={editing && locked ? copy.fieldMap.calculationLocked : copy.fieldMap.empty}
                 data-numeric={NUMERIC.has(col) ? "" : undefined}
                 className={cn(CODE.has(col) && "font-mono text-[12px]")}
               />

@@ -15,7 +15,7 @@ export type QuerySnapshot = Record<string, QueryState>;
 
 /* The agent takes a moment per query, and finishes them one after another
    rather than all at once, so a batch reads as worked through. */
-const FIRST_MS = 900;
+const FIRST_MS = 2000;
 const EACH_MS = 280;
 
 /**

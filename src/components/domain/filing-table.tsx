@@ -5,6 +5,7 @@ import { ArrowUpRight, PenLine, Trash2 } from "lucide-react";
 import { AttentionNote } from "@/components/ui/attention-note";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useReadOnly } from "@/components/patterns/read-only";
 import { extensionOf, hostOf, SourceMark } from "@/components/domain/source-block";
 import { formatDate } from "@/components/domain/filing-card";
 import { copy, fill, SOURCE_KIND_LABEL } from "@/lib/copy";
@@ -110,6 +111,8 @@ function FilingRows({
   onKeep: (filing: Filing) => void;
   onRemove: (filing: Filing) => void;
 }) {
+  /* A reviewer reads the list; carrying, keeping and removing are the expert's. */
+  const readOnly = useReadOnly();
   const needsCheck = filing.certainty === "needs_check";
   const showNote = needsCheck && Boolean(filing.uncertainty);
   /* Plain rows are parted by a grey divider. A flagged row carries its own box
@@ -142,6 +145,7 @@ function FilingRows({
         >
           <Checkbox
             checked={selected}
+            disabled={readOnly}
             onCheckedChange={(next) => onSelectedChange(filing, next === true)}
             aria-label={fill(copy.filings.includeLabel, { name: filing.name })}
             className="mt-0.5"
@@ -175,7 +179,7 @@ function FilingRows({
           )}
         >
           {/* Nudged up so the chip and button centre on the first text line. */}
-          <div className="-mt-1.5 flex items-center justify-end gap-2">
+          <div className={cn("-mt-1.5 flex items-center justify-end gap-2", readOnly && "hidden")}>
             <button
               type="button"
               onClick={() => onRemove(filing)}

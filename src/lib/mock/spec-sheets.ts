@@ -4,7 +4,7 @@
  * blank. They describe the same Hungarian return as src/lib/mock/return-boxes.ts.
  *
  * - List boxes: the columns of each box that holds a list rather than a single
- *   amount. `list_dispatches` groups by exactly these subfields.
+ *   amount. `list_dispatches` groups by exactly these columns.
  * - Mandatory fields: which fields a TXT or XML submission cannot go without,
  *   and when.
  * - Dropdown fields: the closed set of values a field accepts.
@@ -17,7 +17,7 @@ export type SheetRow = Record<string, string>;
 export const LIST_BOX_COLUMNS = [
   "id",
   "box_name",
-  "subfield_name",
+  "column_name",
   "display_name",
   "data_type",
   "position_nr",
@@ -27,9 +27,9 @@ export const LIST_BOX_COLUMNS = [
   "source_column",
 ] as const;
 
-function subfield(
+function listColumn(
   id: string,
-  subfield_name: string,
+  column_name: string,
   display_name: string,
   data_type: string,
   position_nr: string,
@@ -41,7 +41,7 @@ function subfield(
   return {
     id,
     box_name: "list_dispatches",
-    subfield_name,
+    column_name,
     display_name,
     data_type,
     position_nr,
@@ -53,16 +53,16 @@ function subfield(
 }
 
 export const LIST_BOXES: SheetRow[] = [
-  subfield("1201", "commodity_code", "Commodity code (CN8)", "string", "1", "8", true, false, "intrastat_return_details.commodity_code"),
-  subfield("1202", "goods_origin_country", "Country of origin", "string", "2", "2", true, false, "intrastat_return_details.goods_origin_country"),
-  subfield("1203", "country_arrival_dispatch_iso_code", "Member State of destination", "string", "3", "2", true, false, "intrastat_return_details.country_arrival_dispatch_iso_code"),
-  subfield("1204", "nature_of_transaction", "Nature of transaction", "string", "4", "2", true, true, "intrastat_return_details.nature_of_transaction"),
-  subfield("1205", "vat_nr_supplier_customer", "Partner VAT number", "string", "5", "14", true, false, "intrastat_return_details.vat_nr_supplier_customer"),
-  subfield("1206", "mode_of_transport", "Mode of transport", "string", "6", "1", false, true, "intrastat_return_details.mode_of_transport"),
-  subfield("1207", "delivery_terms", "Delivery terms (Incoterms)", "string", "7", "3", false, true, "intrastat_return_details.delivery_terms"),
-  subfield("1208", "net_mass", "Net mass (kg)", "decimal", "8", "", false, false, "intrastat_return_details.net_mass"),
-  subfield("1209", "supplementary_units", "Supplementary units", "decimal", "9", "", false, false, "intrastat_return_details.supplementary_units"),
-  subfield("1210", "invoiced_value", "Invoiced value (HUF)", "decimal", "10", "", true, false, "intrastat_return_details.invoiced_value"),
+  listColumn("1201", "commodity_code", "Commodity code (CN8)", "string", "1", "8", true, false, "intrastat_return_details.commodity_code"),
+  listColumn("1202", "goods_origin_country", "Country of origin", "string", "2", "2", true, false, "intrastat_return_details.goods_origin_country"),
+  listColumn("1203", "country_arrival_dispatch_iso_code", "Member State of destination", "string", "3", "2", true, false, "intrastat_return_details.country_arrival_dispatch_iso_code"),
+  listColumn("1204", "nature_of_transaction", "Nature of transaction", "string", "4", "2", true, true, "intrastat_return_details.nature_of_transaction"),
+  listColumn("1205", "vat_nr_supplier_customer", "Partner VAT number", "string", "5", "14", true, false, "intrastat_return_details.vat_nr_supplier_customer"),
+  listColumn("1206", "mode_of_transport", "Mode of transport", "string", "6", "1", false, true, "intrastat_return_details.mode_of_transport"),
+  listColumn("1207", "delivery_terms", "Delivery terms (Incoterms)", "string", "7", "3", false, true, "intrastat_return_details.delivery_terms"),
+  listColumn("1208", "net_mass", "Net mass (kg)", "decimal", "8", "", false, false, "intrastat_return_details.net_mass"),
+  listColumn("1209", "supplementary_units", "Supplementary units", "decimal", "9", "", false, false, "intrastat_return_details.supplementary_units"),
+  listColumn("1210", "invoiced_value", "Invoiced value (HUF)", "decimal", "10", "", true, false, "intrastat_return_details.invoiced_value"),
 ];
 
 /* ── Mandatory fields ───────────────────────────────────────────────────── */

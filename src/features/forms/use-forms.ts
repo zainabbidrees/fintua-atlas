@@ -30,6 +30,11 @@ export interface AttachedForm {
   size: number;
 }
 
+/** The expert's own file in place of a retrieved form, and why. */
+export interface ReplacedForm extends AttachedForm {
+  reason: string;
+}
+
 /**
  * Review state for the Tax Form Retrieval step.
  *
@@ -56,6 +61,7 @@ export function useForms(countryCode: string) {
   const [choices, setChoices] = React.useState<Record<string, EditionChoice>>({});
   const [attached, setAttached] = React.useState<Record<string, AttachedForm>>({});
   const [withoutForm, setWithoutForm] = React.useState<Record<string, string>>({});
+  const [replaced, setReplaced] = React.useState<Record<string, ReplacedForm>>({});
 
   /* Each running retrieval adds a line to its trail, then lands. */
   const running = forms.filter((f) => f.state === "retrieving");
@@ -92,6 +98,7 @@ export function useForms(countryCode: string) {
   /** The edition whose pages are under review, once there is exactly one. */
   const editionOf = React.useCallback(
     (f: FormRetrieval): FormEdition | null => {
+      if (replaced[f.obligationId]) return null;
       if (f.state === "found") return f.editions[0] ?? null;
       if (f.state === "clash") {
         const choice = choices[f.obligationId];
@@ -99,7 +106,7 @@ export function useForms(countryCode: string) {
       }
       return null;
     },
-    [choices],
+    [choices, replaced],
   );
 
   const isSelected = React.useCallback(
@@ -151,6 +158,14 @@ export function useForms(countryCode: string) {
     setAttached((a) => omit(a, obligationId));
   }
 
+  function replace(obligationId: string, file: ReplacedForm) {
+    setReplaced((r) => ({ ...r, [obligationId]: file }));
+  }
+
+  function restore(obligationId: string) {
+    setReplaced((r) => omit(r, obligationId));
+  }
+
   function continueWithout(obligationId: string, reason: string) {
     setWithoutForm((w) => ({ ...w, [obligationId]: reason }));
   }
@@ -162,21 +177,23 @@ export function useForms(countryCode: string) {
   /**
    * Ready to carry forward: a form with at least one page ticked, or — where
    * none was found — the expert's own upload or their reason for going on
-   * without one. A retrieval still running, or two editions not yet settled,
-   * is never ready.
+   * without one — or a form the expert replaced with their own file. A
+   * retrieval still running, or two editions not yet settled, is never ready.
    */
   const isReady = React.useCallback(
     (f: FormRetrieval): boolean => {
+      if (replaced[f.obligationId]) return true;
       if (f.state === "none") return !!attached[f.obligationId] || !!withoutForm[f.obligationId];
       return editionOf(f) !== null && selectedPages(f).length > 0;
     },
-    [attached, withoutForm, editionOf, selectedPages],
+    [attached, withoutForm, replaced, editionOf, selectedPages],
   );
 
   /** Waiting on a decision only a person can make — a clash, or no form. */
   const needsDecision = (f: FormRetrieval) =>
-    (f.state === "clash" && !choices[f.obligationId]) ||
-    (f.state === "none" && !attached[f.obligationId] && !withoutForm[f.obligationId]);
+    !replaced[f.obligationId] &&
+    ((f.state === "clash" && !choices[f.obligationId]) ||
+    (f.state === "none" && !attached[f.obligationId] && !withoutForm[f.obligationId]));
 
   const withEdition = forms.filter((f) => editionOf(f));
   const totalPages = withEdition.reduce((n, f) => n + (editionOf(f)?.pages.length ?? 0), 0);
@@ -188,6 +205,7 @@ export function useForms(countryCode: string) {
     choices,
     attached,
     withoutForm,
+    replaced,
     editionOf,
     isSelected,
     selectedPages,
@@ -198,6 +216,8 @@ export function useForms(countryCode: string) {
     retry,
     attach,
     removeAttached,
+    replace,
+    restore,
     continueWithout,
     undoWithout,
     isReady,

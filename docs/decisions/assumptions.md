@@ -34,15 +34,22 @@ confirm or overturn them.
 | A16 | Two editions of one form are never settled automatically; choosing one asks why | Follows the clash principle in `design.md` §2 — a newer date is not proof |
 | A17 | A return type with no published form may continue only with an attached form or a recorded reason | Inferred — the specs step otherwise has nothing to map, silently |
 | A18 | Export PDF prints the ticked pages through the browser's Save as PDF, rather than generating a file | No PDF library in the project; the printed sheets are the same drawing as the thumbnails |
+| A19 | After the last step, the tax expert sends every step for approval; a reviewer approves or sends back **each step on its own**, and the country publishes only when all six are approved | User request and decision (2026-10-29). Replaces Query Builder's direct Publish. Supersedes the two-level release sign-off (A10–A13) for now; that screen is still in `src/features/approval`, unrouted |
+| A20 | A reviewer reads each step as the real screen, locked — every edit control hidden — and can only comment, approve, or ask for changes; asking for changes needs a reason | User request and decision. Viewing tools (tabs, filters, page viewers, exports) stay |
+| A21 | The tax expert can reopen any step in review, edit it, and send it for approval again; a step sent again returns to waiting, marked "Sent again" | User request ("tab is clickable… send for approval again") |
+| A22 | The role is chosen at sign-in (Tax expert / Reviewer) and kept in the browser | User decision, over an on-screen "viewing as" switch. No identity provider yet |
 
 ## Known gaps — not yet built
 
 These are **not** decisions; they are unfinished work, recorded so they are not
 mistaken for deliberate omissions.
 
-- **`/approvals`, `/audit-log` and `/settings` are dead routes.** All three appear
-  in the sidebar and all three 404. Approvals is load-bearing — it carries a badge
-  showing a count of 2.
+- **`/audit-log` and `/settings` are dead routes.** Both appear in the sidebar and
+  404. `/approvals` is now built: it lists every country sent for approval.
+- **Review state lives in the browser.** Submissions, decisions and comments are
+  kept in localStorage, so they are per-browser and a reviewer on another machine
+  cannot see them. Step data is not saved either, so a reviewer sees each step as
+  its fixtures and agent replay produce it, not the expert's exact edits.
 - **Sign-in accepts anything.** No credentials are checked and there is no
   sign-up, by user decision — security was explicitly out of scope for the
   prototype. This must not reach anything real in its current form.

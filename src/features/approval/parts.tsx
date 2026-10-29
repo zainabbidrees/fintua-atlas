@@ -5,22 +5,14 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Stepper } from "@/components/patterns/stepper";
+import { ONBOARDING_STEPS } from "@/components/domain/onboarding-steps";
 import { copy } from "@/lib/copy";
 
-const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
+const STEPS = ONBOARDING_STEPS;
 
-/** Where each step lives, so a check or a decision can be opened in place. */
-export function stepHref(countryCode: string, index: number): string {
-  const code = countryCode.toLowerCase();
-  return [
-    "/countries/new",
-    `/countries/${code}/returns`,
-    `/countries/${code}/forms`,
-    `/countries/${code}/rules`,
-    `/countries/${code}/build`,
-    `/countries/${code}/approval`,
-  ][index];
-}
+import { StepNav } from "@/features/steps/step-view";
+
+export { stepHref } from "@/features/steps/step-view";
 
 export type Scope = { obligations: number; rules: number; rates: number; boxes: number };
 
@@ -32,6 +24,7 @@ export function StepHeader({
   actions,
   currentIndex,
   completedCount,
+  countryCode,
 }: {
   backHref: string;
   backLabel: string;
@@ -39,6 +32,8 @@ export function StepHeader({
   actions?: React.ReactNode;
   currentIndex: number;
   completedCount: number;
+  /** Given, the stepper links every reached step (see StepNav). */
+  countryCode?: string;
 }) {
   return (
     <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
@@ -58,7 +53,11 @@ export function StepHeader({
 
         <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="min-w-max">
-            <Stepper steps={STEPS} currentIndex={currentIndex} completedCount={completedCount} />
+            {countryCode ? (
+              <StepNav countryCode={countryCode} index={currentIndex} />
+            ) : (
+              <Stepper steps={STEPS} currentIndex={currentIndex} completedCount={completedCount} />
+            )}
           </div>
         </div>
       </div>

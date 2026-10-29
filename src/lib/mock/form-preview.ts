@@ -88,6 +88,11 @@ export interface FormDoc {
   /** The masthead on the sheet. */
   heading: string;
   year: string;
+  /** The language the sheet is printed in (default "de"). */
+  lang?: string;
+  /** The caption on the identifier box at the head of pages two onwards
+      (default "Steuernummer"). */
+  idLabel?: string;
   pages: FormPage[];
 }
 
@@ -929,3 +934,227 @@ export const FORM_PREVIEW: FormDoc = {
   year: "2025",
   pages: [page1, page2, page3, page4, page5, page6],
 };
+
+/* ── EC Sales List · form 723 ───────────────────────────────────────────────
+   The listing of intra-Community supplies: who the customer is, where, how
+   much, and under which code (L goods, T triangular, S services). Each line
+   of the table is four boxes; code T is new in the 2026 edition, so the agent
+   flags the lines that carry it. */
+
+/** One line of a listing table: four boxes, the code ones flagged where shown. */
+const eslLine = (n: number, code: BoxTone = "ok", amount: BoxTone = "ok"): FormRow => ({
+  kind: "fields",
+  n,
+  boxes: [
+    { name: `#customer_vat_${n}#`, tone: "ok", grow: 3 },
+    { name: `#country_${n}#`, tone: "ok", grow: 1 },
+    { name: `amount_${n}`, tone: amount, grow: 2 },
+    { name: `code_${n}`, tone: code, grow: 1 },
+  ],
+});
+
+const ESL_PREVIEW: FormDoc = {
+  title: "Relevé des opérations intracommunautaires 2026 (official PDF)",
+  heading: "Relevé des opérations intracommunautaires",
+  year: "2026",
+  lang: "fr",
+  idLabel: "N° d'entreprise",
+  pages: [
+    {
+      footer: "723-2026-1",
+      rows: [
+        { kind: "fields", n: 1, boxes: [{ name: "#enterprise_number#", tone: "ok", grow: 2 }] },
+        { kind: "fields", n: 2, boxes: [{ name: "#company_name#", tone: "ok", grow: 3 }] },
+        { kind: "fields", n: 3, boxes: [{ name: "#street#", tone: "ok", grow: 3 }] },
+        {
+          kind: "fields",
+          n: 4,
+          boxes: [
+            { name: "#postal_code#", tone: "ok", grow: 1 },
+            { name: "#city#", tone: "ok", grow: 2 },
+          ],
+        },
+        {
+          kind: "fields",
+          n: 5,
+          boxes: [
+            { name: "#period_quarter#", tone: "warn", grow: 1 },
+            { name: "#period_year#", tone: "ok", grow: 1 },
+          ],
+        },
+        {
+          kind: "labeled",
+          n: 6,
+          text: "Relevé rectificatif",
+          code: { num: "01", box: { name: "box_corrective", tone: "ok", variant: "yesno" } },
+        },
+        { kind: "section", text: "Opérations de la période" },
+        {
+          kind: "note",
+          text: "N° TVA du client · Code pays · Montant · Code L / T / S",
+          sub: "L = livraisons intracommunautaires de biens · T = opérations triangulaires · S = services intracommunautaires",
+        },
+        eslLine(7),
+        eslLine(8),
+        eslLine(9, "warn"),
+        eslLine(10),
+        eslLine(11, "warn"),
+        eslLine(12, "ok", "error"),
+        eslLine(13),
+        eslLine(14, "warn"),
+      ],
+    },
+    {
+      footer: "723-2026-2",
+      rows: [
+        { kind: "section", text: "Opérations de la période (suite)" },
+        eslLine(15),
+        eslLine(16),
+        eslLine(17, "warn"),
+        eslLine(18),
+        {
+          kind: "labeled",
+          n: 19,
+          text: "**Total des montants** déclarés sur le relevé",
+          code: { num: "99", box: { name: "box_total", tone: "ok" } },
+        },
+        { kind: "section", text: "Date et signature" },
+        {
+          kind: "fields",
+          n: 20,
+          boxes: [
+            { name: "#signatory_name#", tone: "ok", grow: 3 },
+            { name: "#signature_date#", tone: "ok", grow: 1, variant: "date" },
+          ],
+        },
+      ],
+    },
+    {
+      footer: "723-2026-3",
+      rows: [
+        { kind: "section", text: "Notice explicative" },
+        {
+          kind: "note",
+          text: "Le relevé reprend, par client, le montant total des livraisons intracommunautaires de biens et des services visés à l'article 21, § 2, du Code.",
+        },
+        {
+          kind: "note",
+          text: "Le code T vise les opérations triangulaires, où le déclarant intervient comme acquéreur-revendeur intermédiaire.",
+        },
+        {
+          kind: "note",
+          text: "Le relevé est déposé au plus tard le 20e jour du mois qui suit la période à laquelle il se rapporte.",
+        },
+      ],
+    },
+  ],
+};
+
+/* ── Annual client listing · form 725 ───────────────────────────────────────
+   One line per Belgian VAT-registered customer: their number, the year's
+   turnover excluding VAT, and the VAT charged. Two money columns, drawn as
+   the computation columns are on the VAT return. */
+
+const listingLine = (n: number, vat: BoxTone = "ok", turnover: BoxTone = "ok"): FormRow => ({
+  kind: "amount",
+  n,
+  text: `Client ${n - 5} · N° TVA du client`,
+  base: { num: String(n * 2 - 10).padStart(2, "0"), box: { name: `turnover_${n - 5}`, tone: turnover } },
+  tax: { num: String(n * 2 - 9).padStart(2, "0"), box: { name: `vat_${n - 5}`, tone: vat } },
+});
+
+const LISTING_PREVIEW: FormDoc = {
+  title: "Listing annuel des clients assujettis 2026 (official PDF)",
+  heading: "Listing annuel des clients assujettis",
+  year: "2026",
+  lang: "fr",
+  idLabel: "N° d'entreprise",
+  pages: [
+    {
+      footer: "725-2026-1",
+      rows: [
+        { kind: "fields", n: 1, boxes: [{ name: "#enterprise_number#", tone: "ok", grow: 2 }] },
+        { kind: "fields", n: 2, boxes: [{ name: "#company_name#", tone: "ok", grow: 3 }] },
+        { kind: "fields", n: 3, boxes: [{ name: "#address#", tone: "ok", grow: 3 }] },
+        { kind: "fields", n: 4, boxes: [{ name: "#calendar_year#", tone: "ok", grow: 1 }] },
+        {
+          kind: "labeled",
+          n: 5,
+          text: "Listing néant — aucun client assujetti",
+          code: { num: "00", box: { name: "box_nil_listing", tone: "warn", variant: "yesno" } },
+        },
+        { kind: "section", text: "Clients assujettis" },
+        { kind: "columns", cols: { base: "Chiffre d'affaires hors TVA", tax: "Montant de la TVA" } },
+        { kind: "subsection", text: "Opérations de l'année civile, par client" },
+        listingLine(6),
+        listingLine(7),
+        listingLine(8, "warn"),
+        listingLine(9),
+        listingLine(10, "ok", "warn"),
+        listingLine(11),
+        listingLine(12, "error"),
+        listingLine(13),
+      ],
+    },
+    {
+      footer: "725-2026-2",
+      rows: [
+        { kind: "section", text: "Clients assujettis (suite)" },
+        { kind: "columns", cols: { base: "Chiffre d'affaires hors TVA", tax: "Montant de la TVA" } },
+        { kind: "subsection", text: "Opérations de l'année civile, par client (suite)" },
+        listingLine(14),
+        listingLine(15, "warn"),
+        listingLine(16),
+        {
+          kind: "amount",
+          n: 17,
+          text: "**Totaux** du listing",
+          strong: true,
+          total: true,
+          base: { num: "90", box: { name: "box_total_turnover", tone: "ok" } },
+          tax: { num: "91", box: { name: "box_total_vat", tone: "ok" } },
+        },
+        { kind: "section", text: "Date et signature" },
+        {
+          kind: "fields",
+          n: 18,
+          boxes: [
+            { name: "#signatory_name#", tone: "ok", grow: 3 },
+            { name: "#signature_date#", tone: "ok", grow: 1, variant: "date" },
+          ],
+        },
+      ],
+    },
+    {
+      footer: "725-2026-3",
+      rows: [
+        { kind: "section", text: "Notice explicative" },
+        {
+          kind: "note",
+          text: "Le listing reprend chaque client assujetti belge à qui des biens ou des services ont été fournis pour un montant annuel supérieur à 250 euros, TVA non comprise.",
+        },
+        {
+          kind: "note",
+          text: "Il est déposé via Intervat au plus tard le 31 mars de l'année qui suit l'année civile concernée.",
+        },
+      ],
+    },
+  ],
+};
+
+/** Each return type's annotated form, keyed by the return type it belongs to. */
+export const FORM_PREVIEWS: Record<string, FormDoc> = {
+  "be-vat": FORM_PREVIEW,
+  "be-esl": ESL_PREVIEW,
+  "be-annual": LISTING_PREVIEW,
+};
+
+/** Every mapped box on a page, wherever the row keeps it. */
+export function boxesOf(page: FormPage): FormBox[] {
+  return page.rows.flatMap((row) => [
+    ...(row.boxes ?? []),
+    ...(row.code ? [row.code.box] : []),
+    ...(row.base?.box ? [row.base.box] : []),
+    ...(row.tax?.box ? [row.tax.box] : []),
+  ]);
+}

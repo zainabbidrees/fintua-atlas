@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpRight, FileText, Paperclip, RotateCw } from "lucide-react";
+import { ArrowUpRight, FileText, FileUp, Paperclip, RotateCw } from "lucide-react";
+import { toast } from "sonner";
 import { AttentionNote } from "@/components/ui/attention-note";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
+import { useReadOnly } from "@/components/patterns/read-only";
 import { LiveTrail } from "@/components/patterns/live-trail";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
@@ -40,6 +42,11 @@ export function FormSection({
 }) {
   const edition = r.editionOf(f);
   const needs = r.needsDecision(f);
+  const replaced = r.replaced[f.obligationId];
+  /* Any form the agent retrieved can be swapped for the expert's own file —
+     by the expert, not a reviewer. */
+  const readOnly = useReadOnly();
+  const canReplace = (f.state === "found" || f.state === "clash") && !replaced && !readOnly;
 
   return (
     <section
@@ -64,14 +71,19 @@ export function FormSection({
             {edition && <SourceLine edition={edition} />}
           </div>
         </div>
-        <Status form={f} edition={edition} r={r} />
+        <div className="flex items-center gap-4">
+          <Status form={f} edition={edition} r={r} />
+          {canReplace && <ReplaceForm form={f} r={r} />}
+        </div>
       </header>
+
+      {replaced && <Replaced form={f} r={r} />}
 
       {f.state === "retrieving" && (
         <Retrieving trail={(f.trail ?? []).slice(0, r.trailShown[f.obligationId] ?? 1)} />
       )}
 
-      {f.state === "clash" && !edition && (
+      {f.state === "clash" && !edition && !replaced && (
         <EditionClash form={f} r={r} onOpenPage={onOpenPage} />
       )}
 
@@ -112,8 +124,10 @@ function SectionCheckbox({
 }) {
   const count = r.selectedPages(f).length;
   const all = count === edition.pages.length;
+  const readOnly = useReadOnly();
   return (
     <Checkbox
+      disabled={readOnly}
       className="mt-[3px]"
       checked={all ? true : count > 0 ? "indeterminate" : false}
       onCheckedChange={() => r.setAllPages(edition, !all)}
@@ -159,6 +173,8 @@ function Status({
 }) {
   const t = copy.taxForms;
 
+  if (r.replaced[f.obligationId]) return <Badge>{t.replacedBadge}</Badge>;
+
   if (edition) {
     const count = r.selectedPages(f).length;
     return (
@@ -181,6 +197,93 @@ function Status({
   if (r.attached[f.obligationId]) return <Badge>{t.attached}</Badge>;
   if (r.withoutForm[f.obligationId]) return <Badge>{t.withoutFormBadge}</Badge>;
   return <Badge tone="attention">{t.noneTitle}</Badge>;
+}
+
+/* ── Replace ───────────────────────────────────────────────────────────── */
+
+/** Checks a chosen file is a PDF within the size limit; says why when not. */
+function pdfProblem(file: File): string | null {
+  const t = copy.taxForms;
+  if (!/\.pdf$/i.test(file.name)) return fill(t.wrongType, { name: file.name });
+  if (file.size > MAX_BYTES) return fill(t.tooLarge, { name: file.name });
+  return null;
+}
+
+/**
+ * Swaps the retrieved form for the expert's own PDF. Picking the file comes
+ * first; replacing overrules the agent, so it then asks why.
+ */
+function ReplaceForm({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
+  const t = copy.taxForms;
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [file, setFile] = React.useState<File | null>(null);
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const chosen = e.target.files?.[0];
+    e.target.value = "";
+    if (!chosen) return;
+    const problem = pdfProblem(chosen);
+    if (problem) return void toast(problem);
+    setFile(chosen);
+  }
+
+  return (
+    <>
+      <Button variant="secondary" size="sm" className="-my-1" onClick={() => fileRef.current?.click()}>
+        <FileUp />
+        {t.replace}
+      </Button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={onFile}
+      />
+      <ConfirmWithReason
+        open={file !== null}
+        onOpenChange={(open) => !open && setFile(null)}
+        title={fill(t.replaceTitle, { name: f.obligationName, file: file?.name ?? "" })}
+        hint={t.replaceHint}
+        placeholder={t.replacePlaceholder}
+        confirmLabel={t.replaceConfirm}
+        cancelLabel={t.replaceCancel}
+        destructive={false}
+        onConfirm={(reason) =>
+          file && r.replace(f.obligationId, { name: file.name, size: file.size, reason })
+        }
+      />
+    </>
+  );
+}
+
+/** A replaced form: the expert's file, why it stands in, and a way back. */
+function Replaced({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
+  const t = copy.taxForms;
+  const readOnly = useReadOnly();
+  const file = r.replaced[f.obligationId];
+  if (!file) return null;
+
+  return (
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-4">
+      <FileText className="mt-0.5 size-4 shrink-0 text-text-faint" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] font-medium text-text">{file.name}</p>
+        <p className="mt-0.5 text-[13px] text-text-muted">
+          {fill(t.fileSize, { size: (file.size / 1024 / 1024).toFixed(1) })} · {t.attachedPages}
+        </p>
+        <p className="mt-1.5 max-w-[80ch] text-[13px] leading-relaxed text-text-muted">
+          {fill(t.replacedReason, { reason: file.reason })}
+        </p>
+      </div>
+      {!readOnly && (
+        <Button variant="ghost" size="sm" className="-my-1" onClick={() => r.restore(f.obligationId)}>
+          {t.restore}
+        </Button>
+      )}
+    </div>
+  );
 }
 
 /* ── Working ─────────────────────────────────────────────────────────────── */
@@ -225,6 +328,7 @@ function EditionClash({
   onOpenPage: OpenPage;
 }) {
   const t = copy.taxForms;
+  const readOnly = useReadOnly();
   const [choosing, setChoosing] = React.useState<FormEdition | null>(null);
 
   return (
@@ -274,9 +378,11 @@ function EditionClash({
                 {t.openSource}
                 <ArrowUpRight className="size-3.5" />
               </a>
-              <Button variant="attention" size="sm" onClick={() => setChoosing(edition)}>
-                {t.useEdition}
-              </Button>
+              {!readOnly && (
+                <Button variant="attention" size="sm" onClick={() => setChoosing(edition)}>
+                  {t.useEdition}
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -300,6 +406,7 @@ function EditionClash({
 /** Once a clash is settled: which edition lost, the reason, and a way back. */
 function ChosenLine({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
   const t = copy.taxForms;
+  const readOnly = useReadOnly();
   const choice = r.choices[f.obligationId];
   const other = f.editions.find((e) => e.id !== choice?.editionId);
   if (!choice || !other) return null;
@@ -307,6 +414,7 @@ function ChosenLine({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
   return (
     <p className="mb-5 max-w-[80ch] text-[13px] leading-relaxed text-text-muted">
       {fill(t.chosen, { other: other.edition, reason: choice.reason })}
+      {!readOnly && (
       <button
         type="button"
         onClick={() => r.clearChoice(f.obligationId)}
@@ -314,6 +422,7 @@ function ChosenLine({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
       >
         {t.changeChoice}
       </button>
+      )}
     </p>
   );
 }
@@ -330,6 +439,7 @@ function NoneFound({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [asking, setAsking] = React.useState(false);
+  const readOnly = useReadOnly();
 
   const file = r.attached[f.obligationId];
   const without = r.withoutForm[f.obligationId];
@@ -338,8 +448,8 @@ function NoneFound({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
     const chosen = e.target.files?.[0];
     e.target.value = "";
     if (!chosen) return;
-    if (!/\.pdf$/i.test(chosen.name)) return setError(fill(t.wrongType, { name: chosen.name }));
-    if (chosen.size > MAX_BYTES) return setError(fill(t.tooLarge, { name: chosen.name }));
+    const problem = pdfProblem(chosen);
+    if (problem) return setError(problem);
     setError(null);
     r.attach(f.obligationId, { name: chosen.name, size: chosen.size });
   }
@@ -354,9 +464,11 @@ function NoneFound({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
             {fill(t.fileSize, { size: (file.size / 1024 / 1024).toFixed(1) })} · {t.attachedPages}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => r.removeAttached(f.obligationId)}>
-          {t.removeAttached}
-        </Button>
+        {!readOnly && (
+          <Button variant="ghost" size="sm" onClick={() => r.removeAttached(f.obligationId)}>
+            {t.removeAttached}
+          </Button>
+        )}
       </div>
     );
   }
@@ -365,6 +477,7 @@ function NoneFound({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
     return (
       <p className="px-5 py-4 text-[13px] leading-relaxed text-text-muted">
         {fill(t.withoutFormDone, { reason: without })}
+        {!readOnly && (
         <button
           type="button"
           onClick={() => r.undoWithout(f.obligationId)}
@@ -372,6 +485,7 @@ function NoneFound({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
         >
           {t.undo}
         </button>
+        )}
       </p>
     );
   }
@@ -380,6 +494,8 @@ function NoneFound({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
     <div className="px-5 pb-5 pt-4">
       {f.noneDetail && <AttentionNote>{f.noneDetail}</AttentionNote>}
 
+      {!readOnly && (
+      <>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button variant="secondary" size="sm" onClick={() => r.retry(f.obligationId)}>
           <RotateCw />
@@ -404,6 +520,8 @@ function NoneFound({ form: f, r }: { form: FormRetrieval; r: FormsState }) {
       <p className={cn("mt-2 text-[12px]", error ? "text-risk" : "text-text-faint")} role={error ? "alert" : undefined}>
         {error ?? t.attachHint}
       </p>
+      </>
+      )}
 
       <ConfirmWithReason
         open={asking}

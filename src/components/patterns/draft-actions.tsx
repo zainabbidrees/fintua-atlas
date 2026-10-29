@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy";
+import { useReadOnly } from "./read-only";
 
 /**
  * The draft action pair that sits in every step's header: a quiet Discard
@@ -26,11 +27,15 @@ import { copy } from "@/lib/copy";
  */
 export function DraftActions({ onDiscard }: { onDiscard: () => void }) {
   const [discardOpen, setDiscardOpen] = React.useState(false);
+  /* A draft is the builder's; someone only reading has none to keep or drop. */
+  const readOnly = useReadOnly();
 
   function confirmDiscard() {
     onDiscard();
     setDiscardOpen(false);
   }
+
+  if (readOnly) return null;
 
   return (
     <>

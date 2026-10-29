@@ -4,14 +4,18 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { ReadOnly } from "@/components/patterns/read-only";
+import { ReviewBar } from "@/features/review/review-bar";
+import { useStepReview } from "@/features/review/use-step-review";
+import { AgentWorking, useAgentRun } from "@/components/patterns/agent-working";
 import { ContinueActions } from "@/components/patterns/continue-actions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DraftActions } from "@/components/patterns/draft-actions";
 import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { PrintOnly, printAs } from "@/components/patterns/print-only";
-import { Stepper } from "@/components/patterns/stepper";
 import { FormSheet } from "@/components/domain/form-sheet";
+import { StepNav, ViewOnlyBar, useStepView } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import type { FormEdition, FormPage } from "@/lib/types";
 import { ExportMenu } from "./export-menu";
@@ -19,7 +23,6 @@ import { FormSection } from "./form-section";
 import { PageViewer } from "./page-viewer";
 import { useForms } from "./use-forms";
 
-const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 
 interface Viewing {
   obligationId: string;
@@ -42,6 +45,14 @@ export function FormsScreen({
   const t = copy.taxForms;
   const router = useRouter();
   const r = useForms(countryCode);
+  /* In review, a reviewer reads this step locked; the expert can still edit
+     it and send it for approval again. */
+  const review = useStepReview(countryCode, 2);
+  /* Opened from a later step through the stepper: read, never edited. */
+  const viewFrom = useStepView(2);
+  const readOnly = review.readOnly || viewFrom !== null;
+  /* The agent works for a few seconds on arrival before the results land. */
+  const agent = useAgentRun(copy.agentRuns.forms.trail.length);
   const code = countryCode.toLowerCase();
 
   /* One viewer for the whole step, opened on whichever page was clicked. */
@@ -88,6 +99,7 @@ export function FormsScreen({
     .filter((c) => c.count > 0);
 
   return (
+    <ReadOnly value={readOnly}>
     <div className="pb-24">
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
@@ -108,7 +120,7 @@ export function FormsScreen({
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="min-w-max">
-              <Stepper steps={STEPS} currentIndex={2} completedCount={2} />
+              <StepNav countryCode={countryCode} index={2} />
             </div>
           </div>
         </div>
@@ -116,52 +128,69 @@ export function FormsScreen({
 
       <div className="px-6 py-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
-          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-            <div className="min-w-0">
-              <h2 className="text-[17px] font-medium tracking-tight text-heading">
-                {t.title}
-              </h2>
-              <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-text-muted">
-                {t.intro}
-              </p>
+          {agent.running ? (
+            <AgentWorking
+              title={copy.agentRuns.forms.title}
+              hint={copy.agentRuns.hint}
+              trailLabel={copy.agentRuns.trailLabel}
+              trail={copy.agentRuns.forms.trail}
+              shown={agent.shown}
+            />
+          ) : (
+            <>
+            <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+              <div className="min-w-0">
+                <h2 className="text-[17px] font-medium tracking-tight text-heading">
+                  {t.title}
+                </h2>
+                <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-text-muted">
+                  {t.intro}
+                </p>
+              </div>
+
+              {r.forms.length > 0 && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <JumpToReview count={r.decisionCount} verb="review" />
+                  <span className="text-[13px] text-text-muted" data-numeric>
+                    {fill(t.summary, {
+                      selected: r.totalSelected,
+                      pages: r.totalPages,
+                    })}
+                  </span>
+                  <ExportMenu all={r.totalSelected} perForm={exportChoices} onExport={exportPdf} />
+                </div>
+              )}
             </div>
 
-            {r.forms.length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <JumpToReview count={r.decisionCount} verb="review" />
-                <span className="text-[13px] text-text-muted" data-numeric>
-                  {fill(t.summary, {
-                    selected: r.totalSelected,
-                    pages: r.totalPages,
-                  })}
-                </span>
-                <ExportMenu all={r.totalSelected} perForm={exportChoices} onExport={exportPdf} />
+            {r.forms.length === 0 ? (
+              <EmptyState countryCode={code} />
+            ) : (
+              <div className="mt-6 space-y-6">
+                {r.forms.map((f, i) => (
+                  <FormSection
+                    key={f.obligationId}
+                    form={f}
+                    r={r}
+                    index={i}
+                    onOpenPage={(obligationId, editionId, index) =>
+                      setViewing({ obligationId, editionId, index })
+                    }
+                  />
+                ))}
               </div>
             )}
-          </div>
-
-          {r.forms.length === 0 ? (
-            <EmptyState countryCode={code} />
-          ) : (
-            <div className="mt-6 space-y-6">
-              {r.forms.map((f, i) => (
-                <FormSection
-                  key={f.obligationId}
-                  form={f}
-                  r={r}
-                  index={i}
-                  onOpenPage={(obligationId, editionId, index) =>
-                    setViewing({ obligationId, editionId, index })
-                  }
-                />
-              ))}
-            </div>
+            </>
           )}
         </div>
       </div>
 
       {/* Pinned action bar — Continue is reachable without scrolling to the end. */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
+      {viewFrom !== null ? (
+        <ViewOnlyBar countryCode={countryCode} index={2} from={viewFrom} />
+      ) : review.inReview ? (
+        <ReviewBar countryCode={countryCode} stepIndex={2} review={review} />
+      ) : (
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href={`/countries/${code}/returns`}>
@@ -171,19 +200,20 @@ export function FormsScreen({
           </Button>
 
           <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-            {!r.allReady && r.forms.length > 0 && (
+            {!agent.running && !r.allReady && r.forms.length > 0 && (
               <span className="text-sm text-text-muted" data-numeric>
                 {fill(t.ready, { ready: r.readyCount, total: r.forms.length })}
               </span>
             )}
             <ContinueActions
               onSave={() => toast(copy.page.savedToast)}
-              continueDisabled={!r.allReady}
+              continueDisabled={agent.running || !r.allReady}
               onContinue={() => router.push(`/countries/${code}/rules`)}
             />
           </div>
         </div>
       </div>
+      )}
 
       {viewForm && viewEdition && viewing && (
         <PageViewer
@@ -194,7 +224,7 @@ export function FormsScreen({
           index={viewing.index}
           onIndexChange={(index) => setViewing({ ...viewing, index })}
           isSelected={viewSelectable ? r.isSelected : undefined}
-          onSelectedChange={viewSelectable ? (page, on) => r.setPage(page.id, on) : undefined}
+          onSelectedChange={viewSelectable && !readOnly ? (page, on) => r.setPage(page.id, on) : undefined}
         />
       )}
 
@@ -214,6 +244,7 @@ export function FormsScreen({
         ))}
       </PrintOnly>
     </div>
+    </ReadOnly>
   );
 }
 

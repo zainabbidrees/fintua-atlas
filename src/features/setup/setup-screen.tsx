@@ -15,7 +15,6 @@ import { DraftActions } from "@/components/patterns/draft-actions";
 import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { LiveTrail } from "@/components/patterns/live-trail";
 import { SearchAddBar } from "@/components/patterns/search-add-bar";
-import { Stepper } from "@/components/patterns/stepper";
 import { UrlList } from "@/components/patterns/url-list";
 import { ContinueActions } from "@/components/patterns/continue-actions";
 import { CountryPicker } from "@/components/domain/country-picker";
@@ -23,15 +22,40 @@ import { LIVE_CODES } from "@/features/countries/data";
 import { readPublished } from "@/lib/published";
 import { DocumentList } from "@/components/domain/document-list";
 import { FilingTable } from "@/components/domain/filing-table";
+import { StepNav, ViewOnlyBar, useStepView } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import { useSetup } from "./use-setup";
+import { ReadOnly } from "@/components/patterns/read-only";
+import { findCountry } from "@/lib/mock/countries";
+import { ReviewBar } from "@/features/review/review-bar";
+import { useStepReview } from "@/features/review/use-step-review";
 import type { Filing } from "@/lib/types";
 
-const STEPS = copy.page.stepsLabel.map((label, i) => ({ id: String(i), label }));
 
-export function SetupScreen() {
+export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
   const s = useSetup();
   const router = useRouter();
+
+  /* Opened from the approval screen, step one shows the country under review:
+     it is chosen for you and its research replays. A reviewer reads it locked;
+     the expert can still change what carries forward and send it again. */
+  const review = useStepReview(reviewCode ?? "", 0);
+  /* Opened from a later step through the stepper: read, never edited. */
+  const viewFrom = useStepView(0);
+  const readOnly = review.readOnly || viewFrom !== null;
+  const inReview = Boolean(reviewCode) && review.inReview;
+  const loaded = React.useRef(false);
+  React.useEffect(() => {
+    if (!reviewCode || loaded.current) return;
+    const country = findCountry(reviewCode.toUpperCase());
+    if (!country) return;
+    loaded.current = true;
+    s.selectCountry(country);
+  }, [reviewCode, s]);
+  const { country, phase, startResearch } = s;
+  React.useEffect(() => {
+    if (reviewCode && country?.code === reviewCode.toUpperCase() && phase === "empty") startResearch();
+  }, [reviewCode, country, phase, startResearch]);
 
   /* Countries already live — from the index and from this browser's publishes —
      cannot be onboarded again. Read after mount so the first render matches
@@ -91,6 +115,7 @@ export function SetupScreen() {
   }
 
   return (
+    <ReadOnly value={readOnly}>
     <div className="pb-20">
       {/* Header band — sits on the sunken surface so the working area reads as paper. */}
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
@@ -121,7 +146,7 @@ export function SetupScreen() {
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="min-w-max">
-              <Stepper steps={STEPS} currentIndex={0} completedCount={0} />
+              <StepNav countryCode={reviewCode ?? ""} index={0} />
             </div>
           </div>
         </div>
@@ -129,6 +154,7 @@ export function SetupScreen() {
 
       <div className="px-6 py-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
+          {!reviewCode && (
           <section className="rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-raised)]">
             <CountryPicker
               value={s.country}
@@ -187,6 +213,7 @@ export function SetupScreen() {
               </div>
             )}
           </section>
+          )}
 
           {researching && s.country && (
             <section className="mt-5 rounded-xl border border-brand-edge bg-brand-quiet/50 p-5">
@@ -228,7 +255,7 @@ export function SetupScreen() {
                       cluster as step two's. Kept visible whenever any row is
                       ticked, so the control is there on landing rather than
                       only appearing once a row is unticked. */}
-                  {carriedCount > 0 && (
+                  {carriedCount > 0 && !readOnly && (
                     <div className="inline-flex items-center gap-x-3 rounded-lg border border-border-strong bg-surface px-3 py-1.5 shadow-[var(--shadow-raised)]">
                       <span className="text-[13px] font-medium text-text">
                         {fill(copy.filings.selectedCount, { count: carriedCount })}
@@ -260,6 +287,7 @@ export function SetupScreen() {
               {/* Two routes for a return type the listing above missed: add the
                   name straight to the list, or run the public-sources search for
                   it again. */}
+              {!readOnly && (
               <SearchAddBar
                 className="mt-6"
                 placeholder={copy.filings.searchMorePlaceholder}
@@ -271,6 +299,7 @@ export function SetupScreen() {
                 message={s.searchMessage}
                 onDismissMessage={s.clearSearchMessage}
               />
+              )}
             </section>
           )}
 
@@ -288,7 +317,12 @@ export function SetupScreen() {
       </div>
 
       {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
+      {viewFrom !== null && reviewCode ? (
+        <ViewOnlyBar countryCode={reviewCode} index={0} from={viewFrom} />
+      ) : inReview && reviewCode ? (
+        <ReviewBar countryCode={reviewCode} stepIndex={0} review={review} />
+      ) : (
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           {/* Step one is the first step — there's no step to go back to. The
               Countries breadcrumb above still exits the flow. */}
@@ -318,6 +352,7 @@ export function SetupScreen() {
           </div>
         </div>
       </div>
+      )}
 
       <ConfirmWithReason
         open={filingToRemove !== null}
@@ -334,6 +369,7 @@ export function SetupScreen() {
       />
 
     </div>
+    </ReadOnly>
   );
 }
 

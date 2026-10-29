@@ -4,6 +4,7 @@ import * as React from "react";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useReadOnly } from "@/components/patterns/read-only";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -29,54 +30,61 @@ const HEAD = "border-b border-border px-4 py-2.5 text-left text-[12px] font-medi
  */
 export function QueryTable({
   q,
+  boxes = q.boxes,
   selected,
   onSelectedChange,
   onSelectAll,
 }: {
   q: QueryBuilder;
+  /** The rows to show — the filtered page; every box by default. */
+  boxes?: BoxQuery[];
   selected: ReadonlySet<string>;
   onSelectedChange: (id: string, selected: boolean) => void;
   onSelectAll: (selected: boolean) => void;
 }) {
   const t = copy.queryBuilder;
   const [editing, setEditing] = React.useState<string | null>(null);
+  /* A reviewer reads the queries; ticking and editing are the expert's. */
+  const readOnly = useReadOnly();
   const count = q.boxes.filter((b) => selected.has(b.id)).length;
   const all = count === q.boxes.length;
 
   return (
-    <div className="mt-6 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-raised)]">
+    <div className="mt-4 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-raised)]">
       <div className="overflow-x-auto [scrollbar-width:thin]">
         <table className="w-full min-w-[1000px] table-fixed border-separate border-spacing-0 text-sm">
           <colgroup>
-            <col className="w-11" />
+            {!readOnly && <col className="w-11" />}
             <col className="w-[17%]" />
             <col className="w-[28%]" />
             <col />
-            <col className="w-16" />
+            {!readOnly && <col className="w-16" />}
           </colgroup>
           <thead>
             <tr className="bg-surface-sunken">
-              <th className={cn(HEAD, "pr-0")}>
-                <Checkbox
-                  checked={all ? true : count > 0 ? "indeterminate" : false}
-                  onCheckedChange={() => onSelectAll(!all)}
-                  aria-label={all ? t.deselectAll : t.selectAll}
-                  className="mt-px"
-                />
-              </th>
+              {!readOnly && (
+                <th className={cn(HEAD, "pr-0")}>
+                  <Checkbox
+                    checked={all ? true : count > 0 ? "indeterminate" : false}
+                    onCheckedChange={() => onSelectAll(!all)}
+                    aria-label={all ? t.deselectAll : t.selectAll}
+                    className="mt-px"
+                  />
+                </th>
+              )}
               <th className={HEAD}>{t.columns.box}</th>
               <th className={HEAD}>{t.columns.rule}</th>
               <th className={HEAD}>{t.columns.sql}</th>
-              <th className={cn(HEAD, "text-center")}>{t.columns.edit}</th>
+              {!readOnly && <th className={cn(HEAD, "text-center")}>{t.columns.edit}</th>}
             </tr>
           </thead>
           <tbody>
-            {q.boxes.map((box, i) => (
+            {boxes.map((box, i) => (
               <QueryRow
                 key={box.id}
                 box={box}
                 query={q.queries[box.id]}
-                last={i === q.boxes.length - 1}
+                last={i === boxes.length - 1}
                 selected={selected.has(box.id)}
                 onSelectedChange={(on) => onSelectedChange(box.id, on)}
                 editing={editing === box.id}
@@ -121,19 +129,22 @@ function QueryRow({
 }) {
   const t = copy.queryBuilder;
   const busy = query.status === "generating";
+  const readOnly = useReadOnly();
   const cell = cn(CELL, last && "border-b-0");
 
   return (
     <tr className={cn("transition-colors", editing && "bg-brand-quiet/50")}>
-      <td className={cn(cell, "pr-0")}>
-        <Checkbox
-          checked={selected}
-          disabled={busy}
-          onCheckedChange={(v) => onSelectedChange(v === true)}
-          aria-label={fill(t.selectBox, { box: box.box })}
-          className="mt-px"
-        />
-      </td>
+      {!readOnly && (
+        <td className={cn(cell, "pr-0")}>
+          <Checkbox
+            checked={selected}
+            disabled={busy}
+            onCheckedChange={(v) => onSelectedChange(v === true)}
+            aria-label={fill(t.selectBox, { box: box.box })}
+            className="mt-px"
+          />
+        </td>
+      )}
 
       <td className={cell}>
         <p className="text-[14px] font-medium leading-5 text-heading">{box.box}</p>
@@ -162,23 +173,25 @@ function QueryRow({
         )}
       </td>
 
-      <td className={cn(cell, "text-center")}>
-        <button
-          type="button"
-          onClick={onEdit}
-          disabled={busy || editLocked}
-          aria-label={fill(t.editQuery, { box: box.box })}
-          title={fill(t.editQuery, { box: box.box })}
-          className={cn(
-            "-my-1.5 inline-flex size-8 items-center justify-center rounded-md transition-colors",
-            editing
-              ? "bg-brand text-on-brand"
-              : "text-text-faint hover:bg-wash hover:text-text disabled:pointer-events-none disabled:opacity-40",
-          )}
-        >
-          <Pencil className="size-3.5" />
-        </button>
-      </td>
+      {!readOnly && (
+        <td className={cn(cell, "text-center")}>
+          <button
+            type="button"
+            onClick={onEdit}
+            disabled={busy || editLocked}
+            aria-label={fill(t.editQuery, { box: box.box })}
+            title={fill(t.editQuery, { box: box.box })}
+            className={cn(
+              "-my-1.5 inline-flex size-8 items-center justify-center rounded-md transition-colors",
+              editing
+                ? "bg-brand text-on-brand"
+                : "text-text-faint hover:bg-wash hover:text-text disabled:pointer-events-none disabled:opacity-40",
+            )}
+          >
+            <Pencil className="size-3.5" />
+          </button>
+        </td>
+      )}
     </tr>
   );
 }

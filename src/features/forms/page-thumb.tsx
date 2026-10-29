@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Maximize2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useReadOnly } from "@/components/patterns/read-only";
 import { ScaleToFit } from "@/components/ui/scale-to-fit";
 import { FormSheet, SHEET_H, SHEET_W } from "@/components/domain/form-sheet";
 import { cn } from "@/lib/cn";
@@ -43,6 +44,8 @@ export function PageThumb({
   const t = copy.taxForms;
   const n = index + 1;
   const selectable = selected !== undefined && onSelectedChange !== undefined;
+  /* A reviewer sees which pages carry forward, but cannot change it. */
+  const readOnly = useReadOnly();
 
   return (
     <li className="rise min-w-0" style={{ "--index": index } as React.CSSProperties}>
@@ -71,6 +74,7 @@ export function PageThumb({
             <Checkbox
               checked={selected}
               onCheckedChange={(v) => onSelectedChange(v === true)}
+              disabled={readOnly}
               aria-label={fill(t.selectPage, { n, name: formName })}
             />
           </span>

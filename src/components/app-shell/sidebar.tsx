@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Wordmark } from "@/components/brand/logo";
 import { ActiveNav } from "./active-nav";
 import { NavList } from "./nav-list";
+import { UserCard } from "./user-card";
 
 /**
  * Pinned to the viewport: `sticky` plus `self-start` and an explicit height,
@@ -20,19 +21,7 @@ export function Sidebar() {
         <ActiveNav />
       </Suspense>
 
-      <div className="mt-auto flex items-center gap-3 rounded-lg border border-deep-border bg-deep-raised px-3 py-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-xs font-semibold text-on-brand">
-          MR
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-medium text-on-deep">
-            Marco Rossi
-          </span>
-          <span className="block truncate text-xs text-deep-text-faint">
-            Tax expert
-          </span>
-        </span>
-      </div>
+      <UserCard />
     </nav>
   );
 }

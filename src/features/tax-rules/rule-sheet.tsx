@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Check, Pencil } from "lucide-react";
+import { Check, Copy, Pencil, Trash2 } from "lucide-react";
+import { useReadOnly } from "@/components/patterns/read-only";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
 
@@ -25,8 +26,11 @@ const NUMERIC = /return box|^Rate$|^Code$|Hungary|date/i;
 const HEAD = "border-b border-border px-6 pb-2.5 pt-3 text-left align-bottom font-medium";
 const CELL = "h-12 border-b border-border px-6 align-middle";
 
-/* The row number and the pen lead every row, at the width of their content. */
-const LEADING = 2;
+/* A row action: the pen, duplicate and delete share one square. */
+const ACTION = "inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-colors";
+
+/* The row's actions lead every row, at the width of their content. */
+const LEADING = 1;
 
 /**
  * One generated sheet, as the workbook holds it: a row number and its pen,
@@ -43,26 +47,34 @@ const LEADING = 2;
  */
 export function RuleSheet({
   columns,
-  rows,
+  entries,
   pinned = 2,
-  rowName = 0,
+  nameOf,
   isEditing,
   isChanged,
   onToggleEditing,
+  onDuplicate,
+  onDelete,
   onCellChange,
 }: {
   columns: readonly string[];
-  rows: string[][];
+  /** The rows to show, each with its index in the full sheet — what the
+      number, and every edit, refer to. */
+  entries: { row: string[]; index: number }[];
   /** How many of the sheet's own columns stay pinned after the number and pen. */
   pinned?: number;
-  /** Which column names a row, for the pen's label. */
-  rowName?: number;
+  /** What a row is called, for its actions' labels. */
+  nameOf: (row: string[]) => string;
   isEditing: (row: number) => boolean;
   isChanged: (row: number) => boolean;
   onToggleEditing: (row: number) => void;
+  onDuplicate: (row: number) => void;
+  onDelete: (row: number) => void;
   onCellChange: (row: number, col: number, value: string) => void;
 }) {
   const t = copy.taxRules;
+  /* A reviewer reads every rule; the row actions are the expert's. */
+  const readOnly = useReadOnly();
   const headRef = React.useRef<HTMLTableRowElement>(null);
   /* Left offsets of the leading columns and each pinned sheet column. */
   const [left, setLeft] = React.useState<number[]>([]);
@@ -77,10 +89,14 @@ export function RuleSheet({
       offsets.push(x);
       x += (cells[i] as HTMLElement).offsetWidth;
     }
-    setLeft(offsets);
-  }, [columns, rows, lastPinned]);
+    /* Entries are a fresh array each render, so only a real change in the
+       offsets sets state — otherwise this would re-render without end. */
+    setLeft((prev) =>
+      prev.length === offsets.length && prev.every((x, i) => x === offsets[i]) ? prev : offsets,
+    );
+  }, [columns, entries, lastPinned]);
 
-  /* `i` counts the number as 0, the pen as 1, the sheet's first column as 2.
+  /* `i` counts the actions as 0, the sheet's first column as 1.
      Pinned cells carry their row's background, so an open row stays tinted. */
   const pin = (i: number, background = "bg-surface") =>
     i <= lastPinned
@@ -99,13 +115,9 @@ export function RuleSheet({
       <table className="w-max min-w-full border-separate border-spacing-0 whitespace-nowrap text-[13px]">
         <thead className="bg-surface">
           <tr ref={headRef}>
-            {/* `w-px` keeps the number and pen at their content's width when
-                the table stretches to fill the card. */}
-            <th style={pin(0).style} className={cn(HEAD, "w-px pl-5 pr-2", pin(0).className)}>
-              <span aria-hidden className="block text-[11px] leading-4">&nbsp;</span>
-              <span className="block text-[12px] leading-4 text-text-muted">{t.numberColumn}</span>
-            </th>
-            <th style={pin(1).style} className={cn(HEAD, "w-px px-1", pin(1).className)}>
+            {/* `w-px` keeps the actions at their content's width when the
+                table stretches to fill the card. */}
+            <th style={pin(0).style} className={cn(HEAD, "w-px pl-4 pr-1", pin(0).className)}>
               <span className="sr-only">{t.editColumn}</span>
             </th>
             {columns.map((col, i) => (
@@ -123,25 +135,23 @@ export function RuleSheet({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, r) => {
+          {entries.map(({ row, index: r }) => {
             const editing = isEditing(r);
             const background = editing ? "bg-brand-quiet" : "bg-surface";
-            const name = row[rowName] || String(r + 1);
+            const name = nameOf(row);
             const label = fill(editing ? t.doneEditing : t.editRow, { name });
             return (
               <tr key={r} className={background}>
                 <td
                   style={pin(0, background).style}
-                  className={cn(CELL, "w-px pl-5 pr-2 text-text-faint", pin(0, background).className)}
-                  data-numeric
+                  className={cn(CELL, "w-px pl-4 pr-1", pin(0, background).className)}
                 >
-                  {r + 1}
-                </td>
-                <td
-                  style={pin(1, background).style}
-                  className={cn(CELL, "w-px px-1", pin(1, background).className)}
-                >
-                  <span className="relative flex">
+                  {/* Edit, Duplicate, Delete — as on the spec sheets. While the
+                      row is open they give way to its one tick, so the only
+                      thing to do there is finish. Delete takes the risk colour
+                      on hover only: at rest the three are equal and quiet. The
+                      tick holds the same width, so the columns never shift. */}
+                  <span className={cn("relative flex w-[104px] items-center gap-0.5", readOnly && "invisible")}>
                     <button
                       type="button"
                       onClick={() => onToggleEditing(r)}
@@ -149,7 +159,7 @@ export function RuleSheet({
                       aria-label={label}
                       title={label}
                       className={cn(
-                        "inline-flex size-8 items-center justify-center rounded-md transition-colors",
+                        ACTION,
                         editing
                           ? "bg-brand text-on-brand hover:bg-brand-hover"
                           : "text-text-faint hover:bg-wash hover:text-text",
@@ -157,11 +167,33 @@ export function RuleSheet({
                     >
                       {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
                     </button>
+                    {!editing && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onDuplicate(r)}
+                          aria-label={fill(t.duplicateRow, { name })}
+                          title={fill(t.duplicateRow, { name })}
+                          className={cn(ACTION, "text-text-faint hover:bg-wash hover:text-text")}
+                        >
+                          <Copy className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDelete(r)}
+                          aria-label={fill(t.deleteRow, { name })}
+                          title={fill(t.deleteRow, { name })}
+                          className={cn(ACTION, "text-text-faint hover:bg-risk-quiet hover:text-risk")}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </>
+                    )}
                     {/* An unsaved change, marked on the row it lives in. */}
                     {isChanged(r) && !editing && (
                       <span
                         aria-label={t.unsavedRow}
-                        className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-brand"
+                        className="absolute left-[26px] top-0.5 size-1.5 rounded-full bg-brand"
                       />
                     )}
                   </span>

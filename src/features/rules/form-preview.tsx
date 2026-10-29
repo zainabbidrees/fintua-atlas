@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, ArrowRight, Maximize2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileDown, Maximize2, Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -10,14 +10,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PrintOnly, printAs } from "@/components/patterns/print-only";
 import { ScaleToFit } from "@/components/ui/scale-to-fit";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
 import {
-  FORM_PREVIEW,
+  boxesOf,
   type AmountCell,
   type BoxTone,
   type FormBox,
+  type FormDoc,
   type FormPage,
   type FormRow,
 } from "@/lib/mock/form-preview";
@@ -27,6 +29,8 @@ import {
     this height, so the pages stay one paper size. */
 const SHEET_W = 880;
 const SHEET_H = 1408;
+/** Fits a sheet to an A4 page's height (297mm at 96dpi is 1123px). */
+const PRINT_SCALE = 1123 / SHEET_H;
 
 /* The same strip of pages as the Tax Form Retrieval step: two up on a phone,
    then as many as fit. */
@@ -49,16 +53,6 @@ const TONE_TAB: Record<BoxTone, string> = {
 const PILL =
   "absolute -top-[17px] left-0 z-10 w-max rounded-md px-2 py-[3px] text-[13px] font-bold leading-none shadow-sm";
 
-/** Every mapped box on a page, wherever the row keeps it. */
-function boxesOf(page: FormPage): FormBox[] {
-  return page.rows.flatMap((row) => [
-    ...(row.boxes ?? []),
-    ...(row.code ? [row.code.box] : []),
-    ...(row.base?.box ? [row.base.box] : []),
-    ...(row.tax?.box ? [row.tax.box] : []),
-  ]);
-}
-
 function toneCounts(page: FormPage): Record<BoxTone, number> {
   const counts: Record<BoxTone, number> = { ok: 0, warn: 0, error: 0 };
   for (const box of boxesOf(page)) counts[box.tone]++;
@@ -75,18 +69,49 @@ function toneCounts(page: FormPage): Record<BoxTone, number> {
  * mapped cleanly, amber where it wants a look, red where nothing matched.
  * "Show boxes" lifts the overlay to read the bare form underneath.
  */
-export function FormPreview() {
-  const doc = FORM_PREVIEW;
+/** A box the expert added, and the 1-based page it sits on. */
+export type AddedBox = { name: string; page: number };
+
+export function FormPreview({
+  doc,
+  returnType,
+  added = [],
+  onAddBox,
+}: {
+  doc: FormDoc;
+  returnType: string;
+  /** Boxes the expert added, counted under the page each sits on. */
+  added?: AddedBox[];
+  /** Opens Add box on a page; the page viewer offers it when given. */
+  onAddBox?: (page: number) => void;
+}) {
   const [showBoxes, setShowBoxes] = React.useState(true);
   const [viewing, setViewing] = React.useState<number | null>(null);
+
+  /* Lay the annotated pages out for print, then hand them to the browser's
+     Save as PDF once they have rendered. */
+  const [printing, setPrinting] = React.useState(false);
+  React.useEffect(() => {
+    if (!printing) return;
+    const id = requestAnimationFrame(() => {
+      printAs(fill(copy.formPreview.exportFileName, { name: returnType }));
+      setPrinting(false);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [printing, returnType]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-raised)]">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
-        <h3 className="mr-auto min-w-0 truncate text-[14px] font-medium text-heading">
-          {doc.title}
+        <h3 className="mr-auto flex min-w-0 items-baseline gap-2 text-[14px] font-medium text-heading">
+          <span className="shrink-0">{returnType}</span>
+          <span className="truncate text-[13px] font-normal text-text-muted">{doc.title}</span>
         </h3>
         <BoxesSwitch on={showBoxes} onChange={setShowBoxes} />
+        <Button variant="secondary" size="sm" onClick={() => setPrinting(true)}>
+          <FileDown />
+          {copy.formPreview.exportPdf}
+        </Button>
       </div>
 
       <div className="bg-wash p-6">
@@ -94,9 +119,11 @@ export function FormPreview() {
           {doc.pages.map((page, i) => (
             <PageThumb
               key={i}
+              doc={doc}
               page={page}
               index={i}
               showBoxes={showBoxes}
+              added={added.filter((b) => b.page === i + 1).length}
               onOpen={() => setViewing(i)}
             />
           ))}
@@ -105,12 +132,53 @@ export function FormPreview() {
 
       {viewing !== null && (
         <PageViewer
+          doc={doc}
           index={viewing}
           onIndexChange={setViewing}
           onClose={() => setViewing(null)}
           showBoxes={showBoxes}
           onShowBoxesChange={setShowBoxes}
+          added={added.filter((b) => b.page === viewing + 1)}
+          onAddBox={
+            onAddBox &&
+            (() => {
+              /* One dialog at a time: the viewer closes as Add box opens. */
+              const page = viewing + 1;
+              setViewing(null);
+              onAddBox(page);
+            })
+          }
         />
+      )}
+
+      {/* Export: every page with its boxes drawn, laid out one per A4 sheet for
+          the browser's own Save as PDF. The sheet is taller than A4, so it is
+          scaled to the page's height and centred. */}
+      {printing && (
+        <PrintOnly>
+          {doc.pages.map((page, i) => (
+            <div
+              key={i}
+              style={{
+                width: "210mm",
+                height: "297mm",
+                overflow: "hidden",
+                breakAfter: i < doc.pages.length - 1 ? "page" : "auto",
+              }}
+            >
+              <div
+                style={{
+                  width: SHEET_W,
+                  transform: `scale(${PRINT_SCALE})`,
+                  transformOrigin: "top center",
+                  margin: "0 auto",
+                }}
+              >
+                <Sheet doc={doc} page={page} pageNumber={i + 1} showBoxes />
+              </div>
+            </div>
+          ))}
+        </PrintOnly>
       )}
     </section>
   );
@@ -146,14 +214,19 @@ function BoxesSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) =>
 
 /** One page of the form as a thumbnail; the whole sheet opens it. */
 function PageThumb({
+  doc,
   page,
   index,
   showBoxes,
+  added,
   onOpen,
 }: {
+  doc: FormDoc;
   page: FormPage;
   index: number;
   showBoxes: boolean;
+  /** How many boxes the expert added on this page. */
+  added: number;
   onOpen: () => void;
 }) {
   const n = index + 1;
@@ -170,7 +243,7 @@ function PageThumb({
           className="block w-full overflow-hidden rounded-[3px] bg-white text-left shadow-[var(--shadow-raised)] ring-1 ring-border-strong transition-shadow duration-200 hover:shadow-[var(--shadow-overlay)]"
         >
           <ScaleToFit width={SHEET_W} height={SHEET_H}>
-            <Sheet doc={FORM_PREVIEW} page={page} pageNumber={n} showBoxes={showBoxes} />
+            <Sheet doc={doc} page={page} pageNumber={n} showBoxes={showBoxes} />
           </ScaleToFit>
         </button>
 
@@ -199,6 +272,12 @@ function PageThumb({
             {fill(copy.formPreview.toCheck, { count: toCheck })}
           </span>
         )}
+        {added > 0 && (
+          <span className="text-brand">
+            {" · "}
+            {fill(copy.formPreview.addedCount, { count: added })}
+          </span>
+        )}
       </p>
     </li>
   );
@@ -209,20 +288,26 @@ function PageThumb({
  * and the arrow keys move through the form without leaving the viewer.
  */
 function PageViewer({
+  doc,
   index,
   onIndexChange,
   onClose,
   showBoxes,
   onShowBoxesChange,
+  added,
+  onAddBox,
 }: {
+  doc: FormDoc;
   index: number;
   onIndexChange: (index: number) => void;
   onClose: () => void;
   showBoxes: boolean;
   onShowBoxesChange: (on: boolean) => void;
+  /** Boxes the expert added on this page. */
+  added: AddedBox[];
+  onAddBox?: () => void;
 }) {
   const t = copy.formPreview;
-  const doc = FORM_PREVIEW;
   const total = doc.pages.length;
   const page = doc.pages[index];
   const counts = toneCounts(page);
@@ -281,7 +366,41 @@ function PageViewer({
                   </span>
                 </li>
               ))}
+              {/* The expert's own boxes, by name — they have no place drawn on
+                  the sheet yet, so the list is where they show. */}
+              {added.length > 0 && (
+                <li className="px-3 py-2 text-[13px]">
+                  <div className="flex items-center gap-2.5">
+                    <span aria-hidden className="size-2 rounded-full bg-brand" />
+                    <span className="flex-1 text-text-muted">{t.addedByYou}</span>
+                    <span className="font-medium text-text" data-numeric>
+                      {added.length}
+                    </span>
+                  </div>
+                  <ul className="mt-1.5 flex flex-wrap gap-1.5 pl-[18px]">
+                    {added.map((b) => (
+                      <li
+                        key={b.name}
+                        className="rounded bg-brand-quiet px-1.5 py-0.5 font-mono text-[11.5px] text-brand"
+                      >
+                        {b.name}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              )}
             </ul>
+            {onAddBox && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3 w-full active:scale-[0.98]"
+                onClick={onAddBox}
+              >
+                <Plus />
+                {t.addOnPage}
+              </Button>
+            )}
           </div>
 
           <BoxesSwitch on={showBoxes} onChange={onShowBoxesChange} />
@@ -327,6 +446,14 @@ function PageViewer({
    document's content, not the app's colour system — so they are fixed values
    rather than tokens. */
 
+/* The few words the form prints in its own language, for the sheets that are
+   not German: the yes tick's caption and the date mask's letters. */
+const PRINT: Record<string, { yes: string; date: string }> = {
+  de: { yes: "1 = Ja", date: "TTMMJJ" },
+  fr: { yes: "1 = Oui", date: "JJMMAA" },
+};
+const SheetLang = React.createContext("de");
+
 /* One digit cell, and the gap between cells, at base scale. */
 const CELL = 17;
 const CELL_H = 21;
@@ -361,18 +488,19 @@ function Sheet({
   pageNumber,
   showBoxes,
 }: {
-  doc: typeof FORM_PREVIEW;
-  page: (typeof FORM_PREVIEW)["pages"][number];
+  doc: FormDoc;
+  page: FormPage;
   pageNumber: number;
   showBoxes: boolean;
 }) {
   return (
     <div
-      lang="de"
+      lang={doc.lang ?? "de"}
       className="relative flex flex-col bg-white text-[#1d2420] shadow-sm ring-1 ring-black/5"
       // One paper size for every page, so the panel runs to the foot as on paper.
       style={{ minHeight: SHEET_H, padding: "34px 46px 22px" }}
     >
+      <SheetLang.Provider value={doc.lang ?? "de"}>
       <CropMarks />
 
       {/* The machine-readable strip in the right margin. */}
@@ -396,7 +524,7 @@ function Sheet({
         ) : (
           <>
             <div className="absolute bottom-[-1.5px] left-[18px] h-[26px] w-[236px] border-[1.5px] border-[#4f9a6b] bg-white px-1.5">
-              <span className="block text-[9px] leading-[11px]">Steuernummer</span>
+              <span className="block text-[9px] leading-[11px]">{doc.idLabel ?? "Steuernummer"}</span>
             </div>
             <span className="absolute inset-x-0 top-[2px] text-center text-[12px]">
               - {pageNumber} -
@@ -427,6 +555,7 @@ function Sheet({
         <span>{page.footer}</span>
         <span>{page.footer}</span>
       </div>
+      </SheetLang.Provider>
     </div>
   );
 }
@@ -760,6 +889,7 @@ function LetterComb({ letters, caption }: { letters: string; caption?: string })
 
 /** The right-hand coded cell of a labelled line — a "1 = Ja" tick, a date or a digit. */
 function CodedCell({ num, box, showBoxes }: { num: string; box: FormBox; showBoxes: boolean }) {
+  const print = PRINT[React.useContext(SheetLang)] ?? PRINT.de;
   const mapped = showBoxes && box.name !== "";
   return (
     <div className="flex items-end gap-[6px]">
@@ -774,12 +904,12 @@ function CodedCell({ num, box, showBoxes }: { num: string; box: FormBox; showBox
       >
         {mapped && <span className={cn(PILL, "-top-[24px] left-auto right-0", TONE_TAB[box.tone])}>{box.name}</span>}
         {box.variant === "date" ? (
-          <LetterComb letters="TTMMJJ" />
+          <LetterComb letters={print.date} />
         ) : (
           <Cells n={1} />
         )}
         {box.variant === "yesno" && (
-          <span className="pb-[5px] text-[11px]">1 = Ja</span>
+          <span className="pb-[5px] text-[11px]">{print.yes}</span>
         )}
       </div>
     </div>

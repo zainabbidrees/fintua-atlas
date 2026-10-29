@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Globe2, CheckCircle2, ScrollText, Settings } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ApprovalsCount } from "./approvals-count";
 
 export const NAV = [
   { href: "/countries", label: "Countries", icon: Globe2 },
-  { href: "/approvals", label: "Approvals", icon: CheckCircle2, count: 2 },
+  { href: "/approvals", label: "Approvals", icon: CheckCircle2, count: true },
   { href: "/audit-log", label: "Audit log", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -33,11 +34,7 @@ export function NavList({ activePath }: { activePath: string | null }) {
             >
               <Icon className="size-[18px] shrink-0" strokeWidth={1.75} />
               <span className="flex-1">{label}</span>
-              {count && (
-                <span className="rounded-full bg-brand px-1.5 py-0.5 text-[12px] font-semibold text-on-brand">
-                  {count}
-                </span>
-              )}
+              {count && <ApprovalsCount />}
             </Link>
           </li>
         );
