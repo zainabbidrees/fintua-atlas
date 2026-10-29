@@ -13,29 +13,28 @@ import type { Country } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 /**
- * Every country, with the ones already published marked and closed.
+ * Every country that has not been onboarded yet.
  *
  * Story 1.1 asked for already-onboarded countries to appear "with no
  * difference from other countries". The designer reversed that (deviation D1,
- * 2026-10-28) so a published country is not onboarded twice: it stays in the
- * list, so a search for it still finds it, but carries a "Published" tag and
- * cannot be picked.
+ * 2026-10-28), and then asked that they not appear at all (2026-10-29): a
+ * country already on the Countries page — in progress, in review or
+ * published — is left out, so it is never started twice. It is found on the
+ * Countries page instead.
  */
 export function CountryPicker({
   value,
   placeholder,
   label,
   onSelect,
-  taken = new Set(),
-  takenLabel = "",
+  exclude = new Set(),
 }: {
   value: Country | null;
   placeholder: string;
   label: string;
   onSelect: (country: Country) => void;
-  /** Codes that cannot be picked, shown with `takenLabel`. */
-  taken?: ReadonlySet<string>;
-  takenLabel?: string;
+  /** Codes left out of the list: countries already onboarded. */
+  exclude?: ReadonlySet<string>;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -69,8 +68,7 @@ export function CountryPicker({
           <Results
             selectedCode={value?.code ?? null}
             placeholder={placeholder}
-            taken={taken}
-            takenLabel={takenLabel}
+            exclude={exclude}
             onPick={(country) => {
               onSelect(country);
               setOpen(false);
@@ -85,18 +83,19 @@ export function CountryPicker({
 function Results({
   selectedCode,
   placeholder,
-  taken,
-  takenLabel,
+  exclude,
   onPick,
 }: {
   selectedCode: string | null;
   placeholder: string;
-  taken: ReadonlySet<string>;
-  takenLabel: string;
+  exclude: ReadonlySet<string>;
   onPick: (country: Country) => void;
 }) {
   const [term, setTerm] = React.useState("");
-  const results = React.useMemo(() => searchCountries(term), [term]);
+  const results = React.useMemo(
+    () => searchCountries(term).filter((c) => !exclude.has(c.code)),
+    [term, exclude],
+  );
 
   return (
     <>
@@ -112,37 +111,25 @@ function Results({
           </div>
 
           <ul className="max-h-64 overflow-y-auto p-1" role="listbox">
-            {results.map((country) => {
-              const closed = taken.has(country.code);
-              return (
-                <li key={country.code}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={selectedCode === country.code}
-                    aria-disabled={closed || undefined}
-                    disabled={closed}
-                    onClick={() => onPick(country)}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
-                      closed ? "cursor-not-allowed text-text-faint" : "hover:bg-wash",
-                      selectedCode === country.code && "bg-brand-quiet text-brand",
-                    )}
-                  >
-                    <span aria-hidden className={cn("text-base leading-none", closed && "opacity-50")}>
-                      {country.flag}
-                    </span>
-                    {country.name}
-                    {closed && (
-                      <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-text-muted">
-                        <span aria-hidden className="size-1.5 rounded-full bg-settled" />
-                        {takenLabel}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
+            {results.map((country) => (
+              <li key={country.code}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedCode === country.code}
+                  onClick={() => onPick(country)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-wash",
+                    selectedCode === country.code && "bg-brand-quiet text-brand",
+                  )}
+                >
+                  <span aria-hidden className="text-base leading-none">
+                    {country.flag}
+                  </span>
+                  {country.name}
+                </button>
+              </li>
+            ))}
             {results.length === 0 && (
               <li className="px-3 py-6 text-center text-sm text-text-faint">
                 No match

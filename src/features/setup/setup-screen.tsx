@@ -18,7 +18,8 @@ import { SearchAddBar } from "@/components/patterns/search-add-bar";
 import { UrlList } from "@/components/patterns/url-list";
 import { ContinueActions } from "@/components/patterns/continue-actions";
 import { CountryPicker } from "@/components/domain/country-picker";
-import { LIVE_CODES } from "@/features/countries/data";
+import { ONBOARDED_CODES } from "@/features/countries/data";
+import { useSubmissions } from "@/lib/review";
 import { readPublished } from "@/lib/published";
 import { DocumentList } from "@/components/domain/document-list";
 import { FilingTable } from "@/components/domain/filing-table";
@@ -56,20 +57,24 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
     if (reviewCode && country?.code === reviewCode.toUpperCase() && phase === "empty") startResearch();
   }, [reviewCode, country, phase, startResearch]);
 
-  /* Countries already live — from the index and from this browser's publishes —
-     cannot be onboarded again. Read after mount so the first render matches
-     the server. */
-  const [published, setPublished] = React.useState<ReadonlySet<string>>(
-    () => new Set(LIVE_CODES),
-  );
+  /* Countries already onboarded — every one on the Countries page, plus this
+     browser's publishes and anything sent for approval — are left out of the
+     picker, so none is started twice. Read after mount so the first render
+     matches the server. */
+  const [published, setPublished] = React.useState<readonly string[]>([]);
   React.useEffect(() => {
     const local = readPublished();
     if (local.length === 0) return;
     // Syncing from localStorage after mount is the one case that
     // legitimately needs setState in an effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPublished(new Set([...LIVE_CODES, ...local.map((p) => p.code)]));
+    setPublished(local.map((p) => p.code));
   }, []);
+  const submissions = useSubmissions();
+  const onboarded = React.useMemo<ReadonlySet<string>>(
+    () => new Set([...ONBOARDED_CODES, ...published, ...submissions.map((sub) => sub.code)]),
+    [published, submissions],
+  );
 
   const [filingToRemove, setFilingToRemove] = React.useState<Filing | null>(null);
   /** Tracked as exclusions, so anything newly found is carried by default. */
@@ -160,8 +165,7 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
               label={copy.country.label}
               placeholder={copy.country.placeholder}
               onSelect={s.selectCountry}
-              taken={published}
-              takenLabel={copy.country.taken}
+              exclude={onboarded}
             />
             {!s.country && (
               <p className="mt-3 text-sm text-text-muted">{copy.country.empty}</p>

@@ -110,7 +110,6 @@ export const copy = {
 
   country: {
     /** Beside a country in the picker that is already published. */
-    taken: "Published",
     /** "Country" throughout, matching the step's own name and the portal it
         is reached from. The list does carry territories and protocols with
         their own VAT regime — Northern Ireland, Monaco — which "jurisdiction"

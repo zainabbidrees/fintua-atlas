@@ -359,10 +359,8 @@ export const FILTERS: { id: FilterId; label: string; match: (r: CountryRun) => b
   { id: "live", label: "Published", match: (r) => r.state === "live" },
 ];
 
-/** The codes already live in Comply, from the fixtures. */
-export const LIVE_CODES: readonly string[] = RUNS.filter((r) => r.state === "live").map(
-  (r) => r.code,
-);
+/** Every country on the Countries page — started, in review or published. */
+export const ONBOARDED_CODES: readonly string[] = RUNS.map((r) => r.code);
 
 /**
  * Applies the countries published from the Query Builder: an existing row

@@ -80,8 +80,9 @@ export async function* researchCountry(
     return;
   }
 
-  // FR is the deliberate empty fixture.
-  if (countryCode === "FR") {
+  // MT is the deliberate empty fixture. (It was France, until countries
+  // already onboarded were left out of the picker — France is one.)
+  if (countryCode === "MT") {
     yield { type: "step", text: `Locating ${country.name}'s tax authority` };
     await wait(PACE_MS, signal);
     yield { type: "step", text: "Searching for filing requirements" };
