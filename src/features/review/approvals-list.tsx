@@ -65,6 +65,7 @@ function Row({ submission: s }: { submission: Submission }) {
   const approved = approvedCount(s);
   const total = approvalSteps(s.code).length;
   const status = overallStatus(s);
+  const sent = { name: s.submittedBy, date: when(s.submittedAt) };
 
   return (
     <li className="border-b border-border last:border-b-0">
@@ -74,7 +75,8 @@ function Row({ submission: s }: { submission: Submission }) {
       >
         <span className="text-[15px] font-medium text-heading">{s.name}</span>
         <span className="col-start-1 text-[13px] text-text-muted md:col-start-auto">
-          {fill(t.submittedBy, { name: s.submittedBy, date: when(s.submittedAt) })}
+          <span className="md:hidden">{fill(t.submittedBy, sent)}</span>
+          <span className="hidden md:inline">{fill(t.listSent, sent)}</span>
         </span>
         <span className="col-start-1 flex items-center gap-3 md:col-start-auto">
           <span className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-sunken">

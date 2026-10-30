@@ -19,6 +19,7 @@ import { AgentWorking, useAgentRun } from "@/components/patterns/agent-working";
 import { DraftActions } from "@/components/patterns/draft-actions";
 import { useSaveDraft } from "@/features/drafts/use-save-draft";
 import { setHasQueryStep } from "@/lib/query-step";
+import { useSavedFieldMaps, writeFieldMap } from "@/lib/field-map";
 import { StepNav, ViewOnlyBar, useStepView, backHref, useCameBack } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import { FORM_PREVIEWS } from "@/lib/mock/form-preview";
@@ -73,7 +74,9 @@ export function RulesScreen({
   const [confirming, setConfirming] = React.useState(false);
   /* The spec sheets' edits live here, so Save changes in the footer reaches
      them. */
-  const sheets = useSpecSheets(returnTypeId);
+  const sheets = useSpecSheets(returnTypeId, useSavedFieldMaps(countryCode));
+  /* What is saved here is what Query Builder builds from. */
+  const saveSheets = () => writeFieldMap(countryCode, sheets.save());
   /* In review, a reviewer reads this step locked; the expert can still edit
      it and send it for approval again. */
   const review = useStepReview(countryCode, 3);
@@ -151,7 +154,7 @@ export function RulesScreen({
   }
 
   function saveChanges() {
-    sheets.save();
+    saveSheets();
     toast(copy.fieldMap.saved);
   }
 
@@ -182,7 +185,7 @@ export function RulesScreen({
       setMissingOpen(true);
       return;
     }
-    if (unsaved > 0) sheets.save();
+    if (unsaved > 0) saveSheets();
     sendStep.send(() => router.push(`/countries/${countryCode.toLowerCase()}/build`));
   }
 

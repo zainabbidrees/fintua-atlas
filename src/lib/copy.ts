@@ -577,12 +577,15 @@ export const copy = {
     /* The Approvals list in the sidebar. */
     listTitle: "Approvals",
     listIntro: "Countries sent for approval, and how far each one has got.",
+    /* Under the "Sent by" header the name stands alone; on a phone, with no
+       header, the row says it in full. */
+    listSent: "{name}, {date}",
     listEmpty: "Nothing has been sent for approval.",
     listEmptyHint:
       "A country appears here once its tax expert sends its first step for approval.",
     listColumns: {
       country: "Country",
-      submitted: "Sent",
+      submitted: "Sent by",
       progress: "Steps approved",
       status: "Status",
     },
@@ -934,6 +937,7 @@ export const copy = {
   queryBuilder: {
     backLink: "Tax Rules Generation",
     heading: "Queries for {count} boxes",
+    headingOne: "Query for 1 box",
     intro:
       "Each box's calculation rule comes from the box annotations and tax rules. Tick the boxes to generate their SQL, then edit any query by hand.",
     columns: {
@@ -952,19 +956,11 @@ export const copy = {
     generatedToast: "Query generated for {box}",
     generatedToastPlural: "{count} queries generated",
     undo: "Undo",
-    /** The rule's opening line, by what the box adds up. */
-    measure: {
-      net: "Sum of the net amount on",
-      vat: "Sum of the VAT amount on",
-      list: "One line per dispatch, grouped by",
-    },
-    sale: "Sale",
-    purchase: "Purchase",
-    anyRate: "any rate",
-    noLines: "No tax rule names this box yet.",
     /** Opens the rule of a box with is_calculated ticked: its calculation as
      *  written in the field map. */
     calculated: "Calculated from the field map",
+    /** The rule of a calculated box with no calculation written yet. */
+    nullRule: "NULL",
     notGenerated: "Not generated",
     /* A box with no query says in plain English what it should calculate. */
     noteLabel: "No query. In plain English, what should this box add up?",

@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { BOX_QUERIES, type BoxQuery } from "@/lib/mock/query-builder";
+import { useFieldMap } from "@/lib/field-map";
+import {
+  BOX_QUERIES,
+  QUERY_RETURN_TYPE,
+  boxQueriesFrom,
+  type BoxQuery,
+} from "@/lib/mock/query-builder";
 
 export type QueryStatus = "empty" | "generating" | "generated" | "edited";
 
@@ -21,6 +27,8 @@ export type QuerySnapshot = Record<string, QueryState>;
 const FIRST_MS = 2000;
 const EACH_MS = 280;
 
+const EMPTY: QueryState = { sql: "", status: "empty", note: "" };
+
 /**
  * The query builder's state. Every box starts with no query; Generate fills
  * the ticked ones from the box's rule, and a query edited by hand is marked as
@@ -28,10 +36,23 @@ const EACH_MS = 280;
  * must say in plain English what it should calculate before the step can be
  * sent on.
  */
-export function useQueryBuilder(_countryCode: string) {
-  const boxes: BoxQuery[] = BOX_QUERIES;
-  const [queries, setQueries] = React.useState<QuerySnapshot>(() =>
-    Object.fromEntries(boxes.map((b) => [b.id, { sql: "", status: "empty", note: "" }])),
+export function useQueryBuilder(countryCode: string) {
+  /* The field map as step four saved it — the expert's ticks, not the
+     extracted ones. Only boxes with is_calculated ticked have a query to
+     build; the rest are filled from the tax rules and do not come here. */
+  const fieldMap = useFieldMap(countryCode, QUERY_RETURN_TYPE);
+  const boxes: BoxQuery[] = React.useMemo(
+    () => (fieldMap ? boxQueriesFrom(fieldMap) : BOX_QUERIES).filter((b) => b.calculated),
+    [fieldMap],
+  );
+  const [held, setQueries] = React.useState<QuerySnapshot>({});
+  /* A box newly ticked at step four starts with no query, like the rest. */
+  const queries = React.useMemo<QuerySnapshot>(
+    () =>
+      Object.fromEntries(
+        boxes.map((b) => [b.id, held[b.id] ?? EMPTY]),
+      ),
+    [boxes, held],
   );
   const timers = React.useRef<number[]>([]);
 
@@ -46,7 +67,7 @@ export function useQueryBuilder(_countryCode: string) {
     const before: QuerySnapshot = Object.fromEntries(ids.map((id) => [id, queries[id]]));
     setQueries((q) => {
       const next = { ...q };
-      for (const id of ids) next[id] = { ...next[id], status: "generating" };
+      for (const id of ids) next[id] = { ...EMPTY, ...next[id], status: "generating" };
       return next;
     });
     ids.forEach((id, i) => {
@@ -54,7 +75,7 @@ export function useQueryBuilder(_countryCode: string) {
       const timer = window.setTimeout(() => {
         setQueries((q) => ({
           ...q,
-          [id]: { ...q[id], sql: box?.generated ?? "", status: "generated" },
+          [id]: { ...EMPTY, ...q[id], sql: box?.generated ?? "", status: "generated" },
         }));
         if (i === ids.length - 1) onDone?.(before);
       }, FIRST_MS + i * EACH_MS);
@@ -65,13 +86,13 @@ export function useQueryBuilder(_countryCode: string) {
   function save(id: string, sql: string) {
     setQueries((q) => ({
       ...q,
-      [id]: { ...q[id], sql, status: sql.trim() ? "edited" : "empty" },
+      [id]: { ...EMPTY, ...q[id], sql, status: sql.trim() ? "edited" : "empty" },
     }));
   }
 
   /** Sets a box's plain-English description. */
   function describe(id: string, note: string) {
-    setQueries((q) => ({ ...q, [id]: { ...q[id], note } }));
+    setQueries((q) => ({ ...q, [id]: { ...EMPTY, ...q[id], note } }));
   }
 
   function restore(snapshot: QuerySnapshot) {

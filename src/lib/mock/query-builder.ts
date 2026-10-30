@@ -36,6 +36,8 @@ export interface BoxQuery {
   lines: RuleLine[];
   /** Columns a list box groups its lines by. */
   groupBy: string[];
+  /** is_calculated ticked in the field map — only these reach Query Builder. */
+  calculated: boolean;
   /** The field map's calculation, for a box with is_calculated ticked; null
    *  otherwise. Where present it is the box's rule. */
   calculation: string | null;
@@ -151,7 +153,17 @@ function sumQuery(id: string, box: string, measure: "net" | "vat", lines: RuleLi
   ].join("\n");
 }
 
-export const BOX_QUERIES: BoxQuery[] = RETURN_BOXES.map((row) => {
+/** The return type Query Builder builds from: the VAT return's field map. */
+export const QUERY_RETURN_TYPE = "be-vat";
+
+type BoxRow = Partial<Record<string, string>>;
+
+/** One row per box of a field map — the fixture's, or the one step four saved. */
+export function boxQueriesFrom(rows: readonly BoxRow[]): BoxQuery[] {
+  return rows.map(boxQuery);
+}
+
+function boxQuery(row: BoxRow): BoxQuery {
   const id = row.id ?? "";
   const box = row.box_name ?? "";
   const description = row.return_box_description ?? "";
@@ -166,6 +178,7 @@ export const BOX_QUERIES: BoxQuery[] = RETURN_BOXES.map((row) => {
       measure: "list",
       lines: [],
       groupBy: (row.group_by ?? "").split(",").map((c) => c.trim()).filter(Boolean),
+      calculated: row.is_calculated === "TRUE",
       calculation,
       generated: row.calculation ?? "",
     };
@@ -181,8 +194,11 @@ export const BOX_QUERIES: BoxQuery[] = RETURN_BOXES.map((row) => {
     measure,
     lines,
     groupBy: [],
+    calculated: row.is_calculated === "TRUE",
     calculation,
     /* A calculated box runs what the field map wrote for it. */
     generated: calculation ?? sumQuery(id, box, measure, lines),
   };
-});
+}
+
+export const BOX_QUERIES: BoxQuery[] = boxQueriesFrom(RETURN_BOXES);

@@ -92,9 +92,25 @@ export const rowKey = (sheet: SheetId, row: Row, index: number) =>
  * per return type; nothing is kept until Save changes, which saves them all,
  * and the footer counts changed rows across every return type.
  */
-export function useSpecSheets(returnType: string) {
+export function useSpecSheets(
+  returnType: string,
+  /** The boxes last saved for this country, per return type — they replace
+      the extracted ones, so coming back finds the field map as it was left. */
+  stored: Record<string, Row[]> | null = null,
+) {
   const [saved, setSaved] = React.useState(INITIAL);
   const [draft, setDraft] = React.useState(INITIAL);
+  /* The store is read only after hydration, so its boxes are taken in once,
+     the first time they arrive. */
+  const [seeded, setSeeded] = React.useState(false);
+  if (stored && !seeded) {
+    setSeeded(true);
+    const book = Object.fromEntries(
+      Object.entries(INITIAL).map(([type, b]) => [type, { ...b, boxes: stored[type] ?? b.boxes }]),
+    );
+    setSaved(book);
+    setDraft(book);
+  }
   /* Keys are "returnType|sheet:row", so an open row stays with its type. */
   const [editing, setEditing] = React.useState<ReadonlySet<string>>(new Set());
   const prefix = `${returnType}|`;
@@ -266,9 +282,11 @@ export function useSpecSheets(returnType: string) {
   const forType = (keys: ReadonlySet<string>) =>
     new Set([...keys].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
 
-  function save() {
+  /** Keeps the draft and hands back every return type's boxes as saved. */
+  function save(): Record<string, Row[]> {
     setSaved(draft);
     setEditing(new Set());
+    return Object.fromEntries(Object.entries(draft).map(([type, book]) => [type, book.boxes]));
   }
 
   return {

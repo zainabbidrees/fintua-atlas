@@ -9,7 +9,7 @@ import { CodeBlock } from "@/components/ui/code-block";
 import { Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
-import { RATE_NAME, RATE_VALUE, type BoxQuery, type RuleLine } from "@/lib/mock/query-builder";
+import type { BoxQuery } from "@/lib/mock/query-builder";
 import type { QueryBuilder, QueryState } from "./use-query-builder";
 
 /* Code reads in the system's own monospace (SF Mono on a Mac) — plainer than
@@ -204,80 +204,24 @@ function QueryRow({
   );
 }
 
-/** "LR 5%" where the rate has a value, its name where it is nil. */
-function rateLabel(code: string): string {
-  if (code === "ALL") return copy.queryBuilder.anyRate;
-  const value = RATE_VALUE[code];
-  return value && value !== "0%" ? `${code} ${value}` : (RATE_NAME[code] ?? code);
-}
-
-function lineText(line: RuleLine): string {
-  return [
-    line.transaction,
-    line.supply !== "ALL" ? line.supply : null,
-    rateLabel(line.rate),
-    line.subCategory || null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-/** What fills the box, in the reviewer's words: a sum over named tax-rule
- *  lines, or for a list box, what its lines are grouped by. */
+/** What fills the box: its calculation, word for word as the field map holds
+ *  it — or NULL, for a calculated box whose calculation is not written yet. */
 function RuleCell({ box }: { box: BoxQuery }) {
   const t = copy.queryBuilder;
 
-  /* A box with is_calculated ticked is filled by its own calculation, so that
-     is the rule, word for word as the field map holds it. */
-  if (box.calculation) {
-    return (
-      <div>
-        <p className="text-[13px] leading-5 text-text-muted">{t.calculated}</p>
-        {/* Wrapped, not scrolled sideways: the rule column is narrow and is
-            read, not copied. */}
-        <CodeBlock
-          code={box.calculation}
-          className="mt-2 max-h-60 overflow-y-auto [&_table]:font-[ui-monospace,SFMono-Regular,Menlo,monospace] [&_td+td]:whitespace-pre-wrap [&_td+td]:[overflow-wrap:anywhere]"
-        />
-      </div>
-    );
-  }
-
-  if (box.measure === "list") {
-    return (
-      <div>
-        <p className="text-[13px] leading-5 text-text-muted">{t.measure.list}</p>
-        <ul className="mt-2 flex flex-wrap gap-1.5">
-          {box.groupBy.map((c) => (
-            <li
-              key={c}
-              className="rounded border border-border bg-surface-sunken px-1.5 py-0.5 text-[12px] leading-4 text-text"
-            >
-              {c}
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  }
-
-  if (box.lines.length === 0) {
-    return <p className="text-[13px] leading-5 text-attention-text">{t.noLines}</p>;
+  if (!box.calculation) {
+    return <p className="font-mono text-[13px] leading-5 text-text-faint">{t.nullRule}</p>;
   }
 
   return (
     <div>
-      <p className="text-[13px] leading-5 text-text-muted">{t.measure[box.measure]}</p>
-      <ul className="mt-2 space-y-1.5">
-        {box.lines.map((line) => (
-          <li key={lineText(line) + line.flow} className="flex items-start gap-2 text-[13px] leading-5">
-            <span className="mt-0.5 w-[62px] shrink-0 rounded border border-border bg-surface-sunken px-1.5 text-center text-[11px] leading-4 text-text-muted">
-              {line.flow === "sale" ? t.sale : t.purchase}
-            </span>
-            <span className="min-w-0 text-text">{lineText(line)}</span>
-          </li>
-        ))}
-      </ul>
+      <p className="text-[13px] leading-5 text-text-muted">{t.calculated}</p>
+      {/* Wrapped, not scrolled sideways: the rule column is narrow and is
+          read, not copied. */}
+      <CodeBlock
+        code={box.calculation}
+        className="mt-2 max-h-60 overflow-y-auto [&_table]:font-[ui-monospace,SFMono-Regular,Menlo,monospace] [&_td+td]:whitespace-pre-wrap [&_td+td]:[overflow-wrap:anywhere]"
+      />
     </div>
   );
 }

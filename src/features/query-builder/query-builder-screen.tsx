@@ -112,7 +112,7 @@ export function QueryBuilderScreen({
   const [saved, setSaved] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(q.boxes.map((b) => [b.id, "\u0000"])),
   );
-  const unsaved = q.boxes.some((b) => held(b.id) !== saved[b.id]);
+  const unsaved = q.boxes.some((b) => held(b.id) !== (saved[b.id] ?? "\u0000"));
 
   function snapshot() {
     setSaved(Object.fromEntries(q.boxes.map((b) => [b.id, held(b.id)])));
@@ -176,7 +176,9 @@ export function QueryBuilderScreen({
                 <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
                   <div>
                     <h2 className="text-[17px] font-medium tracking-tight text-heading">
-                      {fill(t.heading, { count: q.boxes.length })}
+                      {q.boxes.length === 1
+                        ? t.headingOne
+                        : fill(t.heading, { count: q.boxes.length })}
                     </h2>
                     <p className="mt-1.5 max-w-[62ch] text-[14px] leading-relaxed text-text-muted">
                       {t.intro}

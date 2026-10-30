@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { Globe2, CheckCircle2, FilePen, ScrollText, Settings, Wrench } from "lucide-react";
+import { Globe2, CheckCircle2, ScrollText, Settings, Wrench } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ApprovalsCount } from "./approvals-count";
 import { DeveloperAlertsCount } from "./developer-alerts-count";
 
 export const NAV = [
   { href: "/countries", label: "Countries", icon: Globe2 },
-  { href: "/drafts", label: "Drafts", icon: FilePen },
   { href: "/approvals", label: "Approvals", icon: CheckCircle2, count: ApprovalsCount },
   { href: "/developer-alerts", label: "Developer alerts", icon: Wrench, count: DeveloperAlertsCount },
   { href: "/audit-log", label: "Audit log", icon: ScrollText },
