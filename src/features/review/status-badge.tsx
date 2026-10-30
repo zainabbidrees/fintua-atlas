@@ -19,5 +19,6 @@ export function StepStatusBadge({ step }: { step: StepReview }) {
     );
   }
   if (step.status === "changes") return <Badge tone="attention">{t.status.changes}</Badge>;
+  if (step.status === "not_sent") return <Badge>{t.status.not_sent}</Badge>;
   return <Badge>{step.resubmitted ? t.resubmitted : t.status.waiting}</Badge>;
 }

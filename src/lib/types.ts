@@ -51,8 +51,11 @@ export interface Filing {
   frequency: string | null;
   /** Why this filing applies in this country. */
   whyItApplies: string;
-  /** The source this came from — the proof, shown with the answer. */
+  /** The source this came from — the proof, shown with the answer. The most
+      authoritative one, when several say the same. */
   foundOn: Source;
+  /** Further sources that also support it, most authoritative first. */
+  alsoFoundOn?: Source[];
   certainty: Certainty;
   /** Present when certainty is "needs_check": what the agent is unsure about. */
   uncertainty?: string;
@@ -182,6 +185,19 @@ export interface Finding {
   group: FindingGroup;
   /** The Returns-table column this finding fills. Absent reads as "other". */
   role?: FindingRole;
+  /**
+   * Which filing schedule a frequency or deadline belongs to, when a return
+   * type has more than one — e.g. a monthly and a quarterly regime, each with
+   * its own deadline. Findings sharing a schedule are read together, one table
+   * row each. Absent means the return type has a single schedule.
+   */
+  schedule?: string;
+  /* What the agent also reads off the sources for a schedule — the columns of
+     the return-deadline sheet beyond the frequency and deadline themselves. */
+  /** Deadline: where it moves when it falls on a non-working day. */
+  nonWorkingDay?: "next" | "previous" | "none";
+  /** Deadline: whether the days are counted as working days only. */
+  workdaysOnly?: boolean;
   /** e.g. "Filing frequency". */
   label: string;
   value: string;
@@ -200,6 +216,10 @@ export interface Finding {
 /** An obligation carried forward from scope, now being researched in detail. */
 export interface ObligationRun {
   id: string;
+  /** The return type a row belongs to, when a return type with several filing
+      schedules is split into one row per schedule. Absent: the id is the
+      return type's own. */
+  returnTypeId?: string;
   name: string;
   localName: string | null;
   /** Agents run per obligation and in parallel, so each has its own state. */

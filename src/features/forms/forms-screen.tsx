@@ -12,10 +12,11 @@ import { ContinueActions } from "@/components/patterns/continue-actions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DraftActions } from "@/components/patterns/draft-actions";
+import { useSaveDraft } from "@/features/drafts/use-save-draft";
 import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { PrintOnly, printAs } from "@/components/patterns/print-only";
 import { FormSheet } from "@/components/domain/form-sheet";
-import { StepNav, ViewOnlyBar, useStepView } from "@/features/steps/step-view";
+import { StepNav, ViewOnlyBar, useStepView, backHref, useCameBack } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import type { FormEdition, FormPage } from "@/lib/types";
 import { ExportMenu } from "./export-menu";
@@ -44,6 +45,7 @@ export function FormsScreen({
 }) {
   const t = copy.taxForms;
   const router = useRouter();
+  const saveDraft = useSaveDraft(countryCode, countryName, 2);
   const r = useForms(countryCode);
   /* In review, a reviewer reads this step locked; the expert can still edit
      it and send it for approval again. */
@@ -51,8 +53,12 @@ export function FormsScreen({
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(2);
   const readOnly = review.readOnly || viewFrom !== null;
-  /* The agent works for a few seconds on arrival before the results land. */
-  const agent = useAgentRun(copy.agentRuns.forms.trail.length);
+  const cameBack = useCameBack();
+  /* The agent works for a few seconds on first arrival; a step looked back
+     at, or one whose run already finished, opens on the result. */
+  const agent = useAgentRun(copy.agentRuns.forms.trail.length, {
+    skip: readOnly || cameBack,
+  });
   const code = countryCode.toLowerCase();
 
   /* One viewer for the whole step, opened on whichever page was clicked. */
@@ -104,7 +110,7 @@ export function FormsScreen({
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
-            href={`/countries/${code}/returns`}
+            href={backHref(countryCode, 1)}
             className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
@@ -115,7 +121,7 @@ export function FormsScreen({
             <h1 className="text-[22px] font-medium tracking-tight text-heading">
               {countryName}
             </h1>
-            <DraftActions onDiscard={() => router.push("/countries")} />
+            <DraftActions onDiscard={() => router.push("/countries")} onSave={saveDraft} />
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -193,7 +199,7 @@ export function FormsScreen({
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={`/countries/${code}/returns`}>
+            <Link href={backHref(countryCode, 1)}>
               <ArrowLeft />
               {copy.page.back}
             </Link>

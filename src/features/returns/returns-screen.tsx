@@ -3,11 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ReadOnly } from "@/components/patterns/read-only";
 import { ReviewBar } from "@/features/review/review-bar";
 import { useStepReview } from "@/features/review/use-step-review";
+import { SentStatus, useSendStep } from "@/features/review/use-send-step";
 import { AgentWorking, useAgentRun } from "@/components/patterns/agent-working";
 import { ContinueActions } from "@/components/patterns/continue-actions";
 import {
@@ -19,12 +20,14 @@ import {
 } from "@/components/patterns/list-controls";
 import { Button } from "@/components/ui/button";
 import { DraftActions } from "@/components/patterns/draft-actions";
-import { StepNav, ViewOnlyBar, useStepView } from "@/features/steps/step-view";
+import { useSaveDraft } from "@/features/drafts/use-save-draft";
+import { StepNav, ViewOnlyBar, useStepView, useCameBack } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import type { Evidence, ObligationRun } from "@/lib/types";
 import { ReturnsTable } from "./returns-table";
 import { PassageDrawer } from "./passage-drawer";
-import { useReturns } from "./use-returns";
+import { AddRowDialog, type ReturnTypeChoice } from "./add-row-dialog";
+import { returnTypeOf, useReturns } from "./use-returns";
 
 
 type View = keyof typeof copy.list.returnsChips;
@@ -37,20 +40,43 @@ export function ReturnsScreen({
   countryName: string;
 }) {
   const router = useRouter();
+  const saveDraft = useSaveDraft(countryCode, countryName, 1);
   const r = useReturns(countryCode);
   /* In review, a reviewer reads this step locked; the expert can still edit
      it and send it for approval again. */
   const review = useStepReview(countryCode, 1);
+  /* Moving on sends the step for approval; the expert carries on regardless. */
+  const sendStep = useSendStep(countryCode, countryName, 1);
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(1);
   const readOnly = review.readOnly || viewFrom !== null;
-  /* The agent works for a few seconds on arrival before the results land. */
-  const agent = useAgentRun(copy.agentRuns.returns.trail.length);
+  const cameBack = useCameBack();
+  /* The agent works for a few seconds on first arrival; a step looked back
+     at, or one whose run already finished, opens on the result. */
+  const agent = useAgentRun(copy.agentRuns.returns.trail.length, {
+    skip: readOnly || cameBack,
+  });
   const cleared = r.obligations.filter(r.isSettled).length;
 
   /* One passage drawer for the whole table — a source click anywhere opens it on
      that document, scrolled to the exact wording. */
   const [passage, setPassage] = React.useState<Evidence | null>(null);
+
+  /* Adding a schedule the agent missed: to one of this country's return
+     types, each listed once with the frequencies it already has. */
+  const [adding, setAdding] = React.useState(false);
+  const returnTypes: ReturnTypeChoice[] = [];
+  for (const o of r.obligations) {
+    if (o.agent === "running") continue;
+    const id = returnTypeOf(o);
+    const frequency = o.findings.find((f) => f.role === "frequency")?.value;
+    const known = returnTypes.find((x) => x.id === id);
+    if (known) {
+      if (frequency) known.frequencies.push(frequency);
+    } else {
+      returnTypes.push({ id, name: o.name, frequencies: frequency ? [frequency] : [] });
+    }
+  }
 
   /* The filter: a view by status, and a term matched against the name. */
   const [view, setView] = React.useState<View>("all");
@@ -113,7 +139,7 @@ export function ReturnsScreen({
             <h1 className="text-[22px] font-medium tracking-tight text-heading">
               {countryName}
             </h1>
-            <DraftActions onDiscard={() => router.push("/countries")} />
+            <DraftActions onDiscard={() => router.push("/countries")} onSave={saveDraft} />
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -140,7 +166,7 @@ export function ReturnsScreen({
               <h2 className="text-[17px] font-medium tracking-tight text-heading">
                 {fill(copy.filings.heading, {
                   country: countryName,
-                  count: r.obligations.length,
+                  count: new Set(r.obligations.map(returnTypeOf)).size,
                 })}
               </h2>
               {/* The same cluster as step one's: the count, with Select all
@@ -200,6 +226,31 @@ export function ReturnsScreen({
                     label: copy.list.returnsChips[id],
                     count: r.obligations.filter((o) => inView(o, id)).length,
                   }))}
+                  actions={
+                    !readOnly && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => setAdding(true)}
+                        className="h-9 shrink-0 active:scale-[0.98]"
+                      >
+                        <Plus />
+                        {copy.returnsTable.addRow}
+                      </Button>
+                    )
+                  }
+                />
+                <AddRowDialog
+                  open={adding}
+                  onOpenChange={setAdding}
+                  types={returnTypes}
+                  onAdd={(row) => {
+                    r.addRow(row);
+                    /* Clear the filter so the new row is in view. */
+                    setTerm("");
+                    setView("all");
+                    const name = returnTypes.find((x) => x.id === row.returnTypeId)?.name ?? "";
+                    toast(fill(copy.returnsTable.addedToast, { name, frequency: row.frequency }));
+                  }}
                 />
                 {filtered.length === 0 ? (
                   <NoMatch
@@ -222,9 +273,6 @@ export function ReturnsScreen({
                   className="mt-4"
                   page={paged.page}
                   pages={paged.pages}
-                  start={paged.start}
-                  shown={paged.items.length}
-                  total={paged.total}
                   onPageChange={paged.setPage}
                 />
               </>
@@ -258,10 +306,14 @@ export function ReturnsScreen({
                 })}
               </span>
             )}
+            <SentStatus send={sendStep} />
             <ContinueActions
               onSave={() => toast(copy.page.savedToast)}
               continueDisabled={agent.running || !r.allSettled}
-              onContinue={() => router.push(`/countries/${countryCode.toLowerCase()}/forms`)}
+              continueLabel={sendStep.label}
+              onContinue={() =>
+                sendStep.send(() => router.push(`/countries/${countryCode.toLowerCase()}/forms`))
+              }
             />
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Copy, Pencil, Trash2 } from "lucide-react";
+import { Check, Copy, Pencil, Trash2, X } from "lucide-react";
 import { useReadOnly } from "@/components/patterns/read-only";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
@@ -29,8 +29,9 @@ const CELL = "h-12 border-b border-border px-6 align-middle";
 /* A row action: the pen, duplicate and delete share one square. */
 const ACTION = "inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-colors";
 
-/* The row's actions lead every row, at the width of their content. */
-const LEADING = 1;
+/* The first column sits on the card's 16px inset, level with the line of
+   text above the table. */
+const FIRST = "pl-4";
 
 /**
  * One generated sheet, as the workbook holds it: a row number and its pen,
@@ -56,8 +57,15 @@ export function RuleSheet({
   onDuplicate,
   onDelete,
   onCellChange,
+  addedColumn,
+  onDeleteColumn,
 }: {
   columns: readonly string[];
+  /** For a column the expert added, what it holds — shown under its name;
+      undefined for the sheet's own columns. */
+  addedColumn?: (name: string) => { typeLabel?: string } | undefined;
+  /** Takes out a column the expert added; absent once it can no longer go. */
+  onDeleteColumn?: (name: string) => void;
   /** The rows to show, each with its index in the full sheet — what the
       number, and every edit, refer to. */
   entries: { row: string[]; index: number }[];
@@ -75,10 +83,13 @@ export function RuleSheet({
   const t = copy.taxRules;
   /* A reviewer reads every rule; the row actions are the expert's. */
   const readOnly = useReadOnly();
+  /* The row's actions lead every row, at the width of their content. Read
+     only, there are none, so the column is left out rather than kept empty. */
+  const leading = readOnly ? 0 : 1;
   const headRef = React.useRef<HTMLTableRowElement>(null);
   /* Left offsets of the leading columns and each pinned sheet column. */
   const [left, setLeft] = React.useState<number[]>([]);
-  const lastPinned = LEADING + pinned - 1;
+  const lastPinned = leading + pinned - 1;
 
   React.useLayoutEffect(() => {
     const cells = headRef.current?.children;
@@ -96,7 +107,8 @@ export function RuleSheet({
     );
   }, [columns, entries, lastPinned]);
 
-  /* `i` counts the actions as 0, the sheet's first column as 1.
+  /* `i` counts the actions as 0 and the sheet's first column as 1 — or, read
+     only, the first column as 0.
      Pinned cells carry their row's background, so an open row stays tinted. */
   const pin = (i: number, background = "bg-surface") =>
     i <= lastPinned
@@ -117,19 +129,48 @@ export function RuleSheet({
           <tr ref={headRef}>
             {/* `w-px` keeps the actions at their content's width when the
                 table stretches to fill the card. */}
-            <th style={pin(0).style} className={cn(HEAD, "w-px pl-4 pr-1", pin(0).className)}>
-              <span className="sr-only">{t.editColumn}</span>
-            </th>
+            {leading > 0 && (
+              <th style={pin(0).style} className={cn(HEAD, "w-px pl-4 pr-1", pin(0).className)}>
+                <span className="sr-only">{t.editColumn}</span>
+              </th>
+            )}
             {columns.map((col, i) => (
               <th
                 key={col + i}
-                style={pin(i + LEADING).style}
-                className={cn(HEAD, pin(i + LEADING).className)}
+                style={pin(i + leading).style}
+                className={cn(HEAD, i === 0 && leading === 0 && FIRST, pin(i + leading).className)}
               >
                 <span className="block text-[11px] leading-4 text-text-faint" data-numeric>
                   {columnLetter(i)}
                 </span>
-                <span className="block text-[12px] leading-4 text-text-muted">{col}</span>
+                {(() => {
+                  const added = addedColumn?.(col);
+                  return (
+                    <span className="flex items-end gap-1.5">
+                      <span>
+                        <span className="block text-[12px] leading-4 text-text-muted">{col}</span>
+                        {added?.typeLabel && (
+                          <span className="block text-[11px] leading-4 text-text-faint">
+                            {added.typeLabel}
+                          </span>
+                        )}
+                      </span>
+                      {/* Only a column the expert added can be taken out, and
+                          only until the country is published. */}
+                      {added && onDeleteColumn && !readOnly && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteColumn(col)}
+                          aria-label={fill(t.deleteColumn, { name: col })}
+                          title={fill(t.deleteColumn, { name: col })}
+                          className="-mb-0.5 grid size-5 place-items-center rounded text-text-faint transition-colors hover:bg-risk-quiet hover:text-risk"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      )}
+                    </span>
+                  );
+                })()}
               </th>
             ))}
           </tr>
@@ -142,62 +183,64 @@ export function RuleSheet({
             const label = fill(editing ? t.doneEditing : t.editRow, { name });
             return (
               <tr key={r} className={background}>
-                <td
-                  style={pin(0, background).style}
-                  className={cn(CELL, "w-px pl-4 pr-1", pin(0, background).className)}
-                >
-                  {/* Edit, Duplicate, Delete — as on the spec sheets. While the
-                      row is open they give way to its one tick, so the only
-                      thing to do there is finish. Delete takes the risk colour
-                      on hover only: at rest the three are equal and quiet. The
-                      tick holds the same width, so the columns never shift. */}
-                  <span className={cn("relative flex w-[104px] items-center gap-0.5", readOnly && "invisible")}>
-                    <button
-                      type="button"
-                      onClick={() => onToggleEditing(r)}
-                      aria-pressed={editing}
-                      aria-label={label}
-                      title={label}
-                      className={cn(
-                        ACTION,
-                        editing
-                          ? "bg-brand text-on-brand hover:bg-brand-hover"
-                          : "text-text-faint hover:bg-wash hover:text-text",
+                {leading > 0 && (
+                  <td
+                    style={pin(0, background).style}
+                    className={cn(CELL, "w-px pl-4 pr-1", pin(0, background).className)}
+                  >
+                    {/* Edit, Duplicate, Delete — as on the spec sheets. While the
+                        row is open they give way to its one tick, so the only
+                        thing to do there is finish. Delete takes the risk colour
+                        on hover only: at rest the three are equal and quiet. The
+                        tick holds the same width, so the columns never shift. */}
+                    <span className="relative flex w-[104px] items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => onToggleEditing(r)}
+                        aria-pressed={editing}
+                        aria-label={label}
+                        title={label}
+                        className={cn(
+                          ACTION,
+                          editing
+                            ? "bg-brand text-on-brand hover:bg-brand-hover"
+                            : "text-text-faint hover:bg-wash hover:text-text",
+                        )}
+                      >
+                        {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
+                      </button>
+                      {!editing && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onDuplicate(r)}
+                            aria-label={fill(t.duplicateRow, { name })}
+                            title={fill(t.duplicateRow, { name })}
+                            className={cn(ACTION, "text-text-faint hover:bg-wash hover:text-text")}
+                          >
+                            <Copy className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDelete(r)}
+                            aria-label={fill(t.deleteRow, { name })}
+                            title={fill(t.deleteRow, { name })}
+                            className={cn(ACTION, "text-text-faint hover:bg-risk-quiet hover:text-risk")}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </>
                       )}
-                    >
-                      {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
-                    </button>
-                    {!editing && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onDuplicate(r)}
-                          aria-label={fill(t.duplicateRow, { name })}
-                          title={fill(t.duplicateRow, { name })}
-                          className={cn(ACTION, "text-text-faint hover:bg-wash hover:text-text")}
-                        >
-                          <Copy className="size-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(r)}
-                          aria-label={fill(t.deleteRow, { name })}
-                          title={fill(t.deleteRow, { name })}
-                          className={cn(ACTION, "text-text-faint hover:bg-risk-quiet hover:text-risk")}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </>
-                    )}
-                    {/* An unsaved change, marked on the row it lives in. */}
-                    {isChanged(r) && !editing && (
-                      <span
-                        aria-label={t.unsavedRow}
-                        className="absolute left-[26px] top-0.5 size-1.5 rounded-full bg-brand"
-                      />
-                    )}
-                  </span>
-                </td>
+                      {/* An unsaved change, marked on the row it lives in. */}
+                      {isChanged(r) && !editing && (
+                        <span
+                          aria-label={t.unsavedRow}
+                          className="absolute left-[26px] top-0.5 size-1.5 rounded-full bg-brand"
+                        />
+                      )}
+                    </span>
+                  </td>
+                )}
                 {columns.map((col, i) => {
                   const raw = row[i] ?? "";
                   const value = raw.replace(/\s*\n\s*/g, " ");
@@ -205,11 +248,12 @@ export function RuleSheet({
                   return (
                     <td
                       key={col + i}
-                      style={pin(i + LEADING, background).style}
+                      style={pin(i + leading, background).style}
                       className={cn(
                         CELL,
+                        i === 0 && leading === 0 && FIRST,
                         value ? "text-text" : "text-text-faint",
-                        pin(i + LEADING, background).className,
+                        pin(i + leading, background).className,
                       )}
                       data-numeric={numeric}
                     >

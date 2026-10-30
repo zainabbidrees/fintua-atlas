@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { ArrowRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Stepper } from "@/components/patterns/stepper";
-import { ONBOARDING_STEPS as STEPS } from "@/components/domain/onboarding-steps";
+import { ONBOARDING_STEPS as STEPS, onboardingSteps } from "@/components/domain/onboarding-steps";
+import { useHasQueryStep } from "@/lib/query-step";
 import { copy, fill } from "@/lib/copy";
 
 /** Where each step lives, so a check or a decision can be opened in place. */
@@ -20,6 +21,20 @@ export function stepHref(countryCode: string, index: number): string {
     `/countries/${code}/build`,
     `/countries/${code}/approval`,
   ][index];
+}
+
+/**
+ * The step before, reached by a Back link. `?back=1` tells it the agent has
+ * already done its work there, so it opens on the result instead of
+ * replaying the run.
+ */
+export function backHref(countryCode: string, index: number): string {
+  return `${stepHref(countryCode, index)}?back=1`;
+}
+
+/** Whether this step was reached by a Back link from the step after it. */
+export function useCameBack(): boolean {
+  return useSearchParams().get("back") === "1";
 }
 
 /**
@@ -51,9 +66,10 @@ export function useStepView(index: number): number | null {
 export function StepNav({ countryCode, index }: { countryCode: string; index: number }) {
   const from = useStepView(index);
   const reached = from ?? index;
+  const steps = onboardingSteps(useHasQueryStep(countryCode));
   return (
     <Stepper
-      steps={STEPS}
+      steps={steps}
       currentIndex={index}
       completedCount={reached}
       reachedIndex={reached}

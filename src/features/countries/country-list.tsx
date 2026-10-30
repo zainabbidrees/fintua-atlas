@@ -86,8 +86,6 @@ export function CountryList() {
   const current = Math.min(page, totalPages);
   const start = (current - 1) * PAGE_SIZE;
   const pageRows = rows.slice(start, start + PAGE_SIZE);
-  const firstShown = rows.length === 0 ? 0 : start + 1;
-  const lastShown = Math.min(start + PAGE_SIZE, rows.length);
 
   function reset() {
     setFilter("all");
@@ -287,23 +285,11 @@ export function CountryList() {
           </ul>
 
           {/* A footer the table can end on, rather than trailing off into blank
-              space: it states what you're looking at and pages the rest. */}
+              space: it pages the rest. */}
           <nav
             aria-label="Pagination"
-            className="mt-4 flex flex-col items-start gap-3 border-t border-border pt-4 text-[13px] sm:flex-row sm:items-center sm:justify-between"
+            className="mt-4 flex items-center justify-end border-t border-border pt-4 text-[13px]"
           >
-            <p className="text-text-muted">
-              Showing{" "}
-              <span className="font-medium tabular-nums text-text">
-                {firstShown}&ndash;{lastShown}
-              </span>{" "}
-              of{" "}
-              <span className="font-medium tabular-nums text-text">
-                {rows.length}
-              </span>{" "}
-              jurisdictions
-            </p>
-
             <div className="flex items-center gap-1">
               <button
                 type="button"

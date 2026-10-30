@@ -1,20 +1,23 @@
 "use client";
 
 import * as React from "react";
+import { hasQueryStep } from "./query-step";
 import type { Person, Role } from "./session";
 
 /**
  * Submissions for approval, one per country, kept in localStorage like the
  * published list (src/lib/published.ts) until there is a service to hold them.
  *
- * Every one of the six steps is reviewed on its own: approved, sent back with
- * changes requested, or waiting. A step the expert edits and sends again goes
- * back to waiting, marked as resubmitted, so the reviewer knows to look again.
- * Each step keeps its own thread of comments and decisions — the record the
- * audit trail is made of.
+ * Only some steps need a reviewer's approval (approvalSteps). The expert
+ * sends each one from the step itself and carries straight on to the next —
+ * nothing waits on the reviewer. The reviewer approves them in order: a step
+ * opens for a decision only once every approval step before it is approved.
+ * A step sent back and sent again goes to waiting, marked as resubmitted, so
+ * the reviewer knows to look again. Each step keeps its own thread of comments
+ * and decisions — the record the audit trail is made of.
  */
 
-export type StepStatus = "waiting" | "approved" | "changes";
+export type StepStatus = "not_sent" | "waiting" | "approved" | "changes";
 
 export interface ReviewEntry {
   id: string;
@@ -43,6 +46,14 @@ export interface Submission {
 }
 
 export const STEP_COUNT = 6;
+
+/** The steps a reviewer approves: Return Types, Form Annotations & Box
+    Mapping, Tax Rules Generation and — when the country has a calculated box —
+    Query Builder. Select Country and Tax Form Retrieval need no approval. */
+export const approvalSteps = (code: string): readonly number[] =>
+  hasQueryStep(code) ? [1, 3, 4, 5] : [1, 3, 4];
+
+export const needsApproval = (code: string, step: number) => approvalSteps(code).includes(step);
 
 const KEY = "fintua:reviews";
 const EVENT = "fintua:reviews-change";
@@ -93,17 +104,24 @@ function entry(person: Person, kind: ReviewEntry["kind"], text: string): ReviewE
   };
 }
 
-const freshStep = (): StepReview => ({ status: "waiting", resubmitted: false, entries: [] });
+const freshStep = (): StepReview => ({ status: "not_sent", resubmitted: false, entries: [] });
 
 /**
- * Sends every step for approval, from the last step. Sending again keeps each
- * step's thread and its approval; a step that was sent back goes to waiting,
- * marked as sent again, with that recorded in its thread.
+ * Sends one step for approval, from the step. The country's submission is
+ * started on its first step sent. Sending a step that was sent back marks it
+ * as sent again, in its thread too.
  */
-export function submitForReview(code: string, name: string, by: Person) {
+export function submitStep(code: string, name: string, step: number, by: Person) {
   const all = readAll();
   const key = code.toUpperCase();
   const before = all[key];
+  const steps = Array.from({ length: STEP_COUNT }, (_, i) => before?.steps[i] ?? freshStep());
+  const was = steps[step];
+  steps[step] = {
+    status: "waiting",
+    resubmitted: was.status === "changes",
+    entries: was.status === "changes" ? [...was.entries, entry(by, "resubmitted", "")] : was.entries,
+  };
   writeAll({
     ...all,
     [key]: {
@@ -111,19 +129,7 @@ export function submitForReview(code: string, name: string, by: Person) {
       name,
       submittedBy: by.name,
       submittedAt: new Date().toISOString(),
-      steps: Array.from({ length: STEP_COUNT }, (_, i): StepReview => {
-        const step = before?.steps[i];
-        if (!step) return freshStep();
-        if (step.status === "approved") return step;
-        if (step.status === "changes") {
-          return {
-            status: "waiting",
-            resubmitted: true,
-            entries: [...step.entries, entry(by, "resubmitted", "")],
-          };
-        }
-        return step;
-      }),
+      steps,
     },
   });
 }
@@ -185,11 +191,28 @@ export function useSubmission(code: string): Submission | null {
 }
 
 export const approvedCount = (s: Submission) =>
-  s.steps.filter((st) => st.status === "approved").length;
+  approvalSteps(s.code).filter((i) => s.steps[i]?.status === "approved").length;
+
+export const allApproved = (s: Submission) => approvedCount(s) === approvalSteps(s.code).length;
 
 /** Where a submission stands as a whole. */
 export function overallStatus(s: Submission): "approved" | "changes" | "waiting" {
-  if (s.steps.every((st) => st.status === "approved")) return "approved";
-  if (s.steps.some((st) => st.status === "changes")) return "changes";
+  if (allApproved(s)) return "approved";
+  if (approvalSteps(s.code).some((i) => s.steps[i]?.status === "changes")) return "changes";
   return "waiting";
+}
+
+/**
+ * Why a reviewer cannot decide on a step yet, or null when they can: it has
+ * not been sent, or an approval step before it is not approved — the reviewer
+ * works through them in order.
+ */
+export function blockedBy(
+  s: Submission,
+  step: number,
+): { reason: "not_sent" } | { reason: "earlier"; step: number } | null {
+  if (!needsApproval(s.code, step)) return null;
+  if ((s.steps[step]?.status ?? "not_sent") === "not_sent") return { reason: "not_sent" };
+  const earlier = approvalSteps(s.code).find((i) => i < step && s.steps[i]?.status !== "approved");
+  return earlier === undefined ? null : { reason: "earlier", step: earlier };
 }

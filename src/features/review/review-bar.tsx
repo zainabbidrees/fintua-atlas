@@ -3,13 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Eye, MessageSquare } from "lucide-react";
+import { ArrowLeft, Check, Eye, Lock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { copy, fill } from "@/lib/copy";
 import { markPublished } from "@/lib/published";
-import { addComment, decideStep, STEP_COUNT } from "@/lib/review";
+import { addComment, approvalSteps, blockedBy, decideStep, needsApproval } from "@/lib/review";
 import { CommentsDrawer } from "./comments-drawer";
 import { StepStatusBadge } from "./status-badge";
 import type { StepReviewState } from "./use-step-review";
@@ -22,9 +22,11 @@ export const reviewHref = (countryCode: string) =>
  * Continue: the way back to the approval screen, the step's status, its
  * comments, and the decision — approve, or ask for changes, which needs a
  * reason since the expert has to know what to change. (The tax expert keeps
- * the step's normal footer, and sends for approval again from the last step.)
+ * the step's normal footer and sends the step from there.)
  *
- * Approving the last of the six steps publishes the country.
+ * The decision waits until the step is sent and every approval step before
+ * it is approved; a step that needs no approval is only read. Approving the
+ * last approval step publishes the country.
  */
 export function ReviewBar({
   countryCode,
@@ -44,14 +46,19 @@ export function ReviewBar({
 
   const stepName = copy.page.stepsLabel[stepIndex];
   const comments = step.entries.length;
+  /* A step without approval is only read; one with approval opens for a
+     decision once it is sent and every approval step before it is approved. */
+  const approvable = needsApproval(countryCode, stepIndex);
+  const blocked = blockedBy(submission, stepIndex);
 
   function approve() {
     if (!submission || !step) return;
     decideStep(countryCode, stepIndex, person, "approved", "");
-    const othersApproved = submission.steps.filter(
-      (s, i) => i !== stepIndex && s.status === "approved",
+    const steps = approvalSteps(countryCode);
+    const othersApproved = steps.filter(
+      (i) => i !== stepIndex && submission.steps[i]?.status === "approved",
     ).length;
-    if (othersApproved === STEP_COUNT - 1) markPublished(countryCode, submission.name);
+    if (othersApproved === steps.length - 1) markPublished(countryCode, submission.name);
     toast(fill(t.approvedToast, { step: stepName }));
     router.push(reviewHref(countryCode));
   }
@@ -78,23 +85,39 @@ export function ReviewBar({
               <Eye className="size-4" />
               {t.readOnly}
             </span>
-            <StepStatusBadge step={step} />
-            <Button variant="secondary" onClick={() => setCommentsOpen(true)}>
-              <MessageSquare />
-              {t.comments}
-              {comments > 0 && (
-                <span className="text-text-faint" data-numeric>
-                  {comments}
-                </span>
-              )}
-            </Button>
-            <Button variant="secondary" onClick={() => setAsking(true)}>
-              {t.requestChanges}
-            </Button>
-            <Button variant="primary" disabled={step.status === "approved"} onClick={approve}>
-              <Check />
-              {step.status === "approved" ? t.status.approved : t.approve}
-            </Button>
+            {approvable && <StepStatusBadge step={step} />}
+            {approvable && (
+              <Button variant="secondary" onClick={() => setCommentsOpen(true)}>
+                <MessageSquare />
+                {t.comments}
+                {comments > 0 && (
+                  <span className="text-text-faint" data-numeric>
+                    {comments}
+                  </span>
+                )}
+              </Button>
+            )}
+            {!approvable ? (
+              <span className="text-[13px] text-text-muted">{t.noApprovalNeeded}</span>
+            ) : blocked ? (
+              /* In order: the next step opens once the one before is approved. */
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-text-muted">
+                <Lock className="size-3.5" />
+                {blocked.reason === "not_sent"
+                  ? t.notSentYet
+                  : fill(t.approveEarlierFirst, { step: copy.page.stepsLabel[blocked.step] })}
+              </span>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => setAsking(true)}>
+                  {t.requestChanges}
+                </Button>
+                <Button variant="primary" disabled={step.status === "approved"} onClick={approve}>
+                  <Check />
+                  {step.status === "approved" ? t.status.approved : t.approve}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

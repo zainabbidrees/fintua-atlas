@@ -27,6 +27,7 @@ import { cn } from "@/lib/cn";
 import { ArtifactRow } from "./artifact-row";
 import { DryRunOutput } from "./dry-run-output";
 import { ValidationPanel } from "./validation-panel";
+import { backHref } from "@/features/steps/step-view";
 
 const STEPS = ONBOARDING_STEPS;
 const GROUPS: ArtifactGroup[] = ["schema", "boxes", "calculations"];
@@ -153,7 +154,7 @@ export function BuildScreen({
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
-            href={`/countries/${countryCode}/rules`}
+            href={backHref(countryCode, 3)}
             className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
@@ -339,7 +340,7 @@ export function BuildScreen({
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={`/countries/${countryCode}/rules`}>
+            <Link href={backHref(countryCode, 3)}>
               <ArrowLeft />
               {copy.page.back}
             </Link>

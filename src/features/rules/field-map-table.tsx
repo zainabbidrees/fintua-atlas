@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Check, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Columns3, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { AddColumnDialog } from "@/components/patterns/add-column-dialog";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,7 +21,6 @@ import { copy, fill } from "@/lib/copy";
 import { FLAG_COLUMNS } from "@/lib/mock/return-boxes";
 import {
   PAGE_COLUMN,
-  SHEETS,
   rowKey,
   type Row,
   type Sheet,
@@ -96,6 +96,19 @@ const FLAG_INSET = "pl-[7px]";
 const GRID = 8;
 const MIN_WIDTH = 64;
 
+/* Columns that name a field-map box, and which boxes each may name: a list
+   box's columns belong to a box ticked is_list, a mandatory field is any box,
+   a dropdown value belongs to a box whose field_type is drop-down. Read from
+   the draft, so a box just added or switched over is offered straight away. */
+const BOX_PICKERS: Partial<Record<Sheet["id"], { col: string; offers: (box: Row) => boolean }>> = {
+  lists: { col: "box_name", offers: (box) => box.is_list === "TRUE" },
+  mandatory: { col: "field_name", offers: () => true },
+  dropdowns: {
+    col: "field_name",
+    offers: (box) => (box.field_type ?? "").toLowerCase() === "drop-down",
+  },
+};
+
 function columnWidth(col: string): number {
   const fromHeader = Math.ceil(col.length * 6.4) + 26;
   const raw = Math.max(MIN_WIDTH, fromHeader, CONTENT_WIDTH[col] ?? 0);
@@ -134,10 +147,12 @@ function pinned(
   columns: Column[],
   index: number,
   background = "bg-surface",
+  /* The actions column's width: none when read only, where it is left out. */
+  editW = EDIT_W,
 ): { className?: string; style?: React.CSSProperties } {
   if (index >= PINNED) return {};
   const left =
-    EDIT_W + columns.slice(0, index).reduce((sum, c) => sum + columnWidth(c.col), 0);
+    editW + columns.slice(0, index).reduce((sum, c) => sum + columnWidth(c.col), 0);
   return {
     className: cn(
       "sticky z-[1]",
@@ -187,7 +202,10 @@ export function FieldMapTable({
   revealValues?: number;
 }) {
   const t = copy.fieldMap;
-  const [tab, setTab] = React.useState<Sheet["id"]>("boxes");
+  const [chosen, setTab] = React.useState<Sheet["id"]>("boxes");
+  /* A tab that has gone — its sheets hide once no box is calculated — falls
+     back to the field map. */
+  const tab = s.sheets.some((sheet) => sheet.id === chosen) ? chosen : "boxes";
 
   /* The row waiting on a reason before it is deleted. */
   const [deleting, setDeleting] = React.useState<RowRef | null>(null);
@@ -235,7 +253,7 @@ export function FieldMapTable({
           idBase="spec-sheet"
           value={tab}
           onValueChange={(id) => setTab(id as Sheet["id"])}
-          tabs={SHEETS.map((sheet) => ({
+          tabs={s.sheets.map((sheet) => ({
             id: sheet.id,
             label: t.tabs[sheet.id],
             count: s.rows[sheet.id].length,
@@ -243,7 +261,7 @@ export function FieldMapTable({
         />
       </div>
 
-      {SHEETS.map((sheet) => (
+      {s.sheets.map((sheet) => (
         <TabPanel
           key={sheet.id}
           id={sheet.id}
@@ -255,7 +273,7 @@ export function FieldMapTable({
             s={s}
             reveal={sheet.id === "boxes" ? reveal : sheet.id === "dropdowns" ? revealValues : 0}
             onAdd={sheet.id === "boxes" ? onAddBox : sheet.id === "dropdowns" ? onAddValue : undefined}
-            addLabel={sheet.id === "dropdowns" ? copy.fieldMap.addValue : copy.fieldMap.addBox}
+            addLabel={sheet.id === "boxes" ? copy.fieldMap.addBox : copy.fieldMap.addRow}
             onAction={act}
           />
         </TabPanel>
@@ -299,6 +317,13 @@ function SheetTable({
 }) {
   const [term, setTerm] = React.useState("");
   const readOnly = useReadOnly();
+  /* Every sheet but the field map takes new columns; the field map's columns
+     are the source schema. */
+  const growable = sheet.id !== "boxes";
+  const [addingColumn, setAddingColumn] = React.useState(false);
+  /* Bumped when a row or column is added here, to bring it into view. */
+  const [added, setAdded] = React.useState(0);
+  const [shownAdded, setShownAdded] = React.useState(0);
   const entries = s.rows[sheet.id]
     .map((row, index) => ({ row, index }))
     .filter(({ row }) => matches(term, Object.values(row)));
@@ -307,10 +332,27 @@ function SheetTable({
   /* After an add: drop the filter and go to the last page, where the new row
      is. The page is clamped, so asking for one past the end lands there. */
   const [revealed, setRevealed] = React.useState(reveal);
-  if (reveal !== revealed) {
+  if (reveal !== revealed || added !== shownAdded) {
     setRevealed(reveal);
+    setShownAdded(added);
     setTerm("");
     paged.setPage(Number.MAX_SAFE_INTEGER);
+  }
+
+  /* A blank row at the end, open, so it can be filled straight away. The
+     dropdown sheet adds through its own form instead (`onAdd`), which asks
+     for the drop-down box first. */
+  function addBlankRow() {
+    const id = s.addRow(sheet.id, {});
+    s.toggleEditing(rowKey(sheet.id, { id }, 0));
+    setAdded((n) => n + 1);
+    toast(fill(copy.fieldMap.rowAdded, { sheet: copy.fieldMap.tabs[sheet.id] }));
+  }
+
+  function addColumn(column: { name: string; value: string }) {
+    const letter = columnLetter(sheet.columns.length);
+    s.addColumn(sheet.id, column.name, column.value);
+    toast(fill(copy.fieldMap.columnAdded, { name: column.name, letter }));
   }
 
   return (
@@ -329,18 +371,41 @@ function SheetTable({
         }}
         placeholder={copy.list.filterRows}
         actions={
-          onAdd && !readOnly && (
-            <Button
-              variant="secondary"
-              onClick={onAdd}
-              className="h-9 shrink-0 active:scale-[0.98]"
-            >
-              <Plus />
-              {addLabel}
-            </Button>
+          !readOnly &&
+          (onAdd || growable) && (
+            <div className="flex shrink-0 gap-2">
+              {growable && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setAddingColumn(true)}
+                  className="h-9 active:scale-[0.98]"
+                >
+                  <Columns3 />
+                  {copy.fieldMap.addColumn}
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={onAdd ?? addBlankRow}
+                className="h-9 active:scale-[0.98]"
+              >
+                <Plus />
+                {addLabel}
+              </Button>
+            </div>
           )
         }
       />
+      {growable && (
+        <AddColumnDialog
+          open={addingColumn}
+          sheetName={copy.fieldMap.tabs[sheet.id]}
+          columns={sheet.columns}
+          letter={columnLetter(sheet.columns.length)}
+          onOpenChange={setAddingColumn}
+          onAdd={addColumn}
+        />
+      )}
       {entries.length === 0 ? (
         <NoMatch query={term} onClear={() => setTerm("")} />
       ) : (
@@ -350,9 +415,6 @@ function SheetTable({
         className="border-t border-border px-4 py-3"
         page={paged.page}
         pages={paged.pages}
-        start={paged.start}
-        shown={paged.items.length}
-        total={paged.total}
         onPageChange={paged.setPage}
       />
     </>
@@ -371,7 +433,16 @@ function SheetGrid({
   onAction: (action: RowAction, ref: RowRef) => void;
 }) {
   const columns = visibleColumns(sheet);
-  const tableWidth = EDIT_W + columns.reduce((sum, c) => sum + columnWidth(c.col), 0);
+  /* Read only, the row actions are not there, so neither is their column:
+     an empty one read as buttons gone missing. The first column then takes
+     the card's inset. */
+  const readOnly = useReadOnly();
+  const editW = readOnly ? 0 : EDIT_W;
+  const tableWidth = editW + columns.reduce((sum, c) => sum + columnWidth(c.col), 0);
+  const picker = BOX_PICKERS[sheet.id];
+  const boxNames = picker
+    ? [...new Set(s.rows.boxes.filter(picker.offers).map((b) => b.box_name ?? "").filter(Boolean))]
+    : [];
 
   return (
     /* Scrolls sideways only — the page scrolls down, so there is never a
@@ -383,24 +454,26 @@ function SheetGrid({
         style={{ width: tableWidth }}
       >
         <colgroup>
-          <col style={{ width: EDIT_W }} />
+          {!readOnly && <col style={{ width: EDIT_W }} />}
           {columns.map(({ col }) => (
             <col key={col} style={{ width: columnWidth(col) }} />
           ))}
         </colgroup>
         <thead className="bg-surface">
           <tr className="text-left">
-            <th className="sticky left-0 z-[1] border-b border-border bg-surface">
-              <span className="sr-only">{copy.fieldMap.actionsColumn}</span>
-            </th>
+            {!readOnly && (
+              <th className="sticky left-0 z-[1] border-b border-border bg-surface">
+                <span className="sr-only">{copy.fieldMap.actionsColumn}</span>
+              </th>
+            )}
             {columns.map(({ col, sheetIndex }, i) => (
               <th
                 key={col}
-                style={pinned(columns, i).style}
+                style={pinned(columns, i, undefined, editW).style}
                 className={cn(
                   "border-b border-border pb-2.5 pt-3 align-bottom font-medium",
                   HEAD_PAD,
-                  pinned(columns, i).className,
+                  pinned(columns, i, undefined, editW).className,
                 )}
               >
                 <span className="block text-[11px] leading-4 text-text-faint" data-numeric>
@@ -424,6 +497,7 @@ function SheetGrid({
                 key={key}
                 row={row}
                 columns={columns}
+                picker={picker && { col: picker.col, options: boxNames }}
                 name={name}
                 editing={s.editing.has(key)}
                 changed={s.changed.has(key)}
@@ -443,6 +517,7 @@ function SheetGrid({
 function SheetRow({
   row,
   columns,
+  picker,
   name,
   editing,
   changed,
@@ -453,6 +528,8 @@ function SheetRow({
 }: {
   row: Row;
   columns: Column[];
+  /** The column chosen from the field map's boxes, and the boxes it offers. */
+  picker?: { col: string; options: string[] };
   name: string;
   editing: boolean;
   changed: boolean;
@@ -474,68 +551,72 @@ function SheetRow({
           While the row is open they give way to its one tick, so the only
           thing to do there is finish. Delete is the risk colour on hover only:
           at rest the three are equal and quiet. */}
-      <td className={cn("sticky left-0 z-[1] border-b border-border py-1.5 pl-2", background)}>
-        <span className={cn("relative flex items-center gap-0.5", readOnly && "invisible")}>
-          <button
-            type="button"
-            onClick={onToggleEditing}
-            aria-pressed={editing}
-            aria-label={fill(editing ? t.doneEditing : t.editRow, { name })}
-            title={fill(editing ? t.doneEditing : t.editRow, { name })}
-            className={cn(
-              ACTION,
-              editing
-                ? "bg-brand text-on-brand hover:bg-brand-hover"
-                : "text-text-faint hover:bg-wash hover:text-text",
+      {!readOnly && (
+        <td className={cn("sticky left-0 z-[1] border-b border-border py-1.5 pl-2", background)}>
+          <span className="relative flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={onToggleEditing}
+              aria-pressed={editing}
+              aria-label={fill(editing ? t.doneEditing : t.editRow, { name })}
+              title={fill(editing ? t.doneEditing : t.editRow, { name })}
+              className={cn(
+                ACTION,
+                editing
+                  ? "bg-brand text-on-brand hover:bg-brand-hover"
+                  : "text-text-faint hover:bg-wash hover:text-text",
+              )}
+            >
+              {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
+            </button>
+            {!editing && (
+              <>
+                <button
+                  type="button"
+                  onClick={onDuplicate}
+                  aria-label={fill(t.duplicateRow, { name })}
+                  title={fill(t.duplicateRow, { name })}
+                  className={cn(ACTION, "text-text-faint hover:bg-wash hover:text-text")}
+                >
+                  <Copy className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  aria-label={fill(t.deleteRow, { name })}
+                  title={fill(t.deleteRow, { name })}
+                  className={cn(ACTION, "text-text-faint hover:bg-risk-quiet hover:text-risk")}
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </>
             )}
-          >
-            {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
-          </button>
-          {!editing && (
-            <>
-              <button
-                type="button"
-                onClick={onDuplicate}
-                aria-label={fill(t.duplicateRow, { name })}
-                title={fill(t.duplicateRow, { name })}
-                className={cn(ACTION, "text-text-faint hover:bg-wash hover:text-text")}
-              >
-                <Copy className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                aria-label={fill(t.deleteRow, { name })}
-                title={fill(t.deleteRow, { name })}
-                className={cn(ACTION, "text-text-faint hover:bg-risk-quiet hover:text-risk")}
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </>
-          )}
-          {/* An unsaved change, marked on the row it lives in. */}
-          {changed && !editing && (
-            <span
-              aria-label={t.unsavedRow}
-              className="absolute left-[26px] top-0.5 size-1.5 rounded-full bg-brand"
-            />
-          )}
-        </span>
-      </td>
+            {/* An unsaved change, marked on the row it lives in. */}
+            {changed && !editing && (
+              <span
+                aria-label={t.unsavedRow}
+                className="absolute left-[26px] top-0.5 size-1.5 rounded-full bg-brand"
+              />
+            )}
+          </span>
+        </td>
+      )}
       {columns.map(({ col }, i) => {
         const value = row[col] ?? "";
         const isFlag = FLAGS.has(col) && (value === "TRUE" || value === "FALSE");
         /* A box's calculation is written only while it is calculated: the
            field opens with is_calculated ticked, and unticking clears it. */
         const locked = col === "calculation" && row.is_calculated !== "TRUE";
+        /* Ticked but not yet written: the calculation is owed before moving on. */
+        const owed = col === "calculation" && row.is_calculated === "TRUE" && !value.trim();
         return (
           <td
             key={col}
-            style={pinned(columns, i, background).style}
+            style={pinned(columns, i, background, readOnly ? 0 : EDIT_W).style}
             className={cn(
               "border-b border-border py-1.5 align-middle",
               CELL_PAD,
-              pinned(columns, i, background).className,
+              pinned(columns, i, background, readOnly ? 0 : EDIT_W).className,
             )}
           >
             {isFlag ? (
@@ -552,6 +633,22 @@ function SheetRow({
                   className="disabled:cursor-default disabled:opacity-100"
                 />
               </div>
+            ) : owed && !editing && !readOnly ? (
+              <button
+                type="button"
+                onClick={onToggleEditing}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-attention-edge bg-attention-fill px-2.5 text-[13px] font-medium text-on-attention transition-colors hover:bg-attention-fill-hover"
+              >
+                <Plus className="size-3.5" />
+                {t.addCalculation}
+              </button>
+            ) : editing && picker?.col === col ? (
+              <CellSelect
+                value={value}
+                options={picker.options}
+                onChange={(v) => onCellChange(col, v)}
+                aria-label={`${col} ${name}`}
+              />
             ) : (
               <CellInput
                 /* The SQL holds line breaks; a single-line cell shows it on one
@@ -562,15 +659,73 @@ function SheetRow({
                 tabIndex={editing && !locked ? undefined : -1}
                 title={value || (editing && locked ? copy.fieldMap.calculationLocked : undefined)}
                 aria-label={`${col} ${name}`}
-                placeholder={editing && locked ? copy.fieldMap.calculationLocked : copy.fieldMap.empty}
+                placeholder={
+                  editing && locked
+                    ? copy.fieldMap.calculationLocked
+                    : editing && owed
+                      ? copy.fieldMap.calculationOwed
+                      : copy.fieldMap.empty
+                }
+                aria-invalid={editing && owed ? true : undefined}
+                autoFocus={editing && owed}
                 data-numeric={NUMERIC.has(col) ? "" : undefined}
-                className={cn(CODE.has(col) && "font-mono text-[12px]")}
+                className={cn(
+                  CODE.has(col) && "font-mono text-[12px]",
+                  editing && owed && "border-attention-edge",
+                )}
               />
             )}
           </td>
         );
       })}
     </tr>
+  );
+}
+
+/**
+ * A cell chosen from a closed list, shown only while its row is open. A value
+ * the list no longer offers — its box unticked or renamed in the field map — is
+ * kept and marked, so opening a row never silently changes it.
+ */
+function CellSelect({
+  value,
+  options,
+  onChange,
+  "aria-label": label,
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  "aria-label": string;
+}) {
+  const stale = value !== "" && !options.includes(value);
+  return (
+    <span className="relative block">
+      <select
+        value={value}
+        aria-label={label}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8 w-full appearance-none truncate rounded-md border border-brand-edge bg-surface pl-1.5 pr-6 text-[13px] text-text transition-colors focus:border-brand focus:outline-none"
+      >
+        {value === "" && (
+          <option value="" disabled>
+            {copy.fieldMap.chooseBox}
+          </option>
+        )}
+        {stale && (
+          <option value={value}>{fill(copy.fieldMap.notInFieldMap, { name: value })}</option>
+        )}
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        aria-hidden
+        className="pointer-events-none absolute right-1.5 top-1/2 size-3.5 -translate-y-1/2 text-text-faint"
+      />
+    </span>
   );
 }
 

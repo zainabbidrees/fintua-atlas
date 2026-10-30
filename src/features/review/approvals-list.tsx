@@ -8,7 +8,7 @@ import { copy, fill } from "@/lib/copy";
 import {
   approvedCount,
   overallStatus,
-  STEP_COUNT,
+  approvalSteps,
   useSubmissions,
   type Submission,
 } from "@/lib/review";
@@ -63,6 +63,7 @@ export function ApprovalsList() {
 function Row({ submission: s }: { submission: Submission }) {
   const t = copy.approvalFlow;
   const approved = approvedCount(s);
+  const total = approvalSteps(s.code).length;
   const status = overallStatus(s);
 
   return (
@@ -79,11 +80,11 @@ function Row({ submission: s }: { submission: Submission }) {
           <span className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-sunken">
             <span
               className="block h-full origin-left rounded-full bg-settled"
-              style={{ transform: `scaleX(${approved / STEP_COUNT})` }}
+              style={{ transform: `scaleX(${approved / total})` }}
             />
           </span>
           <span className="text-[13px] text-text" data-numeric>
-            {approved} / {STEP_COUNT}
+            {approved} / {total}
           </span>
         </span>
         <span className="col-start-1 md:col-start-auto">

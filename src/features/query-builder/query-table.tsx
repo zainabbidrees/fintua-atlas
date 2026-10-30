@@ -95,6 +95,7 @@ export function QueryTable({
                   q.save(box.id, sql);
                   setEditing(null);
                 }}
+                onDescribe={(note) => q.describe(box.id, note)}
               />
             ))}
           </tbody>
@@ -115,6 +116,7 @@ function QueryRow({
   onEdit,
   onCloseEdit,
   onSave,
+  onDescribe,
 }: {
   box: BoxQuery;
   query: QueryState;
@@ -126,6 +128,7 @@ function QueryRow({
   onEdit: () => void;
   onCloseEdit: () => void;
   onSave: (sql: string) => void;
+  onDescribe: (note: string) => void;
 }) {
   const t = copy.queryBuilder;
   const busy = query.status === "generating";
@@ -169,7 +172,12 @@ function QueryRow({
             onCancel={onCloseEdit}
           />
         ) : (
-          <SqlCell box={box.box} query={query} />
+          <SqlCell
+            box={box.box}
+            query={query}
+            calculated={Boolean(box.calculation)}
+            onDescribe={onDescribe}
+          />
         )}
       </td>
 
@@ -219,6 +227,22 @@ function lineText(line: RuleLine): string {
 function RuleCell({ box }: { box: BoxQuery }) {
   const t = copy.queryBuilder;
 
+  /* A box with is_calculated ticked is filled by its own calculation, so that
+     is the rule, word for word as the field map holds it. */
+  if (box.calculation) {
+    return (
+      <div>
+        <p className="text-[13px] leading-5 text-text-muted">{t.calculated}</p>
+        {/* Wrapped, not scrolled sideways: the rule column is narrow and is
+            read, not copied. */}
+        <CodeBlock
+          code={box.calculation}
+          className="mt-2 max-h-60 overflow-y-auto [&_table]:font-[ui-monospace,SFMono-Regular,Menlo,monospace] [&_td+td]:whitespace-pre-wrap [&_td+td]:[overflow-wrap:anywhere]"
+        />
+      </div>
+    );
+  }
+
   if (box.measure === "list") {
     return (
       <div>
@@ -258,8 +282,20 @@ function RuleCell({ box }: { box: BoxQuery }) {
   );
 }
 
-function SqlCell({ box, query }: { box: string; query: QueryState }) {
+function SqlCell({
+  box,
+  query,
+  calculated,
+  onDescribe,
+}: {
+  box: string;
+  query: QueryState;
+  /** The box's calculation in the field map is its query already. */
+  calculated: boolean;
+  onDescribe: (note: string) => void;
+}) {
   const t = copy.queryBuilder;
+  const readOnly = useReadOnly();
 
   if (query.status === "generating") {
     return (
@@ -280,10 +316,46 @@ function SqlCell({ box, query }: { box: string; query: QueryState }) {
     );
   }
 
+  /* No query, so the box must say in plain English what it calculates —
+     the step cannot be sent on while one says nothing. */
   if (!query.sql.trim()) {
+    if (calculated) {
+      return (
+        <div className="-my-2.5 flex h-10 items-center rounded-lg border border-dashed border-border-strong px-3 text-[13px] text-text-faint">
+          {t.notGenerated}
+        </div>
+      );
+    }
+    if (readOnly) {
+      return query.note.trim() ? (
+        <div>
+          <p className="text-[12px] leading-5 text-text-muted">{t.noteLabel}</p>
+          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-5 text-text">{query.note}</p>
+        </div>
+      ) : (
+        <div className="-my-2.5 flex h-10 items-center rounded-lg border border-dashed border-border-strong px-3 text-[13px] text-text-faint">
+          {t.notGenerated}
+        </div>
+      );
+    }
+    const missing = !query.note.trim();
     return (
-      <div className="-my-2.5 flex h-10 items-center rounded-lg border border-dashed border-border-strong px-3 text-[13px] text-text-faint">
-        {t.notGenerated}
+      <div className="-mt-0.5">
+        <label className="block">
+          <span className="text-[12px] leading-5 text-text-muted">{t.noteLabel}</span>
+          <Textarea
+            rows={2}
+            value={query.note}
+            onChange={(e) => onDescribe(e.target.value)}
+            placeholder={t.notePlaceholder}
+            aria-label={fill(t.noteAria, { box })}
+            aria-invalid={missing ? true : undefined}
+            className={cn("mt-1 text-[13px] leading-5", missing && "border-attention-edge")}
+          />
+        </label>
+        {missing && (
+          <p className="mt-1 text-[12px] leading-5 text-attention-text">{t.noteRequired}</p>
+        )}
       </div>
     );
   }

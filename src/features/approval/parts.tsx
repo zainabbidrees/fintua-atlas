@@ -25,6 +25,7 @@ export function StepHeader({
   currentIndex,
   completedCount,
   countryCode,
+  steps = STEPS,
 }: {
   backHref: string;
   backLabel: string;
@@ -34,6 +35,8 @@ export function StepHeader({
   completedCount: number;
   /** Given, the stepper links every reached step (see StepNav). */
   countryCode?: string;
+  /** The steps to show when not linked; all six by default. */
+  steps?: typeof STEPS;
 }) {
   return (
     <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
@@ -56,7 +59,7 @@ export function StepHeader({
             {countryCode ? (
               <StepNav countryCode={countryCode} index={currentIndex} />
             ) : (
-              <Stepper steps={STEPS} currentIndex={currentIndex} completedCount={completedCount} />
+              <Stepper steps={steps} currentIndex={currentIndex} completedCount={completedCount} />
             )}
           </div>
         </div>

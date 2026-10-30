@@ -13,3 +13,8 @@ export const ONBOARDING_STEPS: Step[] = copy.page.stepsLabel.map((label, i) => (
   label,
   ai: i === AI_STEP,
 }));
+
+/** The steps a country goes through: all six, or the first five when it has
+    no calculated box and so no Query Builder. */
+export const onboardingSteps = (withQueryBuilder: boolean): Step[] =>
+  withQueryBuilder ? ONBOARDING_STEPS : ONBOARDING_STEPS.slice(0, AI_STEP);

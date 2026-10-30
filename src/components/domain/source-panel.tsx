@@ -37,7 +37,9 @@ export function SourcePanel({
     >
       <ul className="space-y-2">
         {sources.map((source) => {
-          const usedBy = filings.filter((f) => f.foundOn.id === source.id).length;
+          const usedBy = filings.filter(
+            (f) => f.foundOn.id === source.id || f.alsoFoundOn?.some((s) => s.id === source.id),
+          ).length;
 
           return (
             <li

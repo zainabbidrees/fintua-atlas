@@ -4,6 +4,55 @@ import * as React from "react";
 import { completedFindingsFor, obligationsFor } from "@/lib/mock/obligations";
 import type { Finding, ObligationRun } from "@/lib/types";
 
+/** The return type a row belongs to. */
+export const returnTypeOf = (o: ObligationRun) => o.returnTypeId ?? o.id;
+
+/** Rows the expert added carry this id prefix, to tell them from the agent's. */
+export const ADDED_ROW = "added-";
+export const isAddedRow = (o: ObligationRun) => o.id.startsWith(ADDED_ROW);
+
+/** What the Add row form collects: every field but the rationale is chosen. */
+export interface NewRow {
+  returnTypeId: string;
+  frequency: string;
+  deadline: string;
+  nonWorkingDay: "next" | "previous" | "none";
+  workdaysOnly: boolean;
+  rationale: string;
+}
+
+/**
+ * One row per filing schedule. A return type filed on several — a monthly
+ * default and a quarterly option, each with its own deadline — becomes that
+ * many complete rows, each with the return type's name, its own tick, Attach
+ * and Confirm, and only that schedule's frequency and deadline. Findings that
+ * belong to no schedule go with every row. A return type with one schedule
+ * stays one row, with its own id.
+ */
+function bySchedule(obligations: ObligationRun[]): ObligationRun[] {
+  return obligations.flatMap((o) => {
+    const keys = [...new Set(o.findings.flatMap((f) => (f.schedule ? [f.schedule] : [])))];
+    if (keys.length < 2) return [o];
+    return keys.map((key) => ({
+      ...o,
+      id: `${o.id}:${key}`,
+      returnTypeId: o.id,
+      findings: o.findings.filter((f) => !f.schedule || f.schedule === key),
+    }));
+  });
+}
+
+/**
+ * The stages a return moves through before it is filed, in order. The days
+ * between each pair are the expert's to set — the agent cannot read them off
+ * a source — and are stored as the sheet's five offsets.
+ */
+export const WORKFLOW_STAGES = ["dataDue", "prepare", "review", "approve", "submit", "due"] as const;
+
+/** Days between consecutive stages: data due→prepare, prepare→review,
+    review→approve, approve→submit, submit→submission due date. */
+export type WorkflowDays = [number, number, number, number, number];
+
 /** Something the expert attached from the rail — a file or a pasted link. */
 export interface Upload {
   id: string;
@@ -20,10 +69,10 @@ export interface Upload {
  */
 export function useReturns(countryCode: string) {
   const [obligations, setObligations] = React.useState<ObligationRun[]>(() =>
-    obligationsFor(countryCode),
+    bySchedule(obligationsFor(countryCode)),
   );
   const [selectedId, setSelectedId] = React.useState(
-    () => obligationsFor(countryCode)[0]?.id ?? "",
+    () => bySchedule(obligationsFor(countryCode))[0]?.id ?? "",
   );
 
   const selected =
@@ -94,7 +143,7 @@ export function useReturns(countryCode: string) {
     // is the one case that legitimately needs setState in an effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setObligations((all) => {
-      const next = all.filter((o) => keep.has(o.id));
+      const next = all.filter((o) => keep.has(returnTypeOf(o)));
       return next.length ? next : all;
     });
   }, [countryCode]);
@@ -117,16 +166,19 @@ export function useReturns(countryCode: string) {
       setObligations((all) => {
         if (!all.some((o) => o.agent === "running")) return all;
 
-        return all.map((o) => {
-          if (o.agent !== "running") return o;
+        return all.flatMap((o) => {
+          if (o.agent !== "running") return [o];
           const progress = Math.min(100, o.progress + 12);
-          if (progress < 100) return { ...o, progress };
-          return {
-            ...o,
-            agent: "ready" as const,
-            progress: 100,
-            findings: completedFindingsFor(o.id),
-          };
+          if (progress < 100) return [{ ...o, progress }];
+          // What lands may have several schedules, so it is split like the rest.
+          return bySchedule([
+            {
+              ...o,
+              agent: "ready" as const,
+              progress: 100,
+              findings: completedFindingsFor(returnTypeOf(o)),
+            },
+          ]);
         });
       });
     }, 900);
@@ -321,9 +373,92 @@ export function useReturns(countryCode: string) {
   const anyRunning = obligations.some((o) => o.agent === "running");
   const totalOutstanding = obligations.reduce((n, o) => n + outstanding(o), 0);
 
+  /* The manual columns, which the agent cannot give: each row's offset (the
+     days between workflow stages, zero until the expert sets them),
+     and which frequency is the default for its return type. Every return type
+     starts with its first schedule as the default, so one is always chosen. */
+  const [workflow, setWorkflowState] = React.useState<Record<string, WorkflowDays>>({});
+  const [defaults, setDefaults] = React.useState<Record<string, string>>({});
+  const workflowFor = (rowId: string): WorkflowDays | null => workflow[rowId] ?? null;
+  const defaultFor = (returnTypeId: string): string =>
+    defaults[returnTypeId] ??
+    obligations.find((o) => returnTypeOf(o) === returnTypeId)?.id ??
+    "";
+  const isDefault = (o: ObligationRun) => defaultFor(returnTypeOf(o)) === o.id;
+
+  /** Sets a row's days; `toUnset` gives the same days to every row still
+      without any, so one row filled can fill the rest. */
+  function setWorkflow(rowId: string, days: WorkflowDays, toUnset = false) {
+    setWorkflowState((w) => {
+      const next = { ...w, [rowId]: days };
+      if (toUnset) for (const o of obligations) if (!next[o.id]) next[o.id] = days;
+      return next;
+    });
+  }
+
+  function setDefault(o: ObligationRun) {
+    setDefaults((d) => ({ ...d, [returnTypeOf(o)]: o.id }));
+  }
+
+  /** Adds a schedule the agent did not find, after the last row of its return
+   *  type. Its values are the expert's own — settled, with the rationale kept
+   *  where a correction's reason goes — and it has no source behind it. */
+  function addRow(row: NewRow): string {
+    const id = `${ADDED_ROW}${Date.now()}`;
+    const type = obligations.find((o) => returnTypeOf(o) === row.returnTypeId);
+    const evidence = { sourceTitle: "", publisher: "", url: `manual:${id}`, quote: row.rationale };
+    const own = { group: "filing" as const, evidence, state: "edited" as const, editReason: row.rationale };
+    const next: ObligationRun = {
+      id,
+      returnTypeId: row.returnTypeId,
+      name: type?.name ?? "",
+      localName: type?.localName ?? null,
+      agent: "ready",
+      progress: 100,
+      findings: [
+        { ...own, id: `${id}:frequency`, role: "frequency", schedule: id, label: "Filing frequency", value: row.frequency },
+        {
+          ...own,
+          id: `${id}:deadline`,
+          role: "deadline",
+          schedule: id,
+          label: "Filing deadline",
+          value: row.deadline,
+          nonWorkingDay: row.nonWorkingDay,
+          workdaysOnly: row.workdaysOnly,
+        },
+      ],
+    };
+    setObligations((all) => {
+      const at = all.findLastIndex((o) => returnTypeOf(o) === row.returnTypeId);
+      return at < 0 ? [...all, next] : [...all.slice(0, at + 1), next, ...all.slice(at + 1)];
+    });
+    return id;
+  }
+
+  /** Takes an added row back out; `restoreRow` puts it back where it was. */
+  function removeRow(id: string): { row: ObligationRun; index: number } | null {
+    const index = obligations.findIndex((o) => o.id === id);
+    if (index < 0) return null;
+    const row = obligations[index];
+    setObligations((all) => all.filter((o) => o.id !== id));
+    return { row, index };
+  }
+
+  function restoreRow(row: ObligationRun, index: number) {
+    setObligations((all) => [...all.slice(0, index), row, ...all.slice(index)]);
+  }
+
   return {
     obligations,
     selected,
+    workflowFor,
+    setWorkflow,
+    isDefault,
+    setDefault,
+    addRow,
+    removeRow,
+    restoreRow,
     selectedId: selected?.id ?? "",
     setSelectedId,
     uploadsFor,

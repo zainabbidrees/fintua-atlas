@@ -14,9 +14,12 @@ import {
 import { ReadOnly } from "@/components/patterns/read-only";
 import { ReviewBar } from "@/features/review/review-bar";
 import { useStepReview } from "@/features/review/use-step-review";
+import { SentStatus, useSendStep } from "@/features/review/use-send-step";
 import { AgentWorking, useAgentRun } from "@/components/patterns/agent-working";
 import { DraftActions } from "@/components/patterns/draft-actions";
-import { StepNav, ViewOnlyBar, useStepView } from "@/features/steps/step-view";
+import { useSaveDraft } from "@/features/drafts/use-save-draft";
+import { setHasQueryStep } from "@/lib/query-step";
+import { StepNav, ViewOnlyBar, useStepView, backHref, useCameBack } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import { FORM_PREVIEWS } from "@/lib/mock/form-preview";
 import { completedRetrievalFor, formsFor } from "@/lib/mock/tax-forms";
@@ -29,7 +32,7 @@ import { ReturnTypePanel, ReturnTypePicker, type ReturnTypeForm } from "./return
 import {
   ADDED_PREFIX,
   PAGE_COLUMN,
-  SHEETS,
+  type Sheet,
   hasSpec,
   rowKey,
   useSpecSheets,
@@ -45,8 +48,7 @@ export function RulesScreen({
   countryName: string;
 }) {
   const router = useRouter();
-  /* The agent works for a few seconds on arrival before the results land. */
-  const agent = useAgentRun(copy.agentRuns.specs.trail.length);
+  const saveDraft = useSaveDraft(countryCode, countryName, 3);
   /* Every return type carried in, each with the form step three retrieved for
      it — where two editions clashed, the one the publisher's portal accepts. */
   const returnTypes = React.useMemo<ReturnTypeForm[]>(
@@ -75,9 +77,23 @@ export function RulesScreen({
   /* In review, a reviewer reads this step locked; the expert can still edit
      it and send it for approval again. */
   const review = useStepReview(countryCode, 3);
+  /* Moving on sends the step for approval; the expert carries on regardless. */
+  const sendStep = useSendStep(countryCode, countryName, 3);
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(3);
   const readOnly = review.readOnly || viewFrom !== null;
+  /* Query Builder exists only while some box is calculated, so the steps
+     after this one follow the field map as it changes. A reader changes
+     nothing, so only the expert's view records it. */
+  React.useEffect(() => {
+    if (!readOnly) setHasQueryStep(countryCode, sheets.calculatedAnywhere);
+  }, [readOnly, countryCode, sheets.calculatedAnywhere]);
+  const cameBack = useCameBack();
+  /* The agent works for a few seconds on first arrival; a step looked back
+     at, or one whose run already finished, opens on the result. */
+  const agent = useAgentRun(copy.agentRuns.specs.trail.length, {
+    skip: readOnly || cameBack,
+  });
   const unsaved = sheets.unsaved;
 
   /* Adding a box the agent missed. `adding` is the page the dialog opens on —
@@ -92,22 +108,27 @@ export function RulesScreen({
     sheets.rows.boxes.map((row) => (row.box_name ?? "").toLowerCase()).filter(Boolean),
   );
 
-  function addBox(box: { name: string; description: string; page: number }) {
+  function addBox(box: { name: string; description: string; page: number | null }) {
     const id = sheets.addBox({
       box_name: box.name,
       return_box_description: box.description,
-      [PAGE_COLUMN]: String(box.page),
+      [PAGE_COLUMN]: box.page === null ? "" : String(box.page),
     });
     /* Open straight away, so the rest of its columns can be filled in. */
     sheets.toggleEditing(rowKey("boxes", { id }, 0));
     setReveal((n) => n + 1);
-    toast(fill(copy.fieldMap.added, { name: box.name, page: box.page }), {
-      action: {
-        label: copy.fieldMap.show,
-        onClick: () =>
-          document.getElementById("field-map")?.scrollIntoView({ behavior: "smooth" }),
+    toast(
+      box.page === null
+        ? fill(copy.fieldMap.addedNoPage, { name: box.name })
+        : fill(copy.fieldMap.added, { name: box.name, page: box.page }),
+      {
+        action: {
+          label: copy.fieldMap.show,
+          onClick: () =>
+            document.getElementById("field-map")?.scrollIntoView({ behavior: "smooth" }),
+        },
       },
-    });
+    );
   }
 
   /* Adding a dropdown value: only the field map's drop-down boxes can take
@@ -134,9 +155,35 @@ export function RulesScreen({
     toast(copy.fieldMap.saved);
   }
 
+  /* A box ticked is_calculated owes its calculation: until each is written or
+     unticked, moving on stops at a pop-up that names them. */
+  const missing = sheets.missingCalculations;
+  const [missingOpen, setMissingOpen] = React.useState(false);
+  const typeName = (id: string) => returnTypes.find((rt) => rt.id === id)?.name ?? id;
+
+  function tryToProceed() {
+    if (missing.length > 0) setMissingOpen(true);
+    else setConfirming(true);
+  }
+
+  /** Takes the expert to a box that owes a calculation, open to write it. */
+  function goToMissing(m: (typeof missing)[number]) {
+    setReturnTypeId(m.returnType);
+    sheets.openRow(m.returnType, m.key);
+    setMissingOpen(false);
+    requestAnimationFrame(() =>
+      document.getElementById("field-map")?.scrollIntoView({ behavior: "smooth" }),
+    );
+  }
+
   function proceed() {
+    if (missing.length > 0) {
+      setConfirming(false);
+      setMissingOpen(true);
+      return;
+    }
     if (unsaved > 0) sheets.save();
-    router.push(`/countries/${countryCode.toLowerCase()}/build`);
+    sendStep.send(() => router.push(`/countries/${countryCode.toLowerCase()}/build`));
   }
 
   return (
@@ -145,7 +192,7 @@ export function RulesScreen({
       <header className="border-b border-border bg-surface px-6 pt-8 sm:px-12">
         <div className="mx-auto w-full max-w-[1600px]">
           <Link
-            href={`/countries/${countryCode.toLowerCase()}/forms`}
+            href={backHref(countryCode, 2)}
             className="inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
           >
             <ArrowLeft className="size-3.5" />
@@ -156,7 +203,7 @@ export function RulesScreen({
             <h1 className="text-[22px] font-medium tracking-tight text-heading">
               {countryName}
             </h1>
-            <DraftActions onDiscard={() => router.push("/countries")} />
+            <DraftActions onDiscard={() => router.push("/countries")} onSave={saveDraft} />
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -224,7 +271,7 @@ export function RulesScreen({
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => downloadSpecCsv(sheets.rows, returnType.name)}
+                          onClick={() => downloadSpecCsv(sheets.sheets, sheets.rows, returnType.name)}
                         >
                           <Download />
                           {copy.fieldMap.exportCsv}
@@ -257,7 +304,7 @@ export function RulesScreen({
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={`/countries/${countryCode.toLowerCase()}/forms`}>
+            <Link href={backHref(countryCode, 2)}>
               <ArrowLeft />
               {copy.page.back}
             </Link>
@@ -275,9 +322,10 @@ export function RulesScreen({
             <Button variant="secondary" disabled={unsaved === 0} onClick={saveChanges}>
               {copy.fieldMap.save}
             </Button>
-            <Button variant="primary" disabled={agent.running} onClick={() => setConfirming(true)}>
+            <SentStatus send={sendStep} />
+            <Button variant="primary" disabled={agent.running} onClick={tryToProceed}>
               <Check />
-              {copy.confirmMapping.action}
+              {sendStep.label}
             </Button>
           </div>
         </div>
@@ -304,6 +352,36 @@ export function RulesScreen({
         onOpenChange={setAddingValue}
         onAdd={addValue}
       />
+
+      <Dialog open={missingOpen} onOpenChange={setMissingOpen}>
+        <DialogContent>
+          <DialogTitle>{copy.fieldMap.missingTitle}</DialogTitle>
+          <p className="mt-2 text-sm leading-relaxed text-text-muted">{copy.fieldMap.missingHint}</p>
+          <ul className="mt-4 space-y-1.5">
+            {missing.map((m) => (
+              <li
+                key={`${m.returnType}|${m.key}`}
+                className="rounded-md border border-attention-edge bg-attention-fill px-3 py-2 text-[13px] text-on-attention"
+              >
+                <span className="font-mono text-[12px]">{m.name}</span>
+                {" · "}
+                {typeName(m.returnType)}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setMissingOpen(false)}>
+              {copy.fieldMap.missingClose}
+            </Button>
+            {missing[0] && (
+              <Button variant="primary" autoFocus onClick={() => goToMissing(missing[0])}>
+                {fill(copy.fieldMap.missingGo, { box: missing[0].name })}
+                <ArrowRight />
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent>
@@ -353,11 +431,11 @@ function NoFieldMap({ name }: { name: string }) {
  * titled section, columns in sheet order, with what is on screen — saved or
  * not.
  */
-function downloadSpecCsv(rows: SpecSheets["rows"], name: string) {
+function downloadSpecCsv(sheets: Sheet[], rows: SpecSheets["rows"], name: string) {
   const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const lines: string[] = [];
 
-  SHEETS.forEach((sheet, i) => {
+  sheets.forEach((sheet, i) => {
     if (i > 0) lines.push("");
     lines.push(escape(copy.fieldMap.tabs[sheet.id]));
     lines.push(sheet.columns.map(escape).join(","));

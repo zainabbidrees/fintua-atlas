@@ -99,6 +99,43 @@ export function useSpecSheets(returnType: string) {
   const [editing, setEditing] = React.useState<ReadonlySet<string>>(new Set());
   const prefix = `${returnType}|`;
 
+  /* Columns the expert adds to a sheet, per return type, after the sheet's
+     own. A new column is blank (or one value) in every row, so the rows count
+     as changed until Save. */
+  const [added, setAdded] = React.useState<Record<string, Partial<Record<SheetId, string[]>>>>({});
+  /* List boxes and dropdown fields belong to calculated boxes: until a box of
+     this return type has is_calculated ticked, those two sheets are not shown. */
+  const calculated = (draft[returnType]?.boxes ?? []).some((row) => row.is_calculated === "TRUE");
+  /* Any box of any return type calculated — what decides Query Builder. */
+  const calculatedAnywhere = Object.values(draft).some((book) =>
+    book.boxes.some((row) => row.is_calculated === "TRUE"),
+  );
+  const sheets = React.useMemo<Sheet[]>(
+    () =>
+      SHEETS.filter(
+        (sheet) => calculated || (sheet.id !== "lists" && sheet.id !== "dropdowns"),
+      ).map((sheet) => ({
+        ...sheet,
+        columns: [...sheet.columns, ...(added[returnType]?.[sheet.id] ?? [])],
+      })),
+    [added, returnType, calculated],
+  );
+
+  function addColumn(sheet: SheetId, name: string, value: string) {
+    setAdded((a) => ({
+      ...a,
+      [returnType]: { ...a[returnType], [sheet]: [...(a[returnType]?.[sheet] ?? []), name] },
+    }));
+    setDraft((d) => {
+      const book = d[returnType];
+      if (!book) return d;
+      return {
+        ...d,
+        [returnType]: { ...book, [sheet]: book[sheet].map((row) => ({ ...row, [name]: value })) },
+      };
+    });
+  }
+
   function setCell(sheet: SheetId, index: number, col: string, value: string) {
     setDraft((d) => {
       const book = d[returnType];
@@ -186,6 +223,11 @@ export function useSpecSheets(returnType: string) {
     });
   }
 
+  /** Opens a row of any return type — to send the expert to it from elsewhere. */
+  function openRow(type: string, key: string) {
+    setEditing((prev) => new Set(prev).add(`${type}|${key}`));
+  }
+
   function toggleEditing(key: string) {
     setEditing((prev) => {
       const next = new Set(prev);
@@ -230,6 +272,20 @@ export function useSpecSheets(returnType: string) {
   }
 
   return {
+    /** The sheets of the return type on show, with any added columns: all
+     *  four once a box is calculated, else the field map and mandatory fields. */
+    sheets,
+    calculatedAnywhere,
+    /** Boxes ticked is_calculated with no calculation written, in every
+     *  return type — each holds the step back until written or unticked. */
+    missingCalculations: Object.entries(draft).flatMap(([type, book]) =>
+      book.boxes.flatMap((row, i) =>
+        row.is_calculated === "TRUE" && !(row.calculation ?? "").trim()
+          ? [{ returnType: type, name: row.box_name ?? "", key: rowKey("boxes", row, i) }]
+          : [],
+      ),
+    ),
+    openRow,
     rows: draft[returnType] ?? EMPTY,
     editing: forType(editing),
     changed: forType(changedAll),
@@ -238,6 +294,7 @@ export function useSpecSheets(returnType: string) {
     setCell,
     addBox,
     addRow,
+    addColumn,
     duplicateRow,
     deleteRow,
     restoreRow,

@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { DraftActions } from "@/components/patterns/draft-actions";
+import { useSaveDraft } from "@/features/drafts/use-save-draft";
 import { JumpToReview } from "@/components/patterns/jump-to-review";
 import { LiveTrail } from "@/components/patterns/live-trail";
 import { SearchAddBar } from "@/components/patterns/search-add-bar";
@@ -87,6 +88,9 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
      pair stays off the header entirely. */
   const hasStarted = Boolean(s.country) || s.documents.length > 0;
 
+  /* A draft belongs to a country, so there is nothing to save until one is picked. */
+  const saveSetupDraft = useSaveDraft(s.country?.code ?? "", s.country?.name ?? "", 0);
+
   function discardDraft() {
     s.discard();
     setExcluded(new Set());
@@ -145,7 +149,9 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
                 </h1>
               </div>
             </div>
-            {hasStarted && <DraftActions onDiscard={discardDraft} />}
+            {hasStarted && (
+              <DraftActions onDiscard={discardDraft} onSave={s.country ? saveSetupDraft : undefined} />
+            )}
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

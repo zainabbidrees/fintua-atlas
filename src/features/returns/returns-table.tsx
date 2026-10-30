@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   ArrowUpRight,
   Check,
+  ChevronDown,
   Link2,
   Loader2,
   Paperclip,
@@ -33,7 +34,8 @@ import { cn } from "@/lib/cn";
 import { deadlineDays, nextDeadline } from "@/lib/deadline";
 import { formatDate } from "@/components/domain/filing-card";
 import type { Evidence, Finding, FindingRole, ObligationRun } from "@/lib/types";
-import type { useReturns } from "./use-returns";
+import { WORKFLOW_STAGES, isAddedRow, returnTypeOf, type useReturns, type WorkflowDays } from "./use-returns";
+import { WorkflowDialog } from "./workflow-dialog";
 
 /** PDF, XML, XSD, CSV, XLS, XLSX or TXT — the material a specialist holds. */
 const ACCEPT = ".pdf,.xml,.xsd,.csv,.xls,.xlsx,.txt";
@@ -42,6 +44,11 @@ const ACCEPT = ".pdf,.xml,.xsd,.csv,.xls,.xlsx,.txt";
    cell. Text uses leading-5; anything taller than a line (a button, a source
    tile) is pulled up by half its excess so it centres on that line. */
 const CELL = "px-4 py-4 align-top";
+
+/* The tick and the return type stay put while the wide table scrolls sideways;
+   the name column carries the edge that the rest slide under. */
+const PIN_TICK = "sticky left-0 z-[1] bg-surface";
+const PIN_NAME = "sticky left-11 z-[1] bg-surface shadow-[inset_-1px_0_0_var(--border)]";
 
 type RowState = "running" | "needs_review" | "cross_checked" | "confirmed";
 
@@ -70,6 +77,8 @@ function sourcesOf(o: ObligationRun): Evidence[] {
   const seen = new Set<string>();
   const out: Evidence[] = [];
   for (const f of o.findings) {
+    /* An added row's values stand on the expert's word, not a document. */
+    if (f.evidence.url.startsWith("manual:")) continue;
     if (seen.has(f.evidence.url)) continue;
     seen.add(f.evidence.url);
     out.push(f.evidence);
@@ -103,30 +112,45 @@ export function ReturnsTable({
   return (
     <div className="mt-4 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-raised)]">
       <div className="relative overflow-x-auto [scrollbar-width:thin]">
-        <table className="w-full min-w-[1040px] table-fixed border-separate border-spacing-0 text-sm">
-          {/* The four content columns share the width left after the fixed
-              ones (checkbox, Attachments, Status — 320px), in the ratio
-              19 : 24 : 31 : 26. A column's width can't be a calc() of the
-              table, so the shares step up at wider screens to keep filling
-              it; between steps, at most ~45px is left over at the far right. */}
+        <table className="w-full min-w-[1748px] table-fixed border-separate border-spacing-0 text-sm">
+          {/* Every column of the return-deadline sheet a person reads, so the
+              table runs wider than the page and scrolls sideways; the tick and
+              the return type stay pinned at the left so a row never loses its
+              name. The agent fills all but Workflow days, which is marked as
+              the expert's own. */}
           <colgroup>
             <col className="w-11" />
-            <col className="w-[13.1%] min-[1536px]:w-[13.7%] min-[1700px]:w-[14.4%] min-[1850px]:w-[14.9%] min-[1984px]:w-[15.2%]" />
-            <col className="w-[16.6%] min-[1536px]:w-[17.3%] min-[1700px]:w-[18.2%] min-[1850px]:w-[18.8%] min-[1984px]:w-[19.2%]" />
-            <col className="w-[21.4%] min-[1536px]:w-[22.4%] min-[1700px]:w-[23.5%] min-[1850px]:w-[24.2%] min-[1984px]:w-[24.8%]" />
-            <col className="w-[17.9%] min-[1536px]:w-[18.8%] min-[1700px]:w-[19.7%] min-[1850px]:w-[20.3%] min-[1984px]:w-[20.8%]" />
+            <col className="w-[200px]" />
+            <col className="w-[220px]" />
+            <col className="w-[110px]" />
+            <col className="w-[260px]" />
+            <col className="w-[180px]" />
+            <col className="w-[250px]" />
+            <col className="w-[200px]" />
             <col className="w-[124px]" />
-            <col />
+            <col className="w-[160px]" />
           </colgroup>
           <thead>
             <tr className="bg-surface-sunken">
-              <th className={cn(head, "pr-0")}>
+              <th className={cn(head, PIN_TICK, "bg-surface-sunken pr-0")}>
                 <span className="sr-only">{copy.filings.selectAll}</span>
               </th>
-              <th className={head}>{copy.returnsTable.columns.returnType}</th>
+              <th className={cn(head, PIN_NAME, "bg-surface-sunken")}>
+                {copy.returnsTable.columns.returnType}
+              </th>
               <th className={head}>{copy.returnsTable.columns.frequency}</th>
+              <th className={head}>{copy.returnsTable.columns.isDefault}</th>
               <th className={head}>{copy.returnsTable.columns.deadline}</th>
+              <th className={head}>{copy.returnsTable.columns.nonWorkingDay}</th>
               <th className={head}>{copy.returnsTable.columns.sources}</th>
+              <th className={head}>
+                <span className="inline-flex items-center gap-2">
+                  {copy.returnsTable.columns.workflow}
+                  <span className="rounded border border-border-strong bg-surface px-1.5 text-[11px] font-medium leading-4 text-text-muted">
+                    {copy.returnsTable.manualTag}
+                  </span>
+                </span>
+              </th>
               <th className={head}>{copy.returnsTable.columns.attach}</th>
               <th className={head}>{copy.returnsTable.columns.status}</th>
             </tr>
@@ -198,6 +222,20 @@ function ReturnRow({
     });
   }
 
+  /* A row the expert added has no agent value to go back to, so its action
+     takes it out again — with an undo, as it is their own entry. */
+  const added = isAddedRow(o);
+  function removeRow() {
+    const taken = r.removeRow(o.id);
+    if (!taken) return;
+    toast(fill(copy.returnsTable.removedToast, { name: o.name, frequency: frequency?.value ?? "" }), {
+      action: {
+        label: copy.returnsTable.undo,
+        onClick: () => r.restoreRow(taken.row, taken.index),
+      },
+    });
+  }
+
   /* A reviewer reads the findings; ticking, editing, attaching and confirming
      are the expert's. */
   const readOnly = useReadOnly();
@@ -213,11 +251,11 @@ function ReturnRow({
   if (state === "running") {
     return (
       <tr>
-        <td className={cn(CELL, "pr-0", rule)}>{tick}</td>
-        <td className={cn(CELL, rule)}>
+        <td className={cn(CELL, PIN_TICK, "pr-0", rule)}>{tick}</td>
+        <td className={cn(CELL, PIN_NAME, rule)}>
           <RowTitle o={o} />
         </td>
-        <td colSpan={5} className={cn(CELL, rule, "text-text-muted")}>
+        <td colSpan={8} className={cn(CELL, rule, "text-text-muted")}>
           <span className="inline-flex items-center gap-2 text-[13px]">
             <Loader2 className="size-3.5 animate-spin text-brand" />
             {copy.returnsTable.researching}
@@ -233,6 +271,7 @@ function ReturnRow({
         <td
           className={cn(
             CELL,
+            PIN_TICK,
             "pr-0",
             rule,
             box,
@@ -245,24 +284,47 @@ function ReturnRow({
           {tick}
         </td>
 
-        <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
+        <td className={cn(CELL, PIN_NAME, rule, box, boxTop, boxFoot)}>
           <RowTitle o={o} />
         </td>
 
         <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
-          <ValueCell finding={frequency} onEdit={r.edit} />
+          <ValueCell finding={frequency} options={copy.returnsTable.frequencies} onEdit={r.edit} />
+        </td>
+
+        <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
+          <DefaultCell o={o} r={r} frequency={frequency?.value} />
         </td>
 
         <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
           <ValueCell
             finding={deadline}
             frequency={frequency?.value}
+            options={deadlineOptions(deadline?.value)}
+            placeholder={copy.returnsTable.chooseDeadline}
             onEdit={r.edit}
           />
         </td>
 
         <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
-          <SourcesCell sources={sources} onOpen={onOpenSource} />
+          <NonWorkingDayCell finding={deadline} />
+        </td>
+
+        <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
+          {added ? (
+            <div>
+              <p className="leading-5 text-text">{copy.returnsTable.addedByYou}</p>
+              {frequency?.editReason && (
+                <p className="mt-1 text-[13px] leading-5 text-text-muted">{frequency.editReason}</p>
+              )}
+            </div>
+          ) : (
+            <SourcesCell sources={sources} onOpen={onOpenSource} />
+          )}
+        </td>
+
+        <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
+          <WorkflowCell o={o} r={r} frequency={frequency} />
         </td>
 
         {/* Centred, and spanning the concern row below when there is one, so the
@@ -298,6 +360,7 @@ function ReturnRow({
             state={state}
             onConfirm={confirmRow}
             onUndo={() => r.resetObligation(o.id)}
+            onRemove={added ? removeRow : undefined}
           />
         </td>
       </tr>
@@ -308,18 +371,174 @@ function ReturnRow({
         <tr>
           {/* Starts under the checkbox, so the note's left edge lines up with
               the row's first control. */}
+          {/* Pinned like the name above it, so the concern stays in view
+              while the wide table scrolls sideways. */}
           <td
-            colSpan={4}
-            className={cn("px-4 pb-4", box, "border-l border-b rounded-bl-xl")}
+            colSpan={5}
+            className={cn("sticky left-0 z-[1] bg-surface px-4 pb-4", box, "border-l border-b rounded-bl-xl")}
           >
             <AttentionNote className="max-w-none">{concern}</AttentionNote>
           </td>
-          {/* Only the Sources column is left to close here — the Attach and
-              status cells span down from the row above. */}
-          <td className={cn(box, "border-b")} />
+          {/* Non-working day to Workflow are left to close here — the Attach
+              and status cells span down from the row above. */}
+          <td colSpan={3} className={cn(box, "border-b")} />
         </tr>
       )}
     </>
+  );
+}
+
+/** Where the deadline moves on a non-working day, and how its days are counted. */
+function NonWorkingDayCell({ finding }: { finding: Finding | null }) {
+  const t = copy.returnsTable;
+  if (!finding?.nonWorkingDay) return <span className="leading-5 text-text-faint">{t.none}</span>;
+  return (
+    <div>
+      <p className="leading-5 text-text">{t.nonWorkingDay[finding.nonWorkingDay]}</p>
+      <p className="mt-1 text-[13px] leading-5 text-text-muted">
+        {finding.workdaysOnly ? t.workdaysOnly : t.calendarDays}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The manual columns: the row's workflow days and whether it is its return
+ * type's default frequency. Unset, it says so and offers the form; set, it
+ * reads as the timeline in short — the days between each stage — with the
+ * default tagged, and opens the form again to change it.
+ */
+const ZERO_OFFSET: WorkflowDays = [0, 0, 0, 0, 0];
+
+/**
+ * is_default: 1 on the frequency used for a client whose frequency is not set,
+ * 0 on the return type's other frequencies. Exactly one row per return type
+ * is 1, so choosing a 0 moves the 1 to it. A return type filed on one
+ * frequency is 1 by definition, with nothing to choose.
+ */
+function DefaultCell({
+  o,
+  r,
+  frequency,
+}: {
+  o: ObligationRun;
+  r: ReturnType<typeof useReturns>;
+  frequency?: string;
+}) {
+  const t = copy.returnsTable;
+  const readOnly = useReadOnly();
+  const isDefault = r.isDefault(o);
+  const only = r.obligations.filter((x) => returnTypeOf(x) === returnTypeOf(o)).length === 1;
+
+  if (isDefault || only || readOnly) {
+    return (
+      /* Boxed like the button beside it, borderless, so the digits line up. */
+      <span
+        className={cn(
+          "inline-flex h-8 items-center border border-transparent px-3 text-[13px]",
+          isDefault ? "text-text" : "text-text-muted",
+        )}
+        data-numeric
+      >
+        {isDefault ? 1 : 0}
+      </span>
+    );
+  }
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      onClick={() => {
+        r.setDefault(o);
+        toast(fill(t.defaultSet, { name: o.name, frequency: frequency ?? t.none }));
+      }}
+      title={fill(t.makeDefault, { name: o.name, frequency: frequency ?? t.none })}
+      aria-label={fill(t.makeDefault, { name: o.name, frequency: frequency ?? t.none })}
+      data-numeric
+    >
+      0
+    </Button>
+  );
+}
+
+function WorkflowCell({
+  o,
+  r,
+  frequency,
+}: {
+  o: ObligationRun;
+  r: ReturnType<typeof useReturns>;
+  frequency: Finding | null;
+}) {
+  const t = copy.returnsTable;
+  const readOnly = useReadOnly();
+  const [open, setOpen] = React.useState(false);
+  const saved = r.workflowFor(o.id);
+  /* Not set means zero days between every stage — the expert can leave it. */
+  const days = saved ?? ZERO_OFFSET;
+  const siblings = r.obligations.filter((x) => returnTypeOf(x) === returnTypeOf(o));
+  const isDefault = r.isDefault(o);
+  const unsetOthers = r.obligations.filter(
+    (x) => x.id !== o.id && x.agent !== "running" && !r.workflowFor(x.id),
+  ).length;
+  /* A row without days starts from the last row's days, if any — most share them. */
+  const starting = saved ?? r.obligations.map((x) => r.workflowFor(x.id)).find(Boolean) ?? null;
+
+  /* The offset is days, not dates: each stage with the number of days it takes. */
+  const zero = days.every((d) => d === 0);
+
+  return (
+    <div>
+      {/* Whether this row is the default is the is_default column's to say. */}
+      <p className={cn("text-[13px] leading-5", zero ? "text-text" : "text-text-muted")}>
+        {zero ? t.noOffset : t.daysPerStage}
+      </p>
+
+      {!zero && (
+        <dl className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-0.5 text-[13px] leading-5">
+          {WORKFLOW_STAGES.slice(0, -1).map((stage, i) => (
+            <React.Fragment key={stage}>
+              <dt className="truncate text-text-muted">{t.stages[stage]}</dt>
+              <dd className="text-right text-text" data-numeric>
+                {days[i]}
+              </dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      )}
+
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={fill(t.workflowEdit, { name: o.name })}
+          className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-brand transition-opacity hover:opacity-80"
+        >
+          <Pencil className="size-3.5" strokeWidth={1.75} />
+          {zero ? t.workflowSetOffset : t.workflowChange}
+        </button>
+      )}
+
+      <WorkflowDialog
+        open={open}
+        onOpenChange={setOpen}
+        name={o.name}
+        frequency={frequency?.value ?? t.none}
+        initial={starting}
+        isDefault={isDefault}
+        onlyFrequency={siblings.length === 1}
+        unsetOthers={saved ? 0 : unsetOthers}
+        onSave={(next, makeDefault, toUnset) => {
+          r.setWorkflow(o.id, next, toUnset);
+          if (makeDefault) r.setDefault(o);
+          toast(
+            toUnset && unsetOthers > 0
+              ? fill(t.workflowSavedMany, { name: o.name, count: unsetOthers })
+              : fill(t.workflowSaved, { name: o.name }),
+          );
+        }}
+      />
+    </div>
   );
 }
 
@@ -339,14 +558,31 @@ function RowTitle({ o }: { o: ObligationRun }) {
  * Editing keeps the agent's original value and the reason alongside the
  * correction — the audit trail the product is sold on.
  */
+/**
+ * The deadline rules to choose from, in day order. A row's own rule is kept
+ * among them even when the list does not carry it, so opening the form never
+ * loses the agent's value.
+ */
+function deadlineOptions(current: string | undefined): readonly string[] {
+  const list: readonly string[] = copy.returnsTable.deadlines;
+  if (!current || deadlineDays(current) === null || list.includes(current)) return list;
+  return [...list, current].sort((a, b) => (deadlineDays(a) ?? 0) - (deadlineDays(b) ?? 0));
+}
+
 function ValueCell({
   finding,
   frequency,
+  options,
+  placeholder,
   onEdit,
 }: {
   finding: Finding | null;
   /** For a deadline rule: the period it counts from, to work out the date. */
   frequency?: string;
+  /** A fixed set to choose from, in place of free text. */
+  options?: readonly string[];
+  /** Shown in the dropdown while nothing is chosen. */
+  placeholder?: string;
   onEdit: (finding: Finding, value: string, reason: string) => void;
 }) {
   const [editing, setEditing] = React.useState(false);
@@ -360,6 +596,8 @@ function ValueCell({
     return (
       <ValueEditForm
         initial={finding.value}
+        options={options}
+        placeholder={placeholder}
         onCancel={() => setEditing(false)}
         onSave={(value, reason) => {
           onEdit(finding, value, reason);
@@ -433,14 +671,21 @@ function ValueCell({
     record; the agent's original is always retained by the hook. */
 function ValueEditForm({
   initial,
+  options,
+  placeholder = copy.returnsTable.chooseFrequency,
   onCancel,
   onSave,
 }: {
   initial: string;
+  options?: readonly string[];
+  placeholder?: string;
   onCancel: () => void;
   onSave: (value: string, reason: string) => void;
 }) {
-  const [value, setValue] = React.useState(initial);
+  /* A value outside a fixed set (the agent's "Not established") starts unchosen. */
+  const [value, setValue] = React.useState(
+    options && !options.includes(initial) ? "" : initial,
+  );
   const [reason, setReason] = React.useState("");
   const canSave = value.trim() !== "";
 
@@ -448,13 +693,39 @@ function ValueEditForm({
     <div className="max-w-xs space-y-2.5">
       <label className="block text-[12px] text-text-muted">
         {copy.returnsTable.editValueLabel}
-        <Input
-          autoFocus
-          value={value}
-          onFocus={(e) => e.target.select()}
-          onChange={(e) => setValue(e.target.value)}
-          className="mt-1 h-8 text-[13px]"
-        />
+        {options ? (
+          <span className="relative mt-1 block">
+            <select
+              autoFocus
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="h-8 w-full appearance-none rounded-md border border-border-strong bg-surface pl-2.5 pr-7 text-[13px] text-text transition-colors focus:border-brand focus:outline-none"
+            >
+              {value === "" && (
+                <option value="" disabled>
+                  {placeholder}
+                </option>
+              )}
+              {options.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              aria-hidden
+              className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-text-faint"
+            />
+          </span>
+        ) : (
+          <Input
+            autoFocus
+            value={value}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => setValue(e.target.value)}
+            className="mt-1 h-8 text-[13px]"
+          />
+        )}
       </label>
 
       <label className="block text-[12px] text-text-muted">
@@ -646,13 +917,16 @@ function StatusAction({
   state,
   onConfirm,
   onUndo,
+  onRemove,
 }: {
   state: Exclude<RowState, "running">;
   onConfirm: () => void;
   onUndo: () => void;
+  /** An added row: settled as the expert's own, taken out rather than undone. */
+  onRemove?: () => void;
 }) {
   const label = {
-    confirmed: copy.returnsTable.confirmed,
+    confirmed: onRemove ? copy.returnsTable.addedStatus : copy.returnsTable.confirmed,
     needs_review: copy.returnsTable.needsReview,
     cross_checked: copy.returnsTable.crossChecked,
   }[state];
@@ -699,7 +973,17 @@ function StatusAction({
         {label}
       </span>
 
-      {state === "confirmed" ? (
+      {onRemove ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onRemove}
+          className="-ml-3 hover:bg-risk-quiet hover:text-risk"
+        >
+          <Trash2 strokeWidth={1.75} />
+          {copy.returnsTable.remove}
+        </Button>
+      ) : state === "confirmed" ? (
         <Button size="sm" variant="ghost" onClick={onUndo} className="-ml-3">
           <RotateCcw strokeWidth={1.75} />
           {copy.returnsTable.undo}

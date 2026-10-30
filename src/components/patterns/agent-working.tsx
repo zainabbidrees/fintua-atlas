@@ -9,10 +9,20 @@ const PACE_MS = Number(process.env.NEXT_PUBLIC_MOCK_PACE_MS ?? 700) * 1.1;
 /**
  * Plays an agent's run on arrival: one trail line at a time, then done.
  * `shown` is how many lines have landed; `running` is false once the last has.
+ *
+ * `skip` opens straight on the result, for a step gone back to, where the
+ * agent is doing nothing. It must be known on the server (from the URL, not
+ * browser storage): the page streams in, and a run switched off after load is
+ * overwritten by the stream still arriving.
  */
-export function useAgentRun(lines: number, paceMs: number = PACE_MS) {
-  const [shown, setShown] = React.useState(1);
+export function useAgentRun(
+  lines: number,
+  { skip = false, paceMs = PACE_MS }: { skip?: boolean; paceMs?: number } = {},
+) {
+  const [ticked, setShown] = React.useState(1);
+  const shown = skip ? lines + 1 : ticked;
   const running = shown <= lines;
+
   React.useEffect(() => {
     if (!running) return;
     const id = setTimeout(() => setShown((n) => n + 1), paceMs);

@@ -8,8 +8,7 @@ import { copy, fill } from "@/lib/copy";
 /**
  * The controls every listing shares, taken from the countries page so a list
  * filters and pages the same way wherever it appears: a filter field (with
- * optional status chips) above, and a footer below that says what is showing
- * and pages the rest.
+ * optional status chips) above, and a footer below that pages the rest.
  */
 
 /** How many rows a listing shows at a time. */
@@ -156,21 +155,16 @@ export function ListFilter<Id extends string>({
   );
 }
 
-/** The footer a listing ends on: what is showing, and Previous / Next. */
+/** The footer a listing ends on: Previous, the page, Next. The page count
+    says where you are, so there is no separate "Showing x–y of z". */
 export function Pagination({
   page,
   pages,
-  start,
-  shown,
-  total,
   onPageChange,
   className,
 }: {
   page: number;
   pages: number;
-  start: number;
-  shown: number;
-  total: number;
   onPageChange: (page: number) => void;
   className?: string;
 }) {
@@ -186,18 +180,10 @@ export function Pagination({
     <nav
       aria-label={t.pagination}
       className={cn(
-        "flex flex-col items-start gap-3 text-[13px] sm:flex-row sm:items-center sm:justify-between",
+        "flex items-center justify-end text-[13px]",
         className,
       )}
     >
-      <p className="text-text-muted" data-numeric>
-        {fill(t.showing, {
-          from: total === 0 ? 0 : start + 1,
-          to: start + shown,
-          total,
-        })}
-      </p>
-
       <div className="flex items-center gap-1">
         <button
           type="button"

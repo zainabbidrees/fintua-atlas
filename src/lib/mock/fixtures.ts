@@ -5,7 +5,7 @@ import type { Filing, Source } from "../types";
  * states are clickable in the browser rather than theoretical:
  *
  *   BE  succeeds, with one low-certainty filing that needs a human decision
- *   FR  returns nothing
+ *   MT  returns nothing
  *   XX  fails outright
  *
  * Everything else returns a small generic set.
@@ -41,6 +41,16 @@ const EU_DIRECTIVE: Source = {
   whatsInIt: "Harmonised EU VAT framework underlying national legislation.",
 };
 
+const BE_INTERVAT: Source = {
+  id: "be-intervat",
+  title: "Intervat technical documentation",
+  url: "https://finances.belgium.be/en/enterprises/vat/intervat",
+  publisher: "Belgian Federal Public Service Finance",
+  lastUpdated: "2026-03-18",
+  kind: "guidance",
+  whatsInIt: "Filing channel, XML schemas and listing formats for electronic submission.",
+};
+
 /** Deliberately weak: old, and not an official body. Drives the "needs check" state. */
 const BLOG: Source = {
   id: "be-blog",
@@ -56,6 +66,7 @@ export const BE_SOURCES: Source[] = [
   BE_AUTHORITY,
   BE_GUIDANCE,
   EU_DIRECTIVE,
+  BE_INTERVAT,
   BLOG,
 ];
 
@@ -67,6 +78,7 @@ export const BE_FILINGS: Filing[] = [
     frequency: "Monthly or quarterly",
     whyItApplies: "Mandatory for all VAT-registered taxable persons.",
     foundOn: BE_AUTHORITY,
+    alsoFoundOn: [BE_GUIDANCE, EU_DIRECTIVE],
     certainty: "confident",
     origin: "found",
   },
@@ -77,6 +89,7 @@ export const BE_FILINGS: Filing[] = [
     frequency: "Monthly or quarterly",
     whyItApplies: "Required for intra-Community B2B supplies.",
     foundOn: EU_DIRECTIVE,
+    alsoFoundOn: [BE_AUTHORITY, BE_INTERVAT],
     certainty: "confident",
     origin: "found",
   },
@@ -88,6 +101,7 @@ export const BE_FILINGS: Filing[] = [
     whyItApplies:
       "Annual listing of Belgian VAT-registered customers, due 31 March.",
     foundOn: BE_GUIDANCE,
+    alsoFoundOn: [BE_INTERVAT],
     certainty: "confident",
     origin: "found",
   },

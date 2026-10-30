@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AgentWorking, useAgentRun } from "@/components/patterns/agent-working";
 import { DraftActions } from "@/components/patterns/draft-actions";
+import { useSaveDraft } from "@/features/drafts/use-save-draft";
+import { useHasQueryStep } from "@/lib/query-step";
 import {
   ListFilter,
   NoMatch,
@@ -16,12 +18,12 @@ import {
   usePaged,
 } from "@/components/patterns/list-controls";
 import { cn } from "@/lib/cn";
-import { ViewOnlyBar, useStepView } from "@/features/steps/step-view";
+import { ViewOnlyBar, useStepView, backHref, useCameBack } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
-import { submitForReview } from "@/lib/review";
 import { ReadOnly } from "@/components/patterns/read-only";
 import { ReviewBar, reviewHref } from "@/features/review/review-bar";
 import { useStepReview } from "@/features/review/use-step-review";
+import { SentStatus, useSendStep } from "@/features/review/use-send-step";
 import { StepHeader, stepHref } from "@/features/approval/parts";
 import { QueryTable } from "./query-table";
 import { useQueryBuilder } from "./use-query-builder";
@@ -43,9 +45,14 @@ export function QueryBuilderScreen({
   countryName: string;
 }) {
   const router = useRouter();
+  const saveDraft = useSaveDraft(countryCode, countryName, 5);
+  /* No calculated box means no Query Builder: this address hands on to the
+     last step there is. */
+  const hasStep = useHasQueryStep(countryCode);
+  React.useEffect(() => {
+    if (!hasStep) router.replace(stepHref(countryCode, 4));
+  }, [hasStep, router, countryCode]);
   const q = useQueryBuilder(countryCode);
-  /* The agent works for a few seconds on arrival before the results land. */
-  const agent = useAgentRun(copy.agentRuns.queries.trail.length);
   const t = copy.queryBuilder;
 
   /* The filter: a view by whether the query exists, and a term matched
@@ -100,13 +107,15 @@ export function QueryBuilderScreen({
 
   /* What the queries held at the last save, so Save changes only lights up
      once something differs from it. */
+  /* A row's query and its plain-English description, as one comparable value. */
+  const held = (id: string) => `${q.queries[id].sql}\u0000${q.queries[id].note}`;
   const [saved, setSaved] = React.useState<Record<string, string>>(() =>
-    Object.fromEntries(q.boxes.map((b) => [b.id, ""])),
+    Object.fromEntries(q.boxes.map((b) => [b.id, "\u0000"])),
   );
-  const unsaved = q.boxes.some((b) => q.queries[b.id].sql !== saved[b.id]);
+  const unsaved = q.boxes.some((b) => held(b.id) !== saved[b.id]);
 
   function snapshot() {
-    setSaved(Object.fromEntries(q.boxes.map((b) => [b.id, q.queries[b.id].sql])));
+    setSaved(Object.fromEntries(q.boxes.map((b) => [b.id, held(b.id)])));
   }
 
   function saveChanges() {
@@ -121,21 +130,28 @@ export function QueryBuilderScreen({
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(5);
   const readOnly = review.readOnly || viewFrom !== null;
+  const cameBack = useCameBack();
+  /* The agent works for a few seconds on first arrival; a step looked back
+     at, or one whose run already finished, opens on the result. */
+  const agent = useAgentRun(copy.agentRuns.queries.trail.length, {
+    skip: readOnly || cameBack,
+  });
+  /* The last step: sending it (or moving on once sent) lands on the approval
+     screen, where every step's progress shows. */
+  const sendStep = useSendStep(countryCode, countryName, 5);
   function sendForApproval() {
     snapshot();
-    submitForReview(countryCode, countryName, review.person);
-    toast(fill(copy.approvalFlow.sentToast, { country: countryName }));
-    router.push(reviewHref(countryCode));
+    sendStep.send(() => router.push(reviewHref(countryCode)));
   }
 
   return (
     <ReadOnly value={readOnly}>
     <div className="pb-24">
       <StepHeader
-        backHref={stepHref(countryCode, 4)}
+        backHref={backHref(countryCode, 4)}
         backLabel={t.backLink}
         title={countryName}
-        actions={<DraftActions onDiscard={() => router.push("/countries")} />}
+        actions={<DraftActions onDiscard={() => router.push("/countries")} onSave={saveDraft} />}
         currentIndex={5}
         completedCount={5}
         countryCode={countryCode}
@@ -238,9 +254,6 @@ export function QueryBuilderScreen({
                   className="mt-4"
                   page={paged.page}
                   pages={paged.pages}
-                  start={paged.start}
-                  shown={paged.items.length}
-                  total={paged.total}
                   onPageChange={paged.setPage}
                 />
               </>
@@ -258,7 +271,7 @@ export function QueryBuilderScreen({
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href={stepHref(countryCode, 4)}>
+            <Link href={backHref(countryCode, 4)}>
               <ArrowLeft />
               {copy.page.back}
             </Link>
@@ -277,6 +290,15 @@ export function QueryBuilderScreen({
                 {fill(t.progress, { done: q.ready, total: q.boxes.length })}
               </span>
             )}
+            {/* Every box needs a query or a plain-English description first. */}
+            {!agent.running && q.undescribed > 0 && (
+              <span className="text-sm text-attention-text" data-numeric>
+                {q.undescribed === 1
+                  ? t.undescribedOne
+                  : fill(t.undescribed, { count: q.undescribed })}
+              </span>
+            )}
+            <SentStatus send={sendStep} />
             <Button
               variant="secondary"
               disabled={!unsaved || q.generating}
@@ -286,17 +308,15 @@ export function QueryBuilderScreen({
             </Button>
             <Button
               variant="primary"
-              /* The first sending needs a query; sending again after changes
-                 does not, since the queries were already sent. */
-              disabled={agent.running || q.generating || (!review.inReview && q.ready === 0)}
-              title={
-                !review.inReview && q.ready === 0
-                  ? copy.approvalFlow.sendForApprovalBlocked
-                  : undefined
-              }
+              /* Nothing goes on while a box has neither a query nor a
+                 plain-English description of what it calculates. */
+              disabled={agent.running || q.generating || q.undescribed > 0}
+              title={q.undescribed > 0 ? t.sendBlocked : undefined}
               onClick={sendForApproval}
             >
-              {review.inReview ? copy.approvalFlow.sendAgain : copy.approvalFlow.sendForApproval}
+              {sendStep.status === "approved" || sendStep.status === "waiting"
+                ? copy.approvalFlow.openApproval
+                : sendStep.label}
             </Button>
           </div>
         </div>

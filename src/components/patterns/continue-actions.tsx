@@ -23,12 +23,16 @@ export function ContinueActions({
   saveLabel = copy.page.saveChanges,
   onContinue,
   continueDisabled = false,
+  continueLabel = copy.page.continue,
 }: {
   onSave: () => void;
   saveDisabled?: boolean;
   saveLabel?: string;
   onContinue: () => void;
   continueDisabled?: boolean;
+  /** The primary button's label — e.g. "Send for approval" on a step that
+      goes to a reviewer. */
+  continueLabel?: string;
 }) {
   const [asking, setAsking] = React.useState(false);
 
@@ -38,7 +42,7 @@ export function ContinueActions({
         {saveLabel}
       </Button>
       <Button variant="primary" disabled={continueDisabled} onClick={() => setAsking(true)}>
-        {copy.page.continue}
+        {continueLabel}
         <ArrowRight />
       </Button>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpRight, PenLine, Trash2 } from "lucide-react";
+import { ArrowUpRight, ChevronDown, PenLine, Trash2 } from "lucide-react";
 import { AttentionNote } from "@/components/ui/attention-note";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,7 +9,7 @@ import { useReadOnly } from "@/components/patterns/read-only";
 import { extensionOf, hostOf, SourceMark } from "@/components/domain/source-block";
 import { formatDate } from "@/components/domain/filing-card";
 import { copy, fill, SOURCE_KIND_LABEL } from "@/lib/copy";
-import type { Filing } from "@/lib/types";
+import type { Filing, Source } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 /* Every cell starts on the same first line: text cells are 20px lines, and the
@@ -220,11 +220,12 @@ function FilingRows({
 
 /** The source, compact: the artefact's mark, its title as a link, kind and date. */
 function SourceCell({ filing }: { filing: Filing }) {
-  const { url, title, kind, lastUpdated } = filing.foundOn;
+  const [open, setOpen] = React.useState(false);
+  const more = filing.alsoFoundOn ?? [];
 
   // A return type the expert typed in has no source yet — show that plainly
   // rather than a link to nowhere.
-  if (!url) {
+  if (!filing.foundOn.url) {
     return (
       <span className="inline-flex items-center gap-2 text-[13px] text-text-muted">
         <PenLine className="size-4 text-text-faint" />
@@ -233,6 +234,45 @@ function SourceCell({ filing }: { filing: Filing }) {
     );
   }
 
+  /* The strongest source leads in full. Any others that also support the
+     return type wait behind a quiet toggle, so a row is as tall as one source
+     until the expert asks for the rest. */
+  return (
+    <div className="min-w-0">
+      <SourceLink source={filing.foundOn} />
+      {more.length > 0 && (
+        <>
+          {open && (
+            <ul className="mt-4 space-y-4">
+              {more.map((source) => (
+                <li key={source.id}>
+                  <SourceLink source={source} />
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="mt-2 inline-flex items-center gap-1 pl-[48px] text-[13px] font-medium text-text-muted transition-colors hover:text-text"
+          >
+            <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} />
+            {open
+              ? copy.filings.fewerSources
+              : more.length === 1
+                ? copy.filings.moreSourcesOne
+                : fill(copy.filings.moreSources, { count: more.length })}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** One source: its mark, its title as a link, what kind it is and how recent. */
+function SourceLink({ source }: { source: Source }) {
+  const { url, title, kind, lastUpdated } = source;
   const extension = extensionOf(url);
   const host = extension ? null : hostOf(url);
 

@@ -6,13 +6,15 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Columns3, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ReadOnly } from "@/components/patterns/read-only";
-import { ReviewBar } from "@/features/review/review-bar";
+import { ReviewBar, reviewHref } from "@/features/review/review-bar";
 import { useStepReview } from "@/features/review/use-step-review";
+import { SentStatus, useSendStep } from "@/features/review/use-send-step";
 import { ContinueActions } from "@/components/patterns/continue-actions";
 import { Button } from "@/components/ui/button";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
 import { DraftActions } from "@/components/patterns/draft-actions";
+import { useSaveDraft } from "@/features/drafts/use-save-draft";
 import {
   ListFilter,
   NoMatch,
@@ -20,11 +22,15 @@ import {
   matches,
   paginate,
 } from "@/components/patterns/list-controls";
-import { AgentWorking } from "@/components/patterns/agent-working";
-import { StepNav, ViewOnlyBar, useStepView } from "@/features/steps/step-view";
+import { AgentWorking, useAgentRun } from "@/components/patterns/agent-working";
+import { StepNav, ViewOnlyBar, useCameBack, useStepView } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import { RATE_NOTES } from "@/lib/mock/tax-rules";
-import { AddColumnDialog } from "./add-column-dialog";
+import { AddColumnDialog, type NewColumn } from "@/components/patterns/add-column-dialog";
+import { alertDeveloper, DEVELOPER_INBOX, reopenAlert, withdrawAlert } from "@/lib/developer-alerts";
+import { readPublished } from "@/lib/published";
+import { useSession } from "@/lib/session";
+import { useHasQueryStep } from "@/lib/query-step";
 import { RuleSheet, columnLetter } from "./rule-sheet";
 import { useRuleEdits, type SheetId } from "./use-rule-edits";
 
@@ -75,17 +81,10 @@ export function TaxRulesScreen({
   countryName: string;
 }) {
   const t = copy.taxRules;
+  const person = useSession();
   const router = useRouter();
+  const saveDraft = useSaveDraft(countryCode, countryName, 4);
   const code = countryCode.toLowerCase();
-
-  /* Generation lands one trail line at a time; past the last, it is done. */
-  const [shown, setShown] = React.useState(1);
-  const generating = shown <= t.trail.length;
-  React.useEffect(() => {
-    if (!generating) return;
-    const id = setTimeout(() => setShown((n) => n + 1), PACE_MS);
-    return () => clearTimeout(id);
-  }, [shown, generating]);
 
   const [tab, setTab] = React.useState<SheetId>("rates");
   const current = SHEETS.find((s) => s.id === tab) ?? SHEETS[0];
@@ -94,9 +93,18 @@ export function TaxRulesScreen({
   /* In review, a reviewer reads this step locked; the expert can still edit
      it and send it for approval again. */
   const review = useStepReview(countryCode, 4);
+  /* Moving on sends the step for approval; the expert carries on regardless. */
+  const sendStep = useSendStep(countryCode, countryName, 4);
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(4);
   const readOnly = review.readOnly || viewFrom !== null;
+  const cameBack = useCameBack();
+  /* Generation lands one trail line at a time; past the last, it is done. A
+     step looked back at, or reached by Back, opens on the rules. */
+  const { shown, running: generating } = useAgentRun(t.trail.length, {
+    skip: readOnly || cameBack,
+    paceMs: PACE_MS,
+  });
 
   /* Each sheet keeps its own filter and page, so switching tabs keeps your
      place. Ten rows a page, so the page never runs long. */
@@ -154,10 +162,51 @@ export function TaxRulesScreen({
   }
 
   const [addingColumn, setAddingColumn] = React.useState(false);
-  function addColumn(column: { name: string; value: string }) {
+  function addColumn(column: NewColumn) {
     const letter = columnLetter(edits.columns[current.id].length);
-    edits.addColumn(current.id, column.name, column.value);
-    toast(fill(t.columnAdded, { name: column.name, letter }));
+    edits.addColumn(current.id, column.name, column.value, column.type);
+    /* A new column changes what Comply stores, so the developer hears of it,
+       with what it holds — what they need to create it. */
+    const sheet = t.tabs[current.id];
+    alertDeveloper(
+      {
+        country: countryCode,
+        countryName,
+        sheet,
+        column: column.name,
+        letter,
+        value: column.value,
+        type: column.type ? copy.addColumn.types[column.type] : undefined,
+      },
+      person,
+    );
+    toast(fill(t.columnAdded, { name: column.name, letter }), {
+      description: fill(t.developerAlerted, { name: column.name, sheet, inbox: DEVELOPER_INBOX }),
+      action: { label: t.viewAlerts, onClick: () => router.push("/developer-alerts") },
+    });
+  }
+
+  /* An added column can be taken out until the country is published; then it
+     is part of what Comply runs. Its developer alert is withdrawn with it. */
+  function deleteColumn(name: string) {
+    if (readPublished().some((p) => p.code === countryCode.toUpperCase())) {
+      toast(fill(t.columnLocked, { name }));
+      return;
+    }
+    const taken = edits.deleteColumn(current.id, name);
+    if (!taken) return;
+    const sheet = t.tabs[current.id];
+    const alertId = withdrawAlert({ country: countryCode, sheet, column: name }, person);
+    toast(fill(t.columnDeleted, { name }), {
+      description: alertId ? t.columnDeletedHint : undefined,
+      action: {
+        label: t.undo,
+        onClick: () => {
+          edits.restoreColumn(taken);
+          if (alertId) reopenAlert(alertId);
+        },
+      },
+    });
   }
 
   function saveChanges() {
@@ -165,10 +214,20 @@ export function TaxRulesScreen({
     toast(t.saved);
   }
 
+  /* Without a calculated box there is no Query Builder, so this is the last
+     step: moving on lands on the approval screen, as step six's does. */
+  const lastStep = !useHasQueryStep(countryCode);
+  const continueLabel =
+    lastStep && (sendStep.status === "waiting" || sendStep.status === "approved")
+      ? copy.approvalFlow.openApproval
+      : sendStep.label;
+
   /* Moving on keeps what was typed: unsaved edits are saved first. */
   function continueOn() {
     if (unsaved > 0) edits.save();
-    router.push(`/countries/${code}/approval`);
+    sendStep.send(() =>
+      router.push(lastStep ? reviewHref(countryCode) : `/countries/${code}/approval`),
+    );
   }
 
   return (
@@ -188,7 +247,7 @@ export function TaxRulesScreen({
             <h1 className="text-[22px] font-medium tracking-tight text-heading">
               {countryName}
             </h1>
-            <DraftActions onDiscard={() => router.push("/countries")} />
+            <DraftActions onDiscard={() => router.push("/countries")} onSave={saveDraft} />
           </div>
 
           <div className="-mx-6 mt-6 overflow-x-auto px-6 pb-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -304,6 +363,13 @@ export function TaxRulesScreen({
                         }
                         onDuplicate={duplicateRow}
                         onDelete={(r) => setDeleting(r)}
+                        addedColumn={(name) => {
+                          const added = edits.addedColumn(sheet.id, name);
+                          return added && {
+                            typeLabel: added.type ? copy.addColumn.types[added.type] : undefined,
+                          };
+                        }}
+                        onDeleteColumn={deleteColumn}
                         onCellChange={(r, c, v) =>
                           edits.setCell(sheet.id, r, c, v)
                         }
@@ -325,9 +391,6 @@ export function TaxRulesScreen({
                       className="border-t border-border px-4 py-3"
                       page={paged.page}
                       pages={paged.pages}
-                      start={paged.start}
-                      shown={paged.items.length}
-                      total={paged.total}
                       onPageChange={(n) =>
                         setPages((p) => ({ ...p, [current.id]: n }))
                       }
@@ -353,6 +416,9 @@ export function TaxRulesScreen({
               open={addingColumn}
               sheetName={t.tabs[current.id]}
               columns={edits.columns[current.id]}
+              letter={columnLetter(edits.columns[current.id].length)}
+              notice={t.developerNotice}
+              withType
               onOpenChange={setAddingColumn}
               onAdd={addColumn}
             />
@@ -382,6 +448,7 @@ export function TaxRulesScreen({
                 saveDisabled
                 saveLabel={t.save}
                 continueDisabled
+                continueLabel={continueLabel}
                 onContinue={continueOn}
               />
             ) : (
@@ -396,10 +463,12 @@ export function TaxRulesScreen({
                     )}
                   </span>
                 )}
+                <SentStatus send={sendStep} />
                 <ContinueActions
                   onSave={saveChanges}
                   saveDisabled={unsaved === 0}
                   saveLabel={t.save}
+                  continueLabel={continueLabel}
                   onContinue={continueOn}
                 />
               </>

@@ -15,6 +15,8 @@ import { copy, fill } from "@/lib/copy";
 import type { FormPage } from "@/lib/mock/form-preview";
 
 const NAME = /^[A-Za-z0-9_#]+$/;
+/** The page choice for a box on no page of the form; pages count from 1. */
+const NO_PAGE = 0;
 
 /**
  * Adds a box the agent did not extract: its name as the return names it, what
@@ -22,7 +24,8 @@ const NAME = /^[A-Za-z0-9_#]+$/;
  * at the form like every extracted one does.
  *
  * `page` opens the dialog on a page already chosen (from the page viewer); the
- * expert can still change it.
+ * expert can still change it. "No page" is for a box the return carries but
+ * the printed form does not show.
  */
 export function AddBoxDialog({
   open,
@@ -39,7 +42,8 @@ export function AddBoxDialog({
   /** Box names already in the field map, to refuse a duplicate. */
   taken: ReadonlySet<string>;
   onOpenChange: (open: boolean) => void;
-  onAdd: (box: { name: string; description: string; page: number }) => void;
+  /** `page` is null for a box that sits on no page of the form. */
+  onAdd: (box: { name: string; description: string; page: number | null }) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -73,7 +77,7 @@ function Body({
   pages: FormPage[];
   taken: ReadonlySet<string>;
   onCancel: () => void;
-  onAdd: (box: { name: string; description: string; page: number }) => void;
+  onAdd: (box: { name: string; description: string; page: number | null }) => void;
 }) {
   const t = copy.fieldMap;
   const [name, setName] = React.useState("");
@@ -96,7 +100,7 @@ function Body({
     e.preventDefault();
     setTried(true);
     if (nameError || pageError || page === null) return;
-    onAdd({ name: trimmed, description: description.trim(), page });
+    onAdd({ name: trimmed, description: description.trim(), page: page === NO_PAGE ? null : page });
   }
 
   return (
@@ -152,8 +156,9 @@ function Body({
             aria-label={t.page}
             className="grid grid-cols-3 gap-2 sm:grid-cols-4"
           >
-            {pages.map((p, i) => {
-              const n = i + 1;
+            {[...pages, null].map((p, i) => {
+              /* The last choice is no page at all. */
+              const n = p ? i + 1 : NO_PAGE;
               const active = page === n;
               return (
                 <button
@@ -173,11 +178,11 @@ function Body({
                     className={cn("text-[13px] font-medium", active ? "text-brand" : "text-text")}
                     data-numeric
                   >
-                    {fill(t.pageOption, { n })}
+                    {p ? fill(t.pageOption, { n }) : t.noPage}
                   </span>
-                  {p.footer && (
+                  {(p ? p.footer : t.noPageHint) && (
                     <span className="mt-0.5 max-w-full truncate text-[11px] text-text-faint" data-numeric>
-                      {p.footer}
+                      {p ? p.footer : t.noPageHint}
                     </span>
                   )}
                   {active && (

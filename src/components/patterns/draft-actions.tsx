@@ -23,9 +23,16 @@ import { useReadOnly } from "./read-only";
  *
  * `onDiscard` is what abandoning the draft means on this step: the setup step
  * resets itself in place; the later steps hand back to Countries. The confirm
- * and its copy are the same either way.
+ * and its copy are the same either way. `onSave` keeps the draft; without it
+ * (nothing yet to save) Save draft is disabled.
  */
-export function DraftActions({ onDiscard }: { onDiscard: () => void }) {
+export function DraftActions({
+  onDiscard,
+  onSave,
+}: {
+  onDiscard: () => void;
+  onSave?: () => void;
+}) {
   const [discardOpen, setDiscardOpen] = React.useState(false);
   /* A draft is the builder's; someone only reading has none to keep or drop. */
   const readOnly = useReadOnly();
@@ -43,7 +50,7 @@ export function DraftActions({ onDiscard }: { onDiscard: () => void }) {
         <Button variant="ghost" size="sm" onClick={() => setDiscardOpen(true)}>
           {copy.page.discard}
         </Button>
-        <Button variant="filled" size="sm">
+        <Button variant="filled" size="sm" disabled={!onSave} onClick={onSave}>
           {copy.page.saveDraft}
         </Button>
       </div>

@@ -36,6 +36,9 @@ export interface BoxQuery {
   lines: RuleLine[];
   /** Columns a list box groups its lines by. */
   groupBy: string[];
+  /** The field map's calculation, for a box with is_calculated ticked; null
+   *  otherwise. Where present it is the box's rule. */
+  calculation: string | null;
   /** What Generate query produces for this box. */
   generated: string;
 }
@@ -152,6 +155,8 @@ export const BOX_QUERIES: BoxQuery[] = RETURN_BOXES.map((row) => {
   const id = row.id ?? "";
   const box = row.box_name ?? "";
   const description = row.return_box_description ?? "";
+  const calculation =
+    row.is_calculated === "TRUE" && row.calculation?.trim() ? row.calculation : null;
 
   if (row.is_list === "TRUE") {
     return {
@@ -161,6 +166,7 @@ export const BOX_QUERIES: BoxQuery[] = RETURN_BOXES.map((row) => {
       measure: "list",
       lines: [],
       groupBy: (row.group_by ?? "").split(",").map((c) => c.trim()).filter(Boolean),
+      calculation,
       generated: row.calculation ?? "",
     };
   }
@@ -175,6 +181,8 @@ export const BOX_QUERIES: BoxQuery[] = RETURN_BOXES.map((row) => {
     measure,
     lines,
     groupBy: [],
-    generated: sumQuery(id, box, measure, lines),
+    calculation,
+    /* A calculated box runs what the field map wrote for it. */
+    generated: calculation ?? sumQuery(id, box, measure, lines),
   };
 });

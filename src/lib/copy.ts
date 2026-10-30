@@ -21,7 +21,6 @@ export const copy = {
   list: {
     clear: "Clear filter",
     all: "All",
-    showing: "Showing {from}–{to} of {total}",
     previous: "Previous",
     next: "Next",
     page: "Page {page} of {pages}",
@@ -173,6 +172,10 @@ export const copy = {
     manualUncertainty:
       "Added manually — not yet verified against a public source.",
     manualSourceLabel: "Added manually",
+    /** A return type found in more than one place: the rest, behind a toggle. */
+    moreSources: "{count} more sources",
+    moreSourcesOne: "1 more source",
+    fewerSources: "Show fewer",
     noneFound:
       "No return types were identified for {country}. Retry the research, or supply the material yourself below.",
     failed:
@@ -213,11 +216,60 @@ export const copy = {
     columns: {
       returnType: "Return type",
       frequency: "Filing frequency",
+      isDefault: "is_default",
       deadline: "Filing deadline",
       sources: "Sources",
+      nonWorkingDay: "Non-working day",
+      workflow: "Offset",
       attach: "Attachments",
       status: "Status",
     },
+    /** Marks a column the agent cannot fill, so the expert knows it is theirs. */
+    manualTag: "Manual",
+    /* Where a deadline moves when it lands on a weekend or holiday. */
+    nonWorkingDay: {
+      next: "Next working day",
+      previous: "Previous working day",
+      none: "Stays on the day",
+    },
+    workdaysOnly: "Counts working days",
+    calendarDays: "Counts calendar days",
+    /* The manual offset — days between the workflow stages — and the form it
+       is entered in. A row left alone counts as zero days throughout. */
+    workflowChange: "Change",
+    /** The action on a row still at zero throughout. */
+    workflowSetOffset: "Set offset",
+    workflowEdit: "Edit offset for {name}",
+    /** Over the cell's stage list: the days each stage takes. */
+    daysPerStage: "Days per stage",
+    /** A row at zero throughout, said in words rather than five zeros. */
+    noOffset: "No offset",
+    /* is_default: 1 on the frequency a client without one is filed on. */
+    makeDefault: "Make {frequency} the default for {name}",
+    defaultSet: "{frequency} is now the default for {name}",
+    workflowTitle: "Offset",
+    workflowSubject: "{name} · {frequency}",
+    workflowHint:
+      "The number of days each stage takes before submission is due. Leave a stage blank for zero days.",
+    stages: {
+      dataDue: "Data due",
+      prepare: "Prepare",
+      review: "Review",
+      approve: "Approve",
+      submit: "Submit",
+      due: "Submission due",
+    },
+    daysUnit: "days",
+    daysBetween: "Days from {from} to {to}",
+    defaultLabel: "Default frequency for {name}",
+    defaultHint: "Used for a client whose frequency is not set.",
+    onlyFrequency: "{name} has one frequency, so it is the default.",
+    applyToUnset: "Use this offset for the {count} other rows still at zero",
+    applyToUnsetOne: "Use this offset for the 1 other row still at zero",
+    workflowSave: "Save offset",
+    workflowCancel: "Cancel",
+    workflowSaved: "Offset saved for {name}",
+    workflowSavedMany: "Offset saved for {name} and {count} more rows",
     /** Shown where the agent established no value for a column. */
     none: "—",
     crossChecked: "Cross-checked",
@@ -230,6 +282,55 @@ export const copy = {
         agent's original value is always kept alongside the correction. */
     edit: "Edit {label}",
     editValueLabel: "Corrected value",
+    /* The fixed frequencies Comply files on; the frequency is chosen, not typed. */
+    frequencies: [
+      "Annually",
+      "Bi-Monthly",
+      "Every 4 days",
+      "Four-Monthly",
+      "Monthly",
+      "Quarterly",
+      "Semi-Annually",
+    ],
+    chooseFrequency: "Choose a frequency",
+    /* The deadline rules offered when correcting a filing deadline: the end of
+       the period plus a number of days. A row's own rule is always offered too,
+       even when it is not one of these. */
+    deadlines: [
+      "EOP + 10 days",
+      "EOP + 12 days",
+      "EOP + 15 days",
+      "EOP + 20 days",
+      "EOP + 25 days",
+      "EOP + 28 days",
+      "EOP + 30 days",
+      "EOP + 31 days",
+      "EOP + 40 days",
+      "EOP + 45 days",
+      "EOP + 60 days",
+      "EOP + 90 days",
+    ],
+    chooseDeadline: "Choose a deadline",
+    /* Adding a filing schedule the agent did not find. Every field is chosen
+       from a fixed list; only the rationale is written. */
+    addRow: "Add row",
+    addRowTitle: "Add a filing schedule",
+    addRowHint:
+      "For a schedule the agent did not find. It is added as yours, with no source behind it, so say where it comes from.",
+    addRowReturnType: "Return type",
+    chooseReturnType: "Choose a return type",
+    addRowDayCount: "Day count",
+    dayCount: { calendar: "Calendar days", working: "Working days" },
+    addRowRequired: "Choose a value for every field.",
+    addRowTaken: "{name} already has a {frequency} schedule.",
+    addRowRationalePlaceholder: "e.g. Confirmed with the tax authority by phone",
+    addRowConfirm: "Add row",
+    addedToast: "{name} · {frequency} added",
+    /** Where the sources sit on a row the expert added. */
+    addedByYou: "Added by you",
+    addedStatus: "Added by you",
+    remove: "Remove",
+    removedToast: "{name} · {frequency} removed",
     editReasonLabel: "Rationale",
     editReasonOptional: "(optional)",
     editReasonPlaceholder: "Retained with the record for audit purposes",
@@ -252,7 +353,7 @@ export const copy = {
     linkKind: "Link",
     removeAttachment: "Remove {label}",
     /** Footer gate and the confirm toast. */
-    cleared: "{cleared} of {total} return types cleared",
+    cleared: "{cleared} of {total} rows cleared",
     confirmedToast: "{name} confirmed",
     confirmAll: "Confirm all",
     confirmSelected: "Confirm selected",
@@ -392,11 +493,63 @@ export const copy = {
   /* The approval workflow after the last step: the tax expert sends every step
      for approval, and a reviewer reads each one — locked — and approves it or
      asks for changes. Reviewers comment; they never edit. */
+  /* Developer alerts: a column added to a tax-rule sheet needs a developer to
+     add it to Comply too. Each alert is emailed and listed here. */
+  developerAlerts: {
+    nav: "Developer alerts",
+    title: "Developer alerts",
+    intro:
+      "Columns added to a tax-rule sheet that Comply's database does not have yet. Each one is also emailed to {inbox}. Mark it added once the column is in Comply.",
+    empty: "No developer alerts.",
+    emptyHint: "Adding a column to a tax-rule sheet in Tax Rules Generation raises one here.",
+    filters: { open: "To add", done: "Added", all: "All" },
+    filterEmpty: {
+      open: "Nothing to add. Every column raised is in Comply.",
+      done: "No column has been marked as added yet.",
+      all: "No developer alerts.",
+    },
+    column: "{column} · column {letter}",
+    where: "{country} · {sheet} sheet",
+    defaultValue: "Existing rows set to “{value}”",
+    noDefaultValue: "Existing rows left blank",
+    raised: "Added by {name}, {date}",
+    emailed: "Emailed to {inbox}",
+    openEmail: "Open email",
+    markDone: "Mark as added",
+    done: "Added to Comply by {name}, {date}",
+    doneToast: "{column} marked as added to Comply",
+    /* The email itself. */
+    emailSubject: "New column for Comply: {column} on the {country} {sheet} sheet",
+    emailBody:
+      "{name} added a column to a tax-rule sheet in Fintua ATLAS. Comply's database needs it before rules can use it.\n\nCountry: {country}\nSheet: {sheet}\nColumn: {column} (column {letter})\nExisting rows: {value}\nAdded: {date}",
+  },
+
+  /* Drafts: every Save draft keeps a new numbered version for its country. */
+  drafts: {
+    nav: "Drafts",
+    savedToast: "Draft {version} of {country} saved, up to {step}",
+    viewDrafts: "View drafts",
+    title: "Drafts",
+    intro:
+      "Each Save draft keeps a new version of a country's onboarding, covering every step up to where it was saved. Earlier versions stay here.",
+    empty: "No drafts saved yet.",
+    emptyHint: "Save draft at the top of any step keeps a version here.",
+    countDrafts: "{count} drafts",
+    countDraftsOne: "1 draft",
+    version: "Draft {version}",
+    latest: "Latest",
+    upTo: "Up to {step}",
+    stepOf: "Step {n} of {total}",
+    savedBy: "Saved by {name}, {date}",
+    open: "Open draft {version} of {country}",
+  },
+
   approvalFlow: {
     roles: { expert: "Tax expert", reviewer: "Reviewer" },
     signOut: "Sign out",
 
     status: {
+      not_sent: "Not sent yet",
       waiting: "Waiting for review",
       approved: "Approved",
       changes: "Changes requested",
@@ -404,12 +557,11 @@ export const copy = {
     resubmitted: "Sent again",
 
     /* The approval screen. */
-    backLink: "Query Builder",
     heading: "Approval",
     introExpert:
-      "Each step is reviewed on its own. Read the reviewer's comments here, open a step to change it, then send it for approval again from Query Builder.",
+      "Each step is sent from the step itself and reviewed on its own, so you can keep working while it waits. Read the reviewer's comments here, open a step to change it, then send it again.",
     introReviewer:
-      "Open each step to read what the tax expert built, then approve it or ask for changes. You can comment, but not edit.",
+      "Work through the steps in order: each one opens for a decision once the one before it is approved. You can comment, but not edit.",
     progress: "{approved} of {total} steps approved",
     submittedBy: "Sent by {name}, {date}",
     stepLabel: "Step {n}",
@@ -419,15 +571,15 @@ export const copy = {
     lastBy: "{name}: {text}",
     allApproved: "Every step is approved — {country} is published.",
     notSubmitted: "{country} hasn't been sent for approval yet.",
-    notSubmittedHint: "Finish the Query Builder, then send every step for approval from there.",
-    notSubmittedAction: "Go to Query Builder",
+    notSubmittedHint: "Each step that needs approval is sent from its own footer, starting with Return Types.",
+    notSubmittedAction: "Go to Return Types",
 
     /* The Approvals list in the sidebar. */
     listTitle: "Approvals",
     listIntro: "Countries sent for approval, and how far each one has got.",
     listEmpty: "Nothing has been sent for approval.",
     listEmptyHint:
-      "A country appears here once its tax expert sends it for approval from the Query Builder.",
+      "A country appears here once its tax expert sends its first step for approval.",
     listColumns: {
       country: "Country",
       submitted: "Sent",
@@ -464,10 +616,45 @@ export const copy = {
       resubmitted: "sent it for approval again",
     },
 
-    /* Step six's last action. */
+    /* Sending a step for approval, from the step itself. */
+    sentStepToast: "{step} sent for approval",
+    openApproval: "View approval",
+    /* The reviewer works through the approval steps in order. */
+    notSentYet: "Not sent for approval yet",
+    approveEarlierFirst: "Approve {step} first",
+    noApprovalNeeded: "This step needs no approval",
+    noApprovalSteps: "Select Country and Tax Form Retrieval need no approval.",
     sendForApproval: "Send for approval",
-    sendForApprovalBlocked: "Generate or write at least one query first",
     sentToast: "{country} sent for approval",
+  },
+
+  /* The form that adds a column to a sheet — the spec sheets at step four and
+     the tax-rule sheets at step five. */
+  addColumn: {
+    title: "Add a column to {sheet}",
+    hint: "It goes at the end of the sheet, as column {letter}, and every row gets a cell in it. It stays unsaved until you save.",
+    name: "Column name",
+    namePlaceholder: "e.g. reverse_charge",
+    nameHint: "The header, as the workbook would show it.",
+    nameRequired: "Give the column a name.",
+    nameTaken: "{name} is already a column of this sheet.",
+    value: "Value for every row",
+    valuePlaceholder: "e.g. N/A",
+    valueHint: "Optional. Leave it blank to fill the rows in one by one.",
+    /* What the column holds — what a developer needs to create it in Comply. */
+    type: "Column type",
+    chooseType: "Choose a type",
+    typeHint: "What every cell in it holds.",
+    typeRequired: "Choose what the column holds.",
+    types: {
+      text: "Text",
+      integer: "Whole number",
+      decimal: "Decimal",
+      yesNo: "Yes / No",
+      date: "Date",
+    },
+    cancel: "Cancel",
+    confirm: "Add column",
   },
 
   /* What the agent shows for the few seconds it works on arriving at a step,
@@ -577,20 +764,19 @@ export const copy = {
     newRule: "New rule",
     /** Adding a column, on the sales and purchase sheets. */
     addColumn: "Add column",
-    addColumnTitle: "Add a column to {sheet}",
-    addColumnHint:
-      "It goes at the end of the sheet, as column {letter}, and every rule gets a cell in it. It stays unsaved until you save.",
-    columnName: "Column name",
-    columnNamePlaceholder: "e.g. Reverse charge",
-    columnNameHint: "The header, as the workbook would show it.",
-    columnNameRequired: "Give the column a name.",
-    columnNameTaken: "{name} is already a column of this sheet.",
-    columnValue: "Value for every rule",
-    columnValuePlaceholder: "e.g. N/A",
-    columnValueHint: "Optional. Leave it blank to fill the rules in one by one.",
-    cancel: "Cancel",
-    confirmAddColumn: "Add column",
     columnAdded: "{name} added as column {letter}",
+    /** A new tax-rule column changes what Comply stores, so a developer is
+     *  told — said before the expert adds it, and confirmed after. */
+    developerNotice:
+      "Adding a column alerts the developer by email and in Developer alerts: Comply's database needs the column too before rules can use it.",
+    developerAlerted: "Developer emailed at {inbox} and alerted in Developer alerts to add {name} to the {sheet} sheet.",
+    viewAlerts: "View alert",
+    /* Taking out a column the expert added: open until the country is
+       published, when the column becomes part of what Comply runs. */
+    deleteColumn: "Delete column {name}",
+    columnDeleted: "{name} deleted",
+    columnDeletedHint: "The developer's alert for it is withdrawn.",
+    columnLocked: "{name} is published, so it can no longer be deleted.",
   },
 
   /* The form-preview panel on the specs step: the official return rendered with
@@ -650,6 +836,19 @@ export const copy = {
     empty: "—",
     /** An open row's calculation cell while is_calculated is unticked. */
     calculationLocked: "Tick is_calculated to write a calculation",
+    /* A ticked box with no calculation: owed before the step moves on. */
+    addCalculation: "Add calculation",
+    calculationOwed: "Write the calculation, or untick is_calculated",
+    missingTitle: "Calculation needed",
+    missingHint:
+      "These boxes have is_calculated ticked but no calculation. Write each one in column J, or untick is_calculated, before you move on.",
+    missingGo: "Go to {box}",
+    missingClose: "Close",
+    /** An open row's box picker on the list boxes and dropdown fields tabs:
+     *  its choices come from the field map. */
+    chooseBox: "Choose a box",
+    /** A value already in the row that the field map no longer offers. */
+    notInFieldMap: "{name} (not in field map)",
     /** The return type's four sheets, as one CSV. */
     exportCsv: "Export CSV",
     exportFileName: "{name} spec",
@@ -684,14 +883,23 @@ export const copy = {
     descriptionPlaceholder: "What the box reports",
     descriptionHint: "Optional. You can fill in the rest of its columns in the field map.",
     page: "Page on the form",
-    pageRequired: "Pick the page the box sits on.",
+    pageRequired: "Pick the page the box sits on, or No page.",
     pageOption: "Page {n}",
+    /** A box the return carries but the printed form does not show. */
+    noPage: "No page",
+    noPageHint: "Not on the form",
     cancel: "Cancel",
     confirmAdd: "Add box",
     added: "{name} added to page {page}",
+    addedNoPage: "{name} added, on no page of the form",
     show: "Show",
     /** Adding an allowed value to a drop-down box. */
     addValue: "Add value",
+    /** Adding a row or a column to the list, mandatory and dropdown sheets. */
+    addRow: "Add row",
+    addColumn: "Add column",
+    rowAdded: "Row added to {sheet}",
+    columnAdded: "{name} added as column {letter}",
     addValueTitle: "Add a dropdown value",
     addValueHint:
       "Pick the drop-down box it belongs to, then its key and the value shown for it. It joins the sheet as an unsaved row until you save.",
@@ -754,7 +962,18 @@ export const copy = {
     purchase: "Purchase",
     anyRate: "any rate",
     noLines: "No tax rule names this box yet.",
+    /** Opens the rule of a box with is_calculated ticked: its calculation as
+     *  written in the field map. */
+    calculated: "Calculated from the field map",
     notGenerated: "Not generated",
+    /* A box with no query says in plain English what it should calculate. */
+    noteLabel: "No query. In plain English, what should this box add up?",
+    notePlaceholder: "e.g. The net amount of every export of goods at the zero rate",
+    noteAria: "What {box} should calculate, in plain English",
+    noteRequired: "Needed before you can send for approval.",
+    undescribed: "{count} boxes need a query or a description",
+    undescribedOne: "1 box needs a query or a description",
+    sendBlocked: "Generate a query, or describe in plain English, for every box first",
     edited: "Edited by hand",
     editQuery: "Edit query for {box}",
     sqlLabel: "SQL query for {box}",

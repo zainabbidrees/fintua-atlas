@@ -109,7 +109,8 @@ export const RETURN_BOXES: ReturnBoxRow[] = [
     is_active: "TRUE",
     return_box_description: "List Dispatches",
     return_box_description_local_language: "List Dispatches",
-    is_calculated: "FALSE",
+    /* It holds a calculation, and step four only keeps one while this is ticked. */
+    is_calculated: "TRUE",
     calculation: [
       "SELECT (SELECT SUM(invoiced_value)",
       "FROM @schema.intrastat_return_details",

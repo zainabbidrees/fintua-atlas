@@ -16,11 +16,15 @@ export function deadlineDays(value: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-/** Months in one return period, read from a frequency like "Monthly". */
+/** Months in one return period, read from a frequency like "Monthly". A
+    period counted in days ("Every 4 days") has no month length, so no date. */
 export function periodMonths(frequency: string | null | undefined): number | null {
   const f = (frequency ?? "").toLowerCase();
+  if (f.includes("bi-month")) return 2;
+  if (f.includes("four-month")) return 4;
   if (f.includes("month")) return 1;
   if (f.includes("quarter")) return 3;
+  if (f.includes("semi-annual")) return 6;
   if (f.includes("annual") || f.includes("year")) return 12;
   return null;
 }

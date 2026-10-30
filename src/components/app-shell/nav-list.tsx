@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { Globe2, CheckCircle2, ScrollText, Settings } from "lucide-react";
+import { Globe2, CheckCircle2, FilePen, ScrollText, Settings, Wrench } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ApprovalsCount } from "./approvals-count";
+import { DeveloperAlertsCount } from "./developer-alerts-count";
 
 export const NAV = [
   { href: "/countries", label: "Countries", icon: Globe2 },
-  { href: "/approvals", label: "Approvals", icon: CheckCircle2, count: true },
+  { href: "/drafts", label: "Drafts", icon: FilePen },
+  { href: "/approvals", label: "Approvals", icon: CheckCircle2, count: ApprovalsCount },
+  { href: "/developer-alerts", label: "Developer alerts", icon: Wrench, count: DeveloperAlertsCount },
   { href: "/audit-log", label: "Audit log", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -18,7 +21,7 @@ export const NAV = [
 export function NavList({ activePath }: { activePath: string | null }) {
   return (
     <ul className="mt-9 space-y-1">
-      {NAV.map(({ href, label, icon: Icon, count }) => {
+      {NAV.map(({ href, label, icon: Icon, count: Count }) => {
         const active = activePath?.startsWith(href) ?? false;
         return (
           <li key={href}>
@@ -34,7 +37,7 @@ export function NavList({ activePath }: { activePath: string | null }) {
             >
               <Icon className="size-[18px] shrink-0" strokeWidth={1.75} />
               <span className="flex-1">{label}</span>
-              {count && <ApprovalsCount />}
+              {Count && <Count />}
             </Link>
           </li>
         );

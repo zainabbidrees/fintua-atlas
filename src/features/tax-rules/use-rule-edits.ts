@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { ColumnType } from "@/components/patterns/add-column-dialog";
 import {
   PURCHASES,
   PURCHASES_COLUMNS,
@@ -53,6 +54,11 @@ export function useRuleEdits() {
   const [saved, setSaved] = React.useState(INITIAL);
   const [draft, setDraft] = React.useState(INITIAL);
   const [columns, setColumns] = React.useState(INITIAL_COLUMNS);
+  /* The columns the expert added, by sheet, with what each holds. Only these
+     can be deleted: the sheet's own columns are what Comply already runs. */
+  const [addedColumns, setAddedColumns] = React.useState<
+    Record<SheetId, { name: string; type?: ColumnType }[]>
+  >({ rates: [], sales: [], purchases: [] });
   const [editing, setEditing] = React.useState<ReadonlySet<string>>(new Set());
 
   /** The key of the row at `index` in a sheet, for editing and change marks. */
@@ -117,9 +123,57 @@ export function useRuleEdits() {
   }
 
   /** Appends a column to a sheet, giving every row `value` in it. */
-  function addColumn(sheet: SheetId, name: string, value: string) {
+  function addColumn(sheet: SheetId, name: string, value: string, type?: ColumnType) {
     setColumns((c) => ({ ...c, [sheet]: [...c[sheet], name] }));
+    setAddedColumns((a) => ({ ...a, [sheet]: [...a[sheet], { name, type }] }));
     setDraft((d) => ({ ...d, [sheet]: d[sheet].map((r) => ({ ...r, cells: [...r.cells, value] })) }));
+  }
+
+  /** What an added column holds; undefined for the sheet's own columns. */
+  const addedColumn = (sheet: SheetId, name: string) =>
+    addedColumns[sheet].find((c) => c.name === name);
+
+  /** Takes an added column out, cells and all, from the draft and from what
+   *  was saved — it never reached Comply, so there is nothing to keep. Returns
+   *  what `restoreColumn` needs to put it back. */
+  function deleteColumn(sheet: SheetId, name: string) {
+    const at = columns[sheet].indexOf(name);
+    const meta = addedColumn(sheet, name);
+    if (at < 0 || !meta) return null;
+    const cells = new Map(draft[sheet].map((r) => [r.id, r.cells[at] ?? ""]));
+    const savedCells = new Map(saved[sheet].map((r) => [r.id, r.cells[at]]));
+    const drop = (rules: Rule[]) =>
+      rules.map((r) => ({ ...r, cells: r.cells.filter((_, c) => c !== at) }));
+    setColumns((c) => ({ ...c, [sheet]: c[sheet].filter((_, i) => i !== at) }));
+    setAddedColumns((a) => ({ ...a, [sheet]: a[sheet].filter((c) => c.name !== name) }));
+    setDraft((d) => ({ ...d, [sheet]: drop(d[sheet]) }));
+    /* A saved column goes from the saved sheet too, so removing it does not
+       leave every row reading as changed. */
+    if (saved[sheet][0]?.cells.length === columns[sheet].length) {
+      setSaved((v) => ({ ...v, [sheet]: drop(v[sheet]) }));
+    }
+    return { sheet, at, meta, cells, savedCells };
+  }
+
+  /** Undoes `deleteColumn`: the column back in its place, each row's cell too. */
+  function restoreColumn(taken: NonNullable<ReturnType<typeof deleteColumn>>) {
+    const { sheet, at, meta, cells, savedCells } = taken;
+    const put = (rules: Rule[], from: Map<string, string | undefined>) =>
+      rules.map((r) => {
+        const cell = from.get(r.id);
+        if (cell === undefined) return r;
+        const next = [...r.cells];
+        next.splice(at, 0, cell);
+        return { ...r, cells: next };
+      });
+    setColumns((c) => {
+      const next = [...c[sheet]];
+      next.splice(at, 0, meta.name);
+      return { ...c, [sheet]: next };
+    });
+    setAddedColumns((a) => ({ ...a, [sheet]: [...a[sheet], meta] }));
+    setDraft((d) => ({ ...d, [sheet]: put(d[sheet], cells) }));
+    setSaved((v) => ({ ...v, [sheet]: put(v[sheet], savedCells) }));
   }
 
   function toggleEditing(key: string) {
@@ -174,6 +228,9 @@ export function useRuleEdits() {
     deleteRow,
     restoreRow,
     addColumn,
+    addedColumn,
+    deleteColumn,
+    restoreColumn,
     toggleEditing,
     save,
   };
