@@ -230,31 +230,38 @@ export function UploadBar({
       {error && <p className="mt-1.5 text-[12px] text-risk">{error}</p>}
 
       {attached.length > 0 && (
-        <ul className="mt-2 space-y-2">
-          {attached.map((a) => (
-            <li
-              key={a.id}
-              className="flex w-full items-center gap-1.5 rounded-md border border-border bg-surface-sunken px-2 py-1 text-[12px] text-text-muted"
-            >
-              {a.kind === "file" ? (
-                <Paperclip className="size-3 shrink-0 text-text-faint" />
-              ) : (
-                <Link2 className="size-3 shrink-0 text-text-faint" />
-              )}
-              <span className="min-w-0 flex-1 truncate">{a.label}</span>
-              <button
-                type="button"
-                onClick={() =>
-                  setAttached((list) => list.filter((x) => x.id !== a.id))
-                }
-                aria-label={`Remove ${a.label}`}
-                className="grid size-4 place-items-center rounded text-text-faint transition-colors hover:text-text"
+        <div className="mt-2">
+          {/* Marks the group as the expert's own, so manually added material is
+              never read as something the agent retrieved. */}
+          <p className="mb-1.5 text-[12px] font-medium text-text-muted">
+            {copy.uploadBar.addedByYou}
+          </p>
+          <ul className="space-y-1.5">
+            {attached.map((a) => (
+              <li
+                key={a.id}
+                className="flex w-full items-center gap-1.5 rounded-md border border-border bg-surface-sunken px-2 py-1 text-[12px] text-text-muted"
               >
-                <X className="size-3" />
-              </button>
-            </li>
-          ))}
-        </ul>
+                {a.kind === "file" ? (
+                  <Paperclip className="size-3 shrink-0 text-text-faint" />
+                ) : (
+                  <Link2 className="size-3 shrink-0 text-text-faint" />
+                )}
+                <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAttached((list) => list.filter((x) => x.id !== a.id))
+                  }
+                  aria-label={`Remove ${a.label}`}
+                  className="grid size-4 shrink-0 place-items-center rounded text-text-faint transition-colors hover:text-text"
+                >
+                  <X className="size-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

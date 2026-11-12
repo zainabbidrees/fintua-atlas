@@ -260,6 +260,54 @@ export function useReturns(countryCode: string) {
     advanceIfCleared(finding.id);
   };
 
+  /**
+   * Sets a value the agent left empty — a column the research never filled, so
+   * there is no finding to correct. Creates the finding as the expert's own,
+   * with no source behind it, in the schedule the row belongs to; if the role
+   * already has a finding, falls back to a plain edit.
+   */
+  const setField = (
+    obligationId: string,
+    role: "frequency" | "deadline",
+    value: string,
+    reason: string,
+  ) => {
+    const o = obligations.find((x) => x.id === obligationId);
+    const existing = o?.findings.find((f) => f.role === role);
+    if (existing) {
+      edit(existing, value, reason);
+      return;
+    }
+    /* A row split by schedule carries its schedule in the id suffix; a value
+       added here belongs to that schedule so it stays with the row. */
+    const schedule = o?.findings.find((f) => f.schedule)?.schedule;
+    const id = `${obligationId}:${role}`;
+    const added: Finding = {
+      id,
+      group: "filing",
+      role,
+      ...(schedule ? { schedule } : {}),
+      label: role === "frequency" ? "Filing frequency" : "Filing deadline",
+      value,
+      evidence: {
+        sourceTitle: "",
+        publisher: "",
+        url: `manual:${id}`,
+        quote: reason,
+      },
+      state: "edited",
+      editReason: reason,
+    };
+    setObligations((all) =>
+      all.map((x) =>
+        x.id === obligationId
+          ? { ...x, findings: [...x.findings, added] }
+          : x,
+      ),
+    );
+    advanceIfCleared(id);
+  };
+
   /** The per-row undo: puts a settled value back to the agent's original. */
   const reset = (findingId: string) => {
     const original = originalById.get(findingId);
@@ -468,6 +516,7 @@ export function useReturns(countryCode: string) {
     restore,
     reset,
     edit,
+    setField,
     confirmMany,
     dismiss,
     confirmObligation,

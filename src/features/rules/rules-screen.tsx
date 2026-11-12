@@ -24,6 +24,7 @@ import { StepNav, ViewOnlyBar, useStepView, backHref, useCameBack } from "@/feat
 import { copy, fill } from "@/lib/copy";
 import { FORM_PREVIEWS } from "@/lib/mock/form-preview";
 import { completedRetrievalFor, formsFor } from "@/lib/mock/tax-forms";
+import { readReturnsCarried } from "@/lib/returns-carried";
 import { AddBoxDialog } from "./add-box-dialog";
 import { AddDropdownDialog, type DropdownValue } from "./add-dropdown-dialog";
 import { FieldMapTable } from "./field-map-table";
@@ -52,7 +53,7 @@ export function RulesScreen({
   const saveDraft = useSaveDraft(countryCode, countryName, 3);
   /* Every return type carried in, each with the form step three retrieved for
      it — where two editions clashed, the one the publisher's portal accepts. */
-  const returnTypes = React.useMemo<ReturnTypeForm[]>(
+  const allReturnTypes = React.useMemo<ReturnTypeForm[]>(
     () =>
       formsFor(countryCode).map((f) => {
         const editions =
@@ -67,9 +68,29 @@ export function RulesScreen({
       }),
     [countryCode],
   );
-  const [returnTypeId, setReturnTypeId] = React.useState(
-    () => returnTypes.find((t) => t.doc !== null)?.id ?? returnTypes[0]?.id ?? "",
+  /* Drop the return types step two didn't carry forward. Read after mount so the
+     first render matches the server's (which has no access to the selection). */
+  const [carried, setCarried] = React.useState<Set<string> | null>(null);
+  React.useEffect(() => {
+    // Reading the selection from storage after mount is the one case that
+    // legitimately needs setState in an effect (it matches the server's render).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCarried(readReturnsCarried(countryCode));
+  }, [countryCode]);
+  const returnTypes = React.useMemo(
+    () => (carried ? allReturnTypes.filter((t) => carried.has(t.id)) : allReturnTypes),
+    [allReturnTypes, carried],
   );
+  const [returnTypeId, setReturnTypeId] = React.useState(
+    () => allReturnTypes.find((t) => t.doc !== null)?.id ?? allReturnTypes[0]?.id ?? "",
+  );
+  /* If the open return type was one that got dropped, move to a carried one. */
+  React.useEffect(() => {
+    if (returnTypes.length && !returnTypes.some((t) => t.id === returnTypeId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setReturnTypeId(returnTypes.find((t) => t.doc !== null)?.id ?? returnTypes[0].id);
+    }
+  }, [returnTypes, returnTypeId]);
   const returnType = returnTypes.find((t) => t.id === returnTypeId);
   const [confirming, setConfirming] = React.useState(false);
   /* The spec sheets' edits live here, so Save changes in the footer reaches

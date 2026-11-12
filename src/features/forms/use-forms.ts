@@ -6,6 +6,7 @@ import {
   formsFor,
   retryTrailFor,
 } from "@/lib/mock/tax-forms";
+import { readReturnsCarried } from "@/lib/returns-carried";
 import type { FormEdition, FormPage, FormRetrieval } from "@/lib/types";
 
 /** How long each line of a retrieval's trail takes to land. */
@@ -59,6 +60,18 @@ export function useForms(countryCode: string) {
   );
   const [overrides, setOverrides] = React.useState<Record<string, boolean>>({});
   const [choices, setChoices] = React.useState<Record<string, EditionChoice>>({});
+
+  /* Drop the return types step two didn't carry forward. Done after mount, so
+     the first render matches the server's (both start from the full set). */
+  React.useEffect(() => {
+    const carried = readReturnsCarried(countryCode);
+    if (!carried) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setForms((all) => {
+      const next = all.filter((f) => carried.has(f.obligationId));
+      return next.length ? next : all;
+    });
+  }, [countryCode]);
   const [attached, setAttached] = React.useState<Record<string, AttachedForm>>({});
   const [withoutForm, setWithoutForm] = React.useState<Record<string, string>>({});
   const [replaced, setReplaced] = React.useState<Record<string, ReplacedForm>>({});

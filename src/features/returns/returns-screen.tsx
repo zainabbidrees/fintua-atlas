@@ -23,6 +23,7 @@ import { DraftActions } from "@/components/patterns/draft-actions";
 import { useSaveDraft } from "@/features/drafts/use-save-draft";
 import { StepNav, ViewOnlyBar, useStepView, useCameBack } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
+import { writeReturnsCarried } from "@/lib/returns-carried";
 import type { Evidence, ObligationRun } from "@/lib/types";
 import { ReturnsTable } from "./returns-table";
 import { PassageDrawer } from "./passage-drawer";
@@ -56,7 +57,6 @@ export function ReturnsScreen({
   const agent = useAgentRun(copy.agentRuns.returns.trail.length, {
     skip: readOnly || cameBack,
   });
-  const cleared = r.obligations.filter(r.isSettled).length;
 
   /* One passage drawer for the whole table — a source click anywhere opens it on
      that document, scrolled to the exact wording. */
@@ -89,15 +89,34 @@ export function ReturnsScreen({
   );
   const paged = usePaged(filtered);
 
-  /* Starts empty: Select all appears once the expert ticks a first row. */
-  const [selected, setSelected] = React.useState<ReadonlySet<string>>(new Set());
-  const selectedCount = r.obligations.filter((o) => selected.has(o.id)).length;
-  /* The ticked rows still waiting on a decision — what Confirm all acts on. */
-  const toConfirm = r.obligations.filter(
-    (o) => selected.has(o.id) && o.agent !== "running" && !r.isSettled(o),
-  );
+  /* Carry forward. Every return type is carried by default; deselecting a row
+     drops it — so it won't block Continue and won't appear in the later steps.
+     Tracked as exclusions, so a row the agent adds later is carried too. */
+  const [excluded, setExcluded] = React.useState<ReadonlySet<string>>(new Set());
+  const carried = r.obligations.filter((o) => !excluded.has(o.id));
+  const carriedIds = new Set(carried.map((o) => o.id));
+  const droppedCount = r.obligations.length - carried.length;
 
-  /* Clears every ticked row in one go, with one Undo that puts them all back. */
+  /* The carried rows still waiting on a decision — what Confirm all acts on.
+     Dropped rows are left out: not carried, so they need not be settled. */
+  const toConfirm = carried.filter(
+    (o) => o.agent !== "running" && !r.isSettled(o),
+  );
+  /* Continue waits only on what's carried, and on at least one being kept. */
+  const cleared = carried.filter(r.isSettled).length;
+  const carriedSettled = carried.length > 0 && carried.every(r.isSettled);
+
+  /* The return types carried forward, for the later steps to read. A return
+     type stays carried while any one of its schedule rows is. */
+  const carriedTypes = React.useMemo(
+    () => [...new Set(r.obligations.filter((o) => !excluded.has(o.id)).map(returnTypeOf))],
+    [r.obligations, excluded],
+  );
+  React.useEffect(() => {
+    writeReturnsCarried(countryCode, carriedTypes);
+  }, [countryCode, carriedTypes]);
+
+  /* Clears every carried row still waiting, with one Undo that puts them back. */
   function confirmSelected() {
     const ids = toConfirm.map((o) => o.id);
     for (const id of ids) r.confirmObligation(id);
@@ -113,11 +132,12 @@ export function ReturnsScreen({
     });
   }
 
+  /* Deselecting drops a row from carry-forward; selecting takes it back. */
   function setRowSelected(id: string, on: boolean) {
-    setSelected((prev) => {
+    setExcluded((prev) => {
       const next = new Set(prev);
-      if (on) next.add(id);
-      else next.delete(id);
+      if (on) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -169,36 +189,36 @@ export function ReturnsScreen({
                   count: new Set(r.obligations.map(returnTypeOf)).size,
                 })}
               </h2>
-              {/* The same cluster as step one's: the count, with Select all
-                  beside it until every row is ticked. */}
-              {selectedCount > 0 && (
+              {/* Carry-forward: a note when some rows are dropped, with one way
+                  to take them all back, and a bulk Confirm for what's still open. */}
+              {(droppedCount > 0 || toConfirm.length > 0) && (
                 <div className="inline-flex items-center gap-x-3 rounded-lg border border-border-strong bg-surface px-3 py-1.5 shadow-[var(--shadow-raised)]">
-                  <span className="text-[13px] font-medium text-text" data-numeric>
-                    {fill(copy.filings.selectedCount, { count: selectedCount })}
-                  </span>
-                  {selectedCount < r.obligations.length && (
-                    <button
-                      type="button"
-                      onClick={() => setSelected(new Set(r.obligations.map((o) => o.id)))}
-                      className="text-[13px] font-medium text-brand transition-opacity hover:opacity-80"
-                    >
-                      {copy.filings.selectAll}
-                    </button>
-                  )}
-                  {toConfirm.length > 0 && (
+                  {droppedCount > 0 && (
                     <>
-                      <span aria-hidden className="h-4 w-px bg-border" />
+                      <span className="text-[13px] font-medium text-text" data-numeric>
+                        {fill(copy.returnsTable.notCarried, { count: droppedCount })}
+                      </span>
                       <button
                         type="button"
-                        onClick={confirmSelected}
-                        className="inline-flex items-center gap-1 text-[13px] font-medium text-brand transition-opacity hover:opacity-80"
+                        onClick={() => setExcluded(new Set())}
+                        className="text-[13px] font-medium text-brand transition-opacity hover:opacity-80"
                       >
-                        <Check className="size-3.5" />
-                        {selectedCount === r.obligations.length
-                          ? copy.returnsTable.confirmAll
-                          : copy.returnsTable.confirmSelected}
+                        {copy.returnsTable.carryAll}
                       </button>
                     </>
+                  )}
+                  {droppedCount > 0 && toConfirm.length > 0 && (
+                    <span aria-hidden className="h-4 w-px bg-border" />
+                  )}
+                  {toConfirm.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={confirmSelected}
+                      className="inline-flex items-center gap-1 text-[13px] font-medium text-brand transition-opacity hover:opacity-80"
+                    >
+                      <Check className="size-3.5" />
+                      {copy.returnsTable.confirmAll}
+                    </button>
                   )}
                 </div>
               )}
@@ -264,7 +284,7 @@ export function ReturnsScreen({
                   <ReturnsTable
                     r={r}
                     rows={paged.items}
-                    selected={selected}
+                    selected={carriedIds}
                     onSelectedChange={setRowSelected}
                     onOpenSource={(evidence) => setPassage(evidence)}
                   />
@@ -298,18 +318,18 @@ export function ReturnsScreen({
           </Button>
 
           <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-            {!agent.running && !r.allSettled && (
+            {!agent.running && !carriedSettled && (
               <span className="text-sm text-text-muted" data-numeric>
                 {fill(copy.returnsTable.cleared, {
                   cleared,
-                  total: r.obligations.length,
+                  total: carried.length,
                 })}
               </span>
             )}
             <SentStatus send={sendStep} />
             <ContinueActions
               onSave={() => toast(copy.page.savedToast)}
-              continueDisabled={agent.running || !r.allSettled}
+              continueDisabled={agent.running || !carriedSettled}
               continueLabel={sendStep.label}
               onContinue={() =>
                 sendStep.send(() => router.push(`/countries/${countryCode.toLowerCase()}/forms`))

@@ -140,11 +140,13 @@ function lineCondition(line: RuleLine): string {
   return `(${parts.join(" AND ")})`;
 }
 
-function sumQuery(id: string, box: string, measure: "net" | "vat", lines: RuleLine[]) {
-  const amount = measure === "net" ? "t.net_amount" : "t.vat_amount";
+/* Shown, not run: the query reads as a plain SELECT over the matching lines,
+   so the SQL column always looks like a query. The box's rule lives in the
+   WHERE; the net/vat sum it stands for is the box's own measure, not the
+   projection. */
+function sumQuery(lines: RuleLine[]) {
   return [
-    `-- ${box}: return_box_id ${id}`,
-    `SELECT ROUND(COALESCE(SUM(${amount}), 0), 0) AS Value`,
+    "SELECT *",
     "FROM @schema.tax_return_lines AS t",
     "WHERE t.tax_return_id = @TaxReturnId",
     "  AND (",
@@ -197,7 +199,7 @@ function boxQuery(row: BoxRow): BoxQuery {
     calculated: row.is_calculated === "TRUE",
     calculation,
     /* A calculated box runs what the field map wrote for it. */
-    generated: calculation ?? sumQuery(id, box, measure, lines),
+    generated: calculation ?? sumQuery(lines),
   };
 }
 

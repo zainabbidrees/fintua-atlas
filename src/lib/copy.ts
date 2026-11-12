@@ -272,6 +272,10 @@ export const copy = {
     workflowSavedMany: "Offset saved for {name} and {count} more rows",
     /** Shown where the agent established no value for a column. */
     none: "—",
+    /** The affordance to set a value the agent left empty, per column, so a
+        field the research never filled can still be established by hand. */
+    setFrequency: "Set frequency",
+    setDeadline: "Set deadline",
     crossChecked: "Cross-checked",
     needsReview: "Requires review",
     confirmed: "Confirmed",
@@ -358,6 +362,11 @@ export const copy = {
     confirmAll: "Confirm all",
     confirmSelected: "Confirm selected",
     confirmedAllToast: "{count} return types confirmed",
+    /** The carry-forward selection: a deselected row is not carried into the
+        later steps. The bar reads back how many were dropped and offers a way
+        to take them all back. */
+    notCarried: "{count} not carried forward",
+    carryAll: "Carry all forward",
     /** Empty state: nothing was carried in from step one. */
     empty: "No return types were carried into this step.",
     emptyHint: "Go back to Select Country to choose the return types to configure.",
@@ -837,6 +846,17 @@ export const copy = {
     },
     /** Shown in a blank cell, so an empty value reads as intended. */
     empty: "—",
+    /** The sources mark in a box's actions: opens the drawer showing where its
+     *  calculation and rounding were decided from. */
+    sourcesRow: "Sources behind {name}",
+    sourcesTitle: "Where these values came from",
+    sourcesSubtitle: "The calculation and rounding on {name}, each read back to its source.",
+    sourcesClose: "Close",
+    /** The cell each source stands behind, named as its column. */
+    sourceColumnLabel: {
+      calculation: "Calculation",
+      is_rounded: "Rounding (is_rounded)",
+    },
     /** An open row's calculation cell while is_calculated is unticked. */
     calculationLocked: "Tick is_calculated to write a calculation",
     /* A ticked box with no calculation: owed before the step moves on. */
@@ -1106,6 +1126,12 @@ export const copy = {
     remove: "Remove",
     inUse: "Cited by {count} return type",
     inUsePlural: "Cited by {count} return types",
+    /* The passage drawer. The verbatim quote and its citation are the precise
+       evidence, always shown; the surrounding passage is held behind a quiet
+       control and opened only on request, and absent when none was captured. */
+    exactQuoteLabel: "Exact wording from the source",
+    showContext: "Show in context",
+    hideContext: "Hide context",
   },
 
   documents: {
@@ -1146,6 +1172,9 @@ export const copy = {
     groupLabel: "Uploaded by you",
     fileKind: "Uploaded file",
     linkKind: "Pasted link",
+    /** Marks each kept chip as the expert's own, so an uploaded file or pasted
+        link is never read as something the agent retrieved. */
+    addedByYou: "Added by you",
   },
 
   duplicate: {

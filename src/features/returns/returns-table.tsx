@@ -289,7 +289,13 @@ function ReturnRow({
         </td>
 
         <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
-          <ValueCell finding={frequency} options={copy.returnsTable.frequencies} onEdit={r.edit} />
+          <ValueCell
+            finding={frequency}
+            options={copy.returnsTable.frequencies}
+            addLabel={copy.returnsTable.setFrequency}
+            onEdit={r.edit}
+            onCreate={(value, reason) => r.setField(o.id, "frequency", value, reason)}
+          />
         </td>
 
         <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
@@ -302,7 +308,9 @@ function ReturnRow({
             frequency={frequency?.value}
             options={deadlineOptions(deadline?.value)}
             placeholder={copy.returnsTable.chooseDeadline}
+            addLabel={copy.returnsTable.setDeadline}
             onEdit={r.edit}
+            onCreate={(value, reason) => r.setField(o.id, "deadline", value, reason)}
           />
         </td>
 
@@ -574,7 +582,9 @@ function ValueCell({
   frequency,
   options,
   placeholder,
+  addLabel,
   onEdit,
+  onCreate,
 }: {
   finding: Finding | null;
   /** For a deadline rule: the period it counts from, to work out the date. */
@@ -583,13 +593,48 @@ function ValueCell({
   options?: readonly string[];
   /** Shown in the dropdown while nothing is chosen. */
   placeholder?: string;
+  /** The affordance shown when the agent left this field empty, e.g. "Set
+      deadline" — paired with `onCreate`. */
+  addLabel?: string;
   onEdit: (finding: Finding, value: string, reason: string) => void;
+  /** Establishes a value the agent left empty, where there is no finding to
+      correct. Without it, an empty field stays read-only. */
+  onCreate?: (value: string, reason: string) => void;
 }) {
   const [editing, setEditing] = React.useState(false);
   const readOnly = useReadOnly();
 
+  /* Empty — the research filled nothing here. A reviewer sees a dash; the
+     expert gets an affordance to establish the value by hand, the same form a
+     correction uses. */
   if (!finding || !finding.value) {
-    return <span className="text-text-faint">{copy.returnsTable.none}</span>;
+    if (readOnly || !onCreate) {
+      return <span className="text-text-faint">{copy.returnsTable.none}</span>;
+    }
+    if (editing) {
+      return (
+        <ValueEditForm
+          initial=""
+          options={options}
+          placeholder={placeholder}
+          onCancel={() => setEditing(false)}
+          onSave={(value, reason) => {
+            onCreate(value, reason);
+            setEditing(false);
+          }}
+        />
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="inline-flex items-center gap-1 text-[13px] font-medium text-brand transition-opacity hover:opacity-80"
+      >
+        <Pencil className="size-3.5" strokeWidth={1.75} />
+        {addLabel ?? copy.returnsTable.setDeadline}
+      </button>
+    );
   }
 
   if (editing) {
@@ -876,33 +921,40 @@ function AttachCell({
       )}
 
       {uploads.length > 0 && (
-        <ul className={cn("space-y-1.5", !readOnly && "mt-4")}>
-          {uploads.map((u) => (
-            <li
-              key={u.id}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-surface-sunken px-2 py-1 text-[12px] text-text-muted"
-            >
-              {u.kind === "file" ? (
-                <Paperclip className="size-3 shrink-0 text-text-faint" />
-              ) : (
-                <Link2 className="size-3 shrink-0 text-text-faint" />
-              )}
-              <span className="min-w-0 flex-1 truncate">{u.label}</span>
-              {!readOnly && (
-              <button
-                type="button"
-                onClick={() => r.removeUpload(o.id, u.id)}
-                aria-label={fill(copy.returnsTable.removeAttachment, {
-                  label: u.label,
-                })}
-                className="grid size-4 place-items-center rounded text-text-faint transition-colors hover:text-text"
+        <div className={cn(!readOnly && "mt-4")}>
+          {/* Marks the group as the expert's own, so manually added material is
+              never read as something the agent retrieved. */}
+          <p className="mb-1.5 text-[12px] font-medium text-text-muted">
+            {copy.returnsTable.addedByYou}
+          </p>
+          <ul className="space-y-1.5">
+            {uploads.map((u) => (
+              <li
+                key={u.id}
+                className="flex items-center gap-1.5 rounded-md border border-border bg-surface-sunken px-2 py-1 text-[12px] text-text-muted"
               >
-                <Trash2 className="size-3" />
-              </button>
-              )}
-            </li>
-          ))}
-        </ul>
+                {u.kind === "file" ? (
+                  <Paperclip className="size-3 shrink-0 text-text-faint" />
+                ) : (
+                  <Link2 className="size-3 shrink-0 text-text-faint" />
+                )}
+                <span className="min-w-0 flex-1 truncate">{u.label}</span>
+                {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => r.removeUpload(o.id, u.id)}
+                  aria-label={fill(copy.returnsTable.removeAttachment, {
+                    label: u.label,
+                  })}
+                  className="grid size-4 shrink-0 place-items-center rounded text-text-faint transition-colors hover:text-text"
+                >
+                  <Trash2 className="size-3" />
+                </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

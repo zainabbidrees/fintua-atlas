@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, Columns3, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Check, ChevronDown, Columns3, Copy, FileSearch, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AddColumnDialog } from "@/components/patterns/add-column-dialog";
 import { ConfirmWithReason } from "@/components/patterns/confirm-with-reason";
@@ -16,9 +17,12 @@ import {
   usePaged,
 } from "@/components/patterns/list-controls";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
+import { SourceBlock } from "@/components/domain/source-block";
 import { cn } from "@/lib/cn";
 import { copy, fill } from "@/lib/copy";
+import { BOX_SOURCES, type SourcedColumn } from "@/lib/mock/box-sources";
 import { FLAG_COLUMNS } from "@/lib/mock/return-boxes";
+import type { Evidence } from "@/lib/types";
 import {
   PAGE_COLUMN,
   rowKey,
@@ -133,6 +137,10 @@ function visibleColumns(sheet: Sheet): Column[] {
 /* The row's edit control leads every row, in a narrow column of its own, so it
    is reachable at any scroll position and sits beside the name it edits. */
 const EDIT_W = 112;
+/* With a leading sources mark the cluster holds four actions, so the column is
+   a touch wider. A reviewer has only the sources mark, so theirs is narrow. */
+const EDIT_W_SOURCED = 144;
+const SOURCES_ONLY_W = 48;
 const ACTION =
   "inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-[background-color,color,transform] active:scale-[0.94]";
 
@@ -433,16 +441,33 @@ function SheetGrid({
   onAction: (action: RowAction, ref: RowRef) => void;
 }) {
   const columns = visibleColumns(sheet);
-  /* Read only, the row actions are not there, so neither is their column:
-     an empty one read as buttons gone missing. The first column then takes
-     the card's inset. */
+  /* Read only, the edit actions are not there. The field map still keeps a
+     narrow actions column for the sources mark — the one action a reviewer has
+     — but every other sheet drops the column, and its first data column then
+     takes the card's inset. */
   const readOnly = useReadOnly();
-  const editW = readOnly ? 0 : EDIT_W;
+  /* Only the field map carries sources; its boxes all cite at least a rounding
+     rule, so the column is present whenever the field map is shown. */
+  const sheetHasSources = sheet.id === "boxes";
+  const editW = readOnly
+    ? sheetHasSources
+      ? SOURCES_ONLY_W
+      : 0
+    : sheetHasSources
+      ? EDIT_W_SOURCED
+      : EDIT_W;
   const tableWidth = editW + columns.reduce((sum, c) => sum + columnWidth(c.col), 0);
   const picker = BOX_PICKERS[sheet.id];
   const boxNames = picker
     ? [...new Set(s.rows.boxes.filter(picker.offers).map((b) => b.box_name ?? "").filter(Boolean))]
     : [];
+
+  /* The box whose sources are open — its calculation and rounding read side by
+     side in one drawer, each as the document it came from. */
+  const [openBox, setOpenBox] = React.useState<{
+    name: string;
+    sources: Partial<Record<SourcedColumn, Evidence>>;
+  } | null>(null);
 
   return (
     /* Scrolls sideways only — the page scrolls down, so there is never a
@@ -454,14 +479,14 @@ function SheetGrid({
         style={{ width: tableWidth }}
       >
         <colgroup>
-          {!readOnly && <col style={{ width: EDIT_W }} />}
+          {editW > 0 && <col style={{ width: editW }} />}
           {columns.map(({ col }) => (
             <col key={col} style={{ width: columnWidth(col) }} />
           ))}
         </colgroup>
         <thead className="bg-surface">
           <tr className="text-left">
-            {!readOnly && (
+            {editW > 0 && (
               <th className="sticky left-0 z-[1] border-b border-border bg-surface">
                 <span className="sr-only">{copy.fieldMap.actionsColumn}</span>
               </th>
@@ -498,6 +523,12 @@ function SheetGrid({
                 row={row}
                 columns={columns}
                 picker={picker && { col: picker.col, options: boxNames }}
+                sources={sheetHasSources ? BOX_SOURCES[row.box_name ?? ""] : undefined}
+                editW={editW}
+                onOpenSources={() => {
+                  const sources = BOX_SOURCES[row.box_name ?? ""];
+                  if (sources) setOpenBox({ name, sources });
+                }}
                 name={name}
                 editing={s.editing.has(key)}
                 changed={s.changed.has(key)}
@@ -510,6 +541,16 @@ function SheetGrid({
           })}
         </tbody>
       </table>
+      {/* One drawer for the sheet: the box whose sources mark was clicked, its
+          cited values read side by side. */}
+      {openBox && (
+        <BoxSourcesDrawer
+          name={openBox.name}
+          sources={openBox.sources}
+          open
+          onOpenChange={(open) => !open && setOpenBox(null)}
+        />
+      )}
     </div>
   );
 }
@@ -518,6 +559,9 @@ function SheetRow({
   row,
   columns,
   picker,
+  sources,
+  editW,
+  onOpenSources,
   name,
   editing,
   changed,
@@ -530,6 +574,12 @@ function SheetRow({
   columns: Column[];
   /** The column chosen from the field map's boxes, and the boxes it offers. */
   picker?: { col: string; options: string[] };
+  /** This box's captured sources, by column. Field map rows only. */
+  sources?: Partial<Record<SourcedColumn, Evidence>>;
+  /** The actions column's width — 0 when it is not shown at all. */
+  editW: number;
+  /** Opens the sources drawer for this box. */
+  onOpenSources: () => void;
   name: string;
   editing: boolean;
   changed: boolean;
@@ -539,37 +589,53 @@ function SheetRow({
   onCellChange: (col: string, value: string) => void;
 }) {
   const t = copy.fieldMap;
-  /* A reviewer reads every row; the actions are the expert's. */
+  /* A reviewer reads every row; the edit actions are the expert's, but the
+     sources are everyone's — a reviewer is exactly who reads them. */
   const readOnly = useReadOnly();
+  const hasSources = !!sources && Object.keys(sources).length > 0;
   /* The row open for editing is tinted, so it is plain which one the inputs
      belong to. */
   const background = editing ? "bg-brand-quiet" : "bg-surface";
 
   return (
     <tr className={background}>
-      {/* Edit, Duplicate, Delete — the row's own actions, always in reach.
-          While the row is open they give way to its one tick, so the only
-          thing to do there is finish. Delete is the risk colour on hover only:
-          at rest the three are equal and quiet. */}
-      {!readOnly && (
+      {/* Sources, Edit, Duplicate, Delete — the row's own actions, always in
+          reach. While the row is open the edits give way to its one tick, so
+          the only thing to do there is finish; the sources stay, to check a
+          value against its passage while editing it. Delete is the risk colour
+          on hover only: at rest the actions are equal and quiet. */}
+      {editW > 0 && (
         <td className={cn("sticky left-0 z-[1] border-b border-border py-1.5 pl-2", background)}>
           <span className="relative flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={onToggleEditing}
-              aria-pressed={editing}
-              aria-label={fill(editing ? t.doneEditing : t.editRow, { name })}
-              title={fill(editing ? t.doneEditing : t.editRow, { name })}
-              className={cn(
-                ACTION,
-                editing
-                  ? "bg-brand text-on-brand hover:bg-brand-hover"
-                  : "text-text-faint hover:bg-wash hover:text-text",
-              )}
-            >
-              {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
-            </button>
-            {!editing && (
+            {hasSources && (
+              <button
+                type="button"
+                onClick={onOpenSources}
+                aria-label={fill(t.sourcesRow, { name })}
+                title={fill(t.sourcesRow, { name })}
+                className={cn(ACTION, "text-text-faint hover:bg-brand-quiet hover:text-brand")}
+              >
+                <FileSearch className="size-4" strokeWidth={1.75} />
+              </button>
+            )}
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={onToggleEditing}
+                aria-pressed={editing}
+                aria-label={fill(editing ? t.doneEditing : t.editRow, { name })}
+                title={fill(editing ? t.doneEditing : t.editRow, { name })}
+                className={cn(
+                  ACTION,
+                  editing
+                    ? "bg-brand text-on-brand hover:bg-brand-hover"
+                    : "text-text-faint hover:bg-wash hover:text-text",
+                )}
+              >
+                {editing ? <Check className="size-4" /> : <Pencil className="size-3.5" />}
+              </button>
+            )}
+            {!readOnly && !editing && (
               <>
                 <button
                   type="button"
@@ -591,11 +657,15 @@ function SheetRow({
                 </button>
               </>
             )}
-            {/* An unsaved change, marked on the row it lives in. */}
-            {changed && !editing && (
+            {/* An unsaved change, marked on the row it lives in. Offset past the
+                sources mark when one leads the cluster. */}
+            {changed && !editing && !readOnly && (
               <span
                 aria-label={t.unsavedRow}
-                className="absolute left-[26px] top-0.5 size-1.5 rounded-full bg-brand"
+                className={cn(
+                  "absolute top-0.5 size-1.5 rounded-full bg-brand",
+                  hasSources ? "left-[60px]" : "left-[26px]",
+                )}
               />
             )}
           </span>
@@ -612,11 +682,11 @@ function SheetRow({
         return (
           <td
             key={col}
-            style={pinned(columns, i, background, readOnly ? 0 : EDIT_W).style}
+            style={pinned(columns, i, background, editW).style}
             className={cn(
               "border-b border-border py-1.5 align-middle",
               CELL_PAD,
-              pinned(columns, i, background, readOnly ? 0 : EDIT_W).className,
+              pinned(columns, i, background, editW).className,
             )}
           >
             {isFlag ? (
@@ -679,6 +749,151 @@ function SheetRow({
         );
       })}
     </tr>
+  );
+}
+
+/**
+ * Where a box's cited values came from, read side by side.
+ *
+ * Two cells are decided from a source rather than transcribed — the calculation
+ * and whether the box is rounded — so the drawer gives each its own section:
+ * the document it was taken from, as a real link to the PDF or page, and the
+ * verbatim wording the value rests on, so the rule can be checked against the
+ * source rather than taken on trust. Ordered as the columns are, calculation
+ * before rounding.
+ */
+const SOURCE_ORDER: SourcedColumn[] = ["calculation", "is_rounded"];
+
+function BoxSourcesDrawer({
+  name,
+  sources,
+  open,
+  onOpenChange,
+}: {
+  name: string;
+  sources: Partial<Record<SourcedColumn, Evidence>>;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = copy.fieldMap;
+  const entries = SOURCE_ORDER.flatMap((col) => {
+    const evidence = sources[col];
+    return evidence ? [{ col, evidence }] : [];
+  });
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          className={cn(
+            "fixed inset-0 z-50 bg-text/25 backdrop-blur-[1px]",
+            "data-[state=open]:[animation:overlay-in_240ms_ease]",
+            "data-[state=closed]:[animation:overlay-out_180ms_ease]",
+          )}
+        />
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          className={cn(
+            "fixed inset-y-0 right-0 z-50 flex w-[min(34rem,calc(100vw-1.5rem))] flex-col",
+            "border-l border-border bg-surface shadow-[var(--shadow-overlay)] focus:outline-none",
+            "data-[state=open]:[animation:drawer-in_320ms_cubic-bezier(0.16,1,0.3,1)]",
+            "data-[state=closed]:[animation:drawer-out_220ms_cubic-bezier(0.3,0,0.8,0.15)]",
+          )}
+        >
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-4">
+            <div className="min-w-0">
+              <DialogPrimitive.Title className="text-[15px] font-medium text-text">
+                {t.sourcesTitle}
+              </DialogPrimitive.Title>
+              <p className="mt-1 text-[13px] text-text-muted">{fill(t.sourcesSubtitle, { name })}</p>
+            </div>
+            <DialogPrimitive.Close
+              aria-label={t.sourcesClose}
+              className="-mr-1 grid size-8 shrink-0 place-items-center rounded-md text-text-faint transition-colors hover:bg-wash hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+            >
+              <X className="size-4" />
+            </DialogPrimitive.Close>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-6 py-6">
+            {entries.map(({ col, evidence }) => (
+              <SourceSection key={col} col={col} evidence={evidence} />
+            ))}
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}
+
+/**
+ * One cited cell, read as a precise citation: the document, its exact locator,
+ * and the verbatim wording — then, behind a quiet dots control, the surrounding
+ * passage with the quote highlighted where it appears. The passage is optional,
+ * the same as in the returns drawer, so the exact wording always leads.
+ */
+function SourceSection({ col, evidence }: { col: SourcedColumn; evidence: Evidence }) {
+  const [showContext, setShowContext] = React.useState(false);
+  return (
+    <section>
+      {/* Which cell this source stands behind, named as its column. */}
+      <h3 className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
+        {copy.fieldMap.sourceColumnLabel[col]}
+      </h3>
+      {/* The document itself — a real link to the PDF or page. */}
+      <SourceBlock
+        className="mt-2"
+        url={evidence.url}
+        title={evidence.sourceTitle}
+        meta={[evidence.publisher, evidence.locator]}
+      />
+      {/* The verbatim wording the value rests on. */}
+      <figure className="mt-3 border-l-2 border-brand-edge bg-brand-quiet/50 py-3 pl-4 pr-3">
+        <figcaption className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
+          {copy.sources.exactQuoteLabel}
+        </figcaption>
+        <blockquote className="mt-1.5 text-[14px] font-medium leading-relaxed text-text">
+          {evidence.quote}
+        </blockquote>
+      </figure>
+
+      {/* The surrounding passage, behind a dots control and only when captured. */}
+      {evidence.article && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowContext((v) => !v)}
+            aria-expanded={showContext}
+            className="inline-flex items-center gap-2 rounded-md text-[13px] font-medium text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+          >
+            <MoreHorizontal className="size-4 text-text-faint" strokeWidth={2} />
+            {showContext ? copy.sources.hideContext : copy.sources.showContext}
+          </button>
+          {showContext && (
+            <div className="mt-3 max-w-[58ch] space-y-4 border-t border-border pt-4 text-[14px] leading-relaxed text-text-muted">
+              {evidence.article.split("\n\n").map((p, i) => (
+                <p key={i}>{highlightQuote(p, evidence.quote)}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Wraps `quote` in a highlight where it appears in the paragraph. */
+function highlightQuote(paragraph: string, quote: string) {
+  const at = paragraph.indexOf(quote);
+  if (at === -1) return paragraph;
+  return (
+    <>
+      {paragraph.slice(0, at)}
+      <mark className="rounded bg-brand-quiet px-1 py-0.5 font-medium text-text ring-1 ring-inset ring-brand-edge [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
+        {quote}
+      </mark>
+      {paragraph.slice(at + quote.length)}
+    </>
   );
 }
 

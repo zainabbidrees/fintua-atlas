@@ -2,17 +2,21 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ArrowUpRight, FileText, X } from "lucide-react";
+import { ArrowUpRight, FileText, MoreHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { copy } from "@/lib/copy";
 import type { Evidence } from "@/lib/types";
 
 /**
- * The source passage, read in its context.
+ * The source passage, read as a precise citation.
  *
- * Opening it slides a panel in from the right over a dimmed page, shows the
- * surrounding article, and scrolls down to the exact wording the finding rests
- * on — highlighted — so the expert sees the sentence and the paragraphs around
- * it rather than a quote lifted out of the document.
+ * The panel stands on what can always be pinned down — the document, its exact
+ * section, and the verbatim wording the finding rests on — so the evidence is
+ * precise even when no surrounding passage was captured. That quote and its
+ * citation are all the panel shows by default; the fuller passage sits behind a
+ * quiet control and opens only on request, with the quote highlighted in place.
+ * When no passage was captured there is nothing to open — the exact wording
+ * stands on its own.
  */
 export function PassageDrawer({
   evidence,
@@ -44,7 +48,8 @@ export function PassageDrawer({
             "data-[state=closed]:[animation:drawer-out_220ms_cubic-bezier(0.3,0,0.8,0.15)]",
           )}
         >
-          {/* Header: the source as a real link, its publisher and locator. */}
+          {/* Header: the source as a real link, its publisher and the exact
+              locator — the precise citation the quote below is drawn from. */}
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-4">
             <div className="min-w-0">
               <DialogPrimitive.Title asChild>
@@ -75,66 +80,69 @@ export function PassageDrawer({
             </DialogPrimitive.Close>
           </div>
 
-          <Article evidence={evidence} open={open} />
+          {/* Keyed on the source so the context toggle resets when the panel is
+              reused for a different finding. */}
+          <Body key={evidence.url} evidence={evidence} />
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
 }
 
-/** The article body: paragraphs with the quote highlighted, scrolled into view. */
-function Article({ evidence, open }: { evidence: Evidence; open: boolean }) {
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const markRef = React.useRef<HTMLElement>(null);
-  const body = evidence.article ?? evidence.quote;
-  const paragraphs = body.split("\n\n");
-
-  /* Let the panel settle, then scroll the highlight to the middle — so the
-     reader sees the top of the document first and is carried down to it. */
-  React.useEffect(() => {
-    if (!open) return;
-    const mark = markRef.current;
-    const scroller = scrollRef.current;
-    if (!mark || !scroller) return;
-    scroller.scrollTop = 0;
-    const prefersReduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    const t = window.setTimeout(() => {
-      mark.scrollIntoView({
-        behavior: prefersReduced ? "auto" : "smooth",
-        block: "center",
-      });
-    }, prefersReduced ? 0 : 420);
-    return () => window.clearTimeout(t);
-  }, [open]);
+/**
+ * The precise evidence first — the verbatim quote, marked as the exact wording
+ * — with the surrounding passage held behind a dots control, opened on request.
+ */
+function Body({ evidence }: { evidence: Evidence }) {
+  const [showContext, setShowContext] = React.useState(false);
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-      <div className="max-w-[58ch] space-y-4 text-[14px] leading-relaxed text-text-muted">
-        {paragraphs.map((p, i) => (
-          <p key={i}>{highlight(p, evidence.quote, markRef)}</p>
-        ))}
-      </div>
+    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+      {/* The words cited, verbatim — the precise evidence, always shown. */}
+      <figure className="border-l-2 border-brand-edge bg-brand-quiet/50 py-3 pl-4 pr-3">
+        <figcaption className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
+          {copy.sources.exactQuoteLabel}
+        </figcaption>
+        <blockquote className="mt-1.5 text-[15px] font-medium leading-relaxed text-text">
+          {evidence.quote}
+        </blockquote>
+      </figure>
+
+      {/* The fuller passage is optional, and may not be captured at all. When it
+          is, it waits behind a quiet dots control so the exact wording leads. */}
+      {evidence.article && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowContext((v) => !v)}
+            aria-expanded={showContext}
+            className="inline-flex items-center gap-2 rounded-md text-[13px] font-medium text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+          >
+            <MoreHorizontal className="size-4 text-text-faint" strokeWidth={2} />
+            {showContext ? copy.sources.hideContext : copy.sources.showContext}
+          </button>
+
+          {showContext && (
+            <div className="mt-3 max-w-[58ch] space-y-4 border-t border-border pt-4 text-[14px] leading-relaxed text-text-muted">
+              {evidence.article.split("\n\n").map((p, i) => (
+                <p key={i}>{highlight(p, evidence.quote)}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 /** Wraps `quote` in a highlight where it appears in the paragraph. */
-function highlight(
-  paragraph: string,
-  quote: string,
-  markRef: React.RefObject<HTMLElement | null>,
-) {
+function highlight(paragraph: string, quote: string) {
   const at = paragraph.indexOf(quote);
   if (at === -1) return paragraph;
   return (
     <>
       {paragraph.slice(0, at)}
-      <mark
-        ref={markRef}
-        className="rounded bg-brand-quiet px-1 py-0.5 font-medium text-text ring-1 ring-inset ring-brand-edge [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
-      >
+      <mark className="rounded bg-brand-quiet px-1 py-0.5 font-medium text-text ring-1 ring-inset ring-brand-edge [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
         {quote}
       </mark>
       {paragraph.slice(at + quote.length)}
