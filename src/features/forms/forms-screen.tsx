@@ -50,14 +50,16 @@ export function FormsScreen({
   /* In review, a reviewer reads this step locked; the expert can still edit
      it and send it for approval again. */
   const review = useStepReview(countryCode, 2);
-  /* Opened from a later step through the stepper: read, never edited. */
+  /* Opened from a later step through the stepper. Editable while not yet sent;
+     a reviewer still reads it locked. */
   const viewFrom = useStepView(2);
-  const readOnly = review.readOnly || viewFrom !== null;
+  const readOnly = review.readOnly || review.sent;
   const cameBack = useCameBack();
   /* The agent works for a few seconds on first arrival; a step looked back
-     at, or one whose run already finished, opens on the result. */
+     at, revisited through the stepper, or whose run already finished opens on
+     the result. */
   const agent = useAgentRun(copy.agentRuns.forms.trail.length, {
-    skip: readOnly || cameBack,
+    skip: readOnly || cameBack || viewFrom !== null,
   });
   const code = countryCode.toLowerCase();
 
@@ -191,10 +193,10 @@ export function FormsScreen({
       </div>
 
       {/* Pinned action bar — Continue is reachable without scrolling to the end. */}
-      {viewFrom !== null ? (
-        <ViewOnlyBar countryCode={countryCode} index={2} from={viewFrom} />
-      ) : review.reviewing ? (
+      {review.reviewing ? (
         <ReviewBar countryCode={countryCode} stepIndex={2} review={review} />
+      ) : readOnly ? (
+        <ViewOnlyBar countryCode={countryCode} index={2} from={viewFrom ?? 1} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

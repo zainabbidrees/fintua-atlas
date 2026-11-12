@@ -97,12 +97,14 @@ export function TaxRulesScreen({
   const sendStep = useSendStep(countryCode, countryName, 4);
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(4);
-  const readOnly = review.readOnly || viewFrom !== null;
+  /* Frozen once sent for approval (or for a reviewer); moving between steps
+     leaves a not-yet-sent step open to edit. */
+  const readOnly = review.readOnly || review.sent;
   const cameBack = useCameBack();
   /* Generation lands one trail line at a time; past the last, it is done. A
      step looked back at, or reached by Back, opens on the rules. */
   const { shown, running: generating } = useAgentRun(t.trail.length, {
-    skip: readOnly || cameBack,
+    skip: readOnly || cameBack || viewFrom !== null,
     paceMs: PACE_MS,
   });
 
@@ -435,10 +437,10 @@ export function TaxRulesScreen({
       </div>
 
       {/* Pinned action bar — Continue is reachable without scrolling to the end. */}
-      {viewFrom !== null ? (
-        <ViewOnlyBar countryCode={countryCode} index={4} from={viewFrom} />
-      ) : review.reviewing ? (
+      {review.reviewing ? (
         <ReviewBar countryCode={countryCode} stepIndex={4} review={review} />
+      ) : readOnly ? (
+        <ViewOnlyBar countryCode={countryCode} index={4} from={viewFrom ?? 3} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

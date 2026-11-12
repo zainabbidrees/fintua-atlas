@@ -42,9 +42,10 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
      it is chosen for you and its research replays. A reviewer reads it locked;
      the expert can still change what carries forward and send it again. */
   const review = useStepReview(reviewCode ?? "", 0);
-  /* Opened from a later step through the stepper: read, never edited. */
+  /* Opened from a later step through the stepper. Select Country is never sent
+     for approval, so for the expert it stays editable; a reviewer reads it. */
   const viewFrom = useStepView(0);
-  const readOnly = review.readOnly || viewFrom !== null;
+  const readOnly = review.readOnly || review.sent;
   const loaded = React.useRef(false);
   React.useEffect(() => {
     if (!reviewCode || loaded.current) return;
@@ -326,10 +327,10 @@ export function SetupScreen({ reviewCode }: { reviewCode?: string } = {}) {
       </div>
 
       {/* Action bar — pinned, so Continue is reachable without scrolling to the end. */}
-      {viewFrom !== null && reviewCode ? (
-        <ViewOnlyBar countryCode={reviewCode} index={0} from={viewFrom} />
-      ) : review.reviewing && reviewCode ? (
+      {review.reviewing && reviewCode ? (
         <ReviewBar countryCode={reviewCode} stepIndex={0} review={review} />
+      ) : readOnly && reviewCode ? (
+        <ViewOnlyBar countryCode={reviewCode} index={0} from={viewFrom ?? 0} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 backdrop-blur px-6 py-3 sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

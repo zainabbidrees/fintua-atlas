@@ -13,12 +13,18 @@ export function useStepReview(countryCode: string, stepIndex: number) {
   const submission = useSubmission(countryCode);
   const step = submission?.steps[stepIndex] ?? null;
   const inReview = submission !== null;
+  const status = step?.status ?? "not_sent";
 
   return {
     person,
     submission,
     step,
     inReview,
+    status,
+    /* Sent for approval and not yet handed back: the step is frozen until the
+       reviewer acts. "changes" is left out — a step sent back is the expert's
+       to edit and send again. */
+    sent: status === "waiting" || status === "approved",
     /* A reviewer never edits, in review or not. */
     readOnly: person.role === "reviewer",
     /* The reviewer's bar — approve, ask for changes — replaces a step's footer

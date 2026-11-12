@@ -50,12 +50,16 @@ export function ReturnsScreen({
   const sendStep = useSendStep(countryCode, countryName, 1);
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(1);
-  const readOnly = review.readOnly || viewFrom !== null;
+  /* Frozen only once sent for approval (or for a reviewer). Moving between
+     steps — Next, or back through the stepper — leaves a not-yet-sent step
+     open to edit. */
+  const readOnly = review.readOnly || review.sent;
   const cameBack = useCameBack();
   /* The agent works for a few seconds on first arrival; a step looked back
-     at, or one whose run already finished, opens on the result. */
+     at, revisited through the stepper, or whose run already finished opens on
+     the result. */
   const agent = useAgentRun(copy.agentRuns.returns.trail.length, {
-    skip: readOnly || cameBack,
+    skip: readOnly || cameBack || viewFrom !== null,
   });
 
   /* One passage drawer for the whole table — a source click anywhere opens it on
@@ -303,10 +307,10 @@ export function ReturnsScreen({
       </div>
 
       {/* Pinned action bar — Continue is reachable without scrolling to the end. */}
-      {viewFrom !== null ? (
-        <ViewOnlyBar countryCode={countryCode} index={1} from={viewFrom} />
-      ) : review.reviewing ? (
+      {review.reviewing ? (
         <ReviewBar countryCode={countryCode} stepIndex={1} review={review} />
+      ) : readOnly ? (
+        <ViewOnlyBar countryCode={countryCode} index={1} from={viewFrom ?? 0} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

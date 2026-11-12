@@ -105,7 +105,9 @@ export function RulesScreen({
   const sendStep = useSendStep(countryCode, countryName, 3);
   /* Opened from a later step through the stepper: read, never edited. */
   const viewFrom = useStepView(3);
-  const readOnly = review.readOnly || viewFrom !== null;
+  /* Frozen once sent for approval (or for a reviewer); moving between steps
+     leaves a not-yet-sent step open to edit. */
+  const readOnly = review.readOnly || review.sent;
   /* Query Builder exists only while some box is calculated, so the steps
      after this one follow the field map as it changes. A reader changes
      nothing, so only the expert's view records it. */
@@ -116,7 +118,7 @@ export function RulesScreen({
   /* The agent works for a few seconds on first arrival; a step looked back
      at, or one whose run already finished, opens on the result. */
   const agent = useAgentRun(copy.agentRuns.specs.trail.length, {
-    skip: readOnly || cameBack,
+    skip: readOnly || cameBack || viewFrom !== null,
   });
   const unsaved = sheets.unsaved;
 
@@ -332,10 +334,10 @@ export function RulesScreen({
         </div>
       </div>
 
-      {viewFrom !== null ? (
-        <ViewOnlyBar countryCode={countryCode} index={3} from={viewFrom} />
-      ) : review.reviewing ? (
+      {review.reviewing ? (
         <ReviewBar countryCode={countryCode} stepIndex={3} review={review} />
+      ) : readOnly ? (
+        <ViewOnlyBar countryCode={countryCode} index={3} from={viewFrom ?? 2} />
       ) : (
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/90 px-6 py-3 backdrop-blur sm:px-12 md:left-72">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
