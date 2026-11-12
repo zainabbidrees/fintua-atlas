@@ -222,7 +222,7 @@ export const copy = {
       isDefault: "is_default",
       deadline: "Filing deadline",
       sources: "Sources",
-      nonWorkingDay: "Non-working day",
+      nonWorkingDay: "Non-working days",
       workflow: "Offset",
       attach: "Attachments",
       status: "Status",
@@ -237,6 +237,8 @@ export const copy = {
     },
     workdaysOnly: "Counts working days",
     calendarDays: "Counts calendar days",
+    /** Caption under the non-working-days count: what the number spans. */
+    nonWorkingWindow: "In the filing window",
     /* The manual offset — days between the workflow stages — and the form it
        is entered in. A row left alone counts as zero days throughout. */
     workflowChange: "Change",

@@ -31,7 +31,7 @@ import {
 } from "@/components/domain/source-block";
 import { copy, fill } from "@/lib/copy";
 import { cn } from "@/lib/cn";
-import { deadlineDays, nextDeadline } from "@/lib/deadline";
+import { deadlineDays, nextDeadline, nonWorkingDaysInWindow } from "@/lib/deadline";
 import { formatDate } from "@/components/domain/filing-card";
 import type { Evidence, Finding, FindingRole, ObligationRun } from "@/lib/types";
 import { WORKFLOW_STAGES, isAddedRow, returnTypeOf, type useReturns, type WorkflowDays } from "./use-returns";
@@ -315,7 +315,7 @@ function ReturnRow({
         </td>
 
         <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
-          <NonWorkingDayCell finding={deadline} />
+          <NonWorkingDayCell finding={deadline} frequency={frequency?.value} />
         </td>
 
         <td className={cn(CELL, rule, box, boxTop, boxFoot)}>
@@ -398,16 +398,22 @@ function ReturnRow({
   );
 }
 
-/** Where the deadline moves on a non-working day, and how its days are counted. */
-function NonWorkingDayCell({ finding }: { finding: Finding | null }) {
+/** How many non-working days fall in the filing window, as a count. Blank when
+    the deadline is not a dated rule, so there is no window to count across. */
+function NonWorkingDayCell({
+  finding,
+  frequency,
+}: {
+  finding: Finding | null;
+  frequency?: string;
+}) {
   const t = copy.returnsTable;
-  if (!finding?.nonWorkingDay) return <span className="leading-5 text-text-faint">{t.none}</span>;
+  const count = finding?.value ? nonWorkingDaysInWindow(finding.value, frequency) : null;
+  if (count === null) return <span className="leading-5 text-text-faint">{t.none}</span>;
   return (
     <div>
-      <p className="leading-5 text-text">{t.nonWorkingDay[finding.nonWorkingDay]}</p>
-      <p className="mt-1 text-[13px] leading-5 text-text-muted">
-        {finding.workdaysOnly ? t.workdaysOnly : t.calendarDays}
-      </p>
+      <p className="leading-5 text-text" data-numeric>{count}</p>
+      <p className="mt-1 text-[13px] leading-5 text-text-muted">{t.nonWorkingWindow}</p>
     </div>
   );
 }

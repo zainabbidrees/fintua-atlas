@@ -58,3 +58,28 @@ export function nextDeadline(
 function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
+
+/**
+ * How many non-working days fall in the filing window — the stretch from the
+ * end of the return period to the deadline, the "EOP + N days" the expert has
+ * to file in. Counted as weekends (each Saturday–Sunday a single non-working
+ * span, taken from its Sunday); public holidays are not yet in the data. Null
+ * when the value is not a dated rule.
+ */
+export function nonWorkingDaysInWindow(
+  value: string,
+  frequency: string | null | undefined,
+  today: Date = new Date(),
+): number | null {
+  const due = nextDeadline(value, frequency, today);
+  const days = deadlineDays(value);
+  if (due === null || days === null) return null;
+
+  /* The window runs across the N days after the period end, ending on the
+     deadline: due, due − 1, … , due − (N − 1). One count per weekend. */
+  let count = 0;
+  for (let i = 0; i < days; i++) {
+    if (addDays(due, -i).getDay() === 0) count += 1;
+  }
+  return count;
+}
