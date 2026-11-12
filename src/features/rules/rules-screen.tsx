@@ -210,6 +210,18 @@ export function RulesScreen({
     sendStep.send(() => router.push(`/countries/${countryCode.toLowerCase()}/build`));
   }
 
+  /** Moves on to Tax Rules Generation without sending this step for approval,
+      so the country can be compiled first. The mapping still has to be complete
+      — it is what the SQL is built from — so the missing-box guard stands. */
+  function goNext() {
+    if (missing.length > 0) {
+      setMissingOpen(true);
+      return;
+    }
+    if (unsaved > 0) saveSheets();
+    router.push(`/countries/${countryCode.toLowerCase()}/build`);
+  }
+
   return (
     <ReadOnly value={readOnly}>
     <div className="pb-24">
@@ -345,6 +357,10 @@ export function RulesScreen({
             )}
             <Button variant="secondary" disabled={unsaved === 0} onClick={saveChanges}>
               {copy.fieldMap.save}
+            </Button>
+            <Button variant="secondary" disabled={agent.running} onClick={goNext}>
+              {copy.page.next}
+              <ArrowRight />
             </Button>
             <SentStatus send={sendStep} />
             <Button variant="primary" disabled={agent.running} onClick={tryToProceed}>

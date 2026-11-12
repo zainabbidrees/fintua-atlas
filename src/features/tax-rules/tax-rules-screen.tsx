@@ -230,6 +230,14 @@ export function TaxRulesScreen({
     );
   }
 
+  /* Advances to the Query Builder without sending this step on, so the country
+     can be compiled first. Only offered when a next step exists — when this is
+     the last step, its send is the final move and there is nothing to skip to. */
+  function goNext() {
+    if (unsaved > 0) edits.save();
+    router.push(`/countries/${code}/approval`);
+  }
+
   return (
     <ReadOnly value={readOnly}>
     <div className="pb-24">
@@ -470,6 +478,7 @@ export function TaxRulesScreen({
                   saveLabel={t.save}
                   continueLabel={continueLabel}
                   onContinue={continueOn}
+                  onNext={lastStep ? undefined : goNext}
                 />
               </>
             )}

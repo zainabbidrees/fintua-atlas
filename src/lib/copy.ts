@@ -65,6 +65,9 @@ export const copy = {
     discard: "Discard",
     back: "Back",
     continue: "Continue",
+    /** Advances to the next step without sending this one for approval, so the
+        whole country can be compiled before anything goes to a reviewer. */
+    next: "Next",
     /** Read out after a step the AI does the work of. */
     aiStep: "(AI)",
     saveChanges: "Save changes",

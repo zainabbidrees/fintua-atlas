@@ -16,6 +16,11 @@ import { copy } from "@/lib/copy";
  *
  * `onSave` is what saving means on the step; `saveDisabled` greys it while
  * there is nothing to save.
+ *
+ * `onNext`, when given, adds a quiet Next beside the primary action that
+ * advances to the following step without sending this one on — so the whole
+ * country can be compiled before anything goes to a reviewer. It is a plain
+ * move, reversible by stepping back, so it skips the confirm dialog.
  */
 export function ContinueActions({
   onSave,
@@ -24,6 +29,8 @@ export function ContinueActions({
   onContinue,
   continueDisabled = false,
   continueLabel = copy.page.continue,
+  onNext,
+  nextLabel = copy.page.next,
 }: {
   onSave: () => void;
   saveDisabled?: boolean;
@@ -33,6 +40,10 @@ export function ContinueActions({
   /** The primary button's label — e.g. "Send for approval" on a step that
       goes to a reviewer. */
   continueLabel?: string;
+  /** Advances to the next step without sending this one for approval. Omit on
+      steps where Continue already moves on without sending. */
+  onNext?: () => void;
+  nextLabel?: string;
 }) {
   const [asking, setAsking] = React.useState(false);
 
@@ -41,6 +52,12 @@ export function ContinueActions({
       <Button variant="secondary" disabled={saveDisabled} onClick={onSave}>
         {saveLabel}
       </Button>
+      {onNext && (
+        <Button variant="secondary" disabled={continueDisabled} onClick={onNext}>
+          {nextLabel}
+          <ArrowRight />
+        </Button>
+      )}
       <Button variant="primary" disabled={continueDisabled} onClick={() => setAsking(true)}>
         {continueLabel}
         <ArrowRight />

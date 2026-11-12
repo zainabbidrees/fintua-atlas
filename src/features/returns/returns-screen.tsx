@@ -334,6 +334,7 @@ export function ReturnsScreen({
               onContinue={() =>
                 sendStep.send(() => router.push(`/countries/${countryCode.toLowerCase()}/forms`))
               }
+              onNext={() => router.push(`/countries/${countryCode.toLowerCase()}/forms`)}
             />
           </div>
         </div>
