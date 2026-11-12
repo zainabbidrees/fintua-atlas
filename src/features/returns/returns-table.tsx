@@ -365,10 +365,12 @@ function ReturnRow({
           )}
         >
           <StatusAction
+            name={o.name}
             state={state}
             onConfirm={confirmRow}
             onUndo={() => r.resetObligation(o.id)}
             onRemove={added ? removeRow : undefined}
+            onDelete={added ? undefined : removeRow}
           />
         </td>
       </tr>
@@ -966,16 +968,22 @@ function AttachCell({
  * column reads straight down under its header.
  */
 function StatusAction({
+  name,
   state,
   onConfirm,
   onUndo,
   onRemove,
+  onDelete,
 }: {
+  name: string;
   state: Exclude<RowState, "running">;
   onConfirm: () => void;
   onUndo: () => void;
   /** An added row: settled as the expert's own, taken out rather than undone. */
   onRemove?: () => void;
+  /** Takes a discovered row out of the list entirely, with an undo. Shown on
+      every row that isn't the expert's own — those carry their own Remove. */
+  onDelete?: () => void;
 }) {
   const label = {
     confirmed: onRemove ? copy.returnsTable.addedStatus : copy.returnsTable.confirmed,
@@ -1014,7 +1022,7 @@ function StatusAction({
     // The button is the only thing in the flow, so it centres on the row's
     // middle line level with the Attach button; the status eyebrow floats just
     // above it rather than pushing it down.
-    <div className="relative flex justify-start">
+    <div className="relative flex items-center justify-start gap-1">
       <span
         className={cn(
           "absolute bottom-full left-0 mb-2 inline-flex items-center gap-2 whitespace-nowrap text-[13px] font-medium leading-5",
@@ -1035,20 +1043,39 @@ function StatusAction({
           <Trash2 strokeWidth={1.75} />
           {copy.returnsTable.remove}
         </Button>
-      ) : state === "confirmed" ? (
-        <Button size="sm" variant="ghost" onClick={onUndo} className="-ml-3">
-          <RotateCcw strokeWidth={1.75} />
-          {copy.returnsTable.undo}
-        </Button>
       ) : (
-        <Button
-          size="sm"
-          variant={state === "needs_review" ? "primary" : "secondary"}
-          onClick={onConfirm}
-        >
-          <Check />
-          {copy.returnsTable.confirm}
-        </Button>
+        <>
+          {state === "confirmed" ? (
+            <Button size="sm" variant="ghost" onClick={onUndo} className="-ml-3">
+              <RotateCcw strokeWidth={1.75} />
+              {copy.returnsTable.undo}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant={state === "needs_review" ? "primary" : "secondary"}
+              onClick={onConfirm}
+            >
+              <Check />
+              {copy.returnsTable.confirm}
+            </Button>
+          )}
+
+          {/* A quiet delete on every discovered row — grey until hovered, then
+              it takes the risk colour, since taking a row out is destructive. */}
+          {onDelete && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onDelete}
+              aria-label={fill(copy.returnsTable.deleteRowLabel, { name })}
+              title={copy.returnsTable.deleteRow}
+              className="size-8 shrink-0 px-0 text-text-faint hover:bg-risk-quiet hover:text-risk"
+            >
+              <Trash2 strokeWidth={1.75} />
+            </Button>
+          )}
+        </>
       )}
     </div>
   );

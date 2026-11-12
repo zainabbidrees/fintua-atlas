@@ -337,6 +337,10 @@ export const copy = {
     addedByYou: "Added by you",
     addedStatus: "Added by you",
     remove: "Remove",
+    /** The per-row delete, on every row: takes a return type out of the list
+        entirely, with an undo. An added row keeps its own "Remove" instead. */
+    deleteRow: "Remove",
+    deleteRowLabel: "Remove {name} from the list",
     removedToast: "{name} · {frequency} removed",
     editReasonLabel: "Rationale",
     editReasonOptional: "(optional)",
