@@ -155,6 +155,53 @@ function sumQuery(lines: RuleLine[]) {
   ].join("\n");
 }
 
+/**
+ * A calculated box's rule is written in box references — "box_01 + box_03", or
+ * "sum of box_05_net & box_06_net". The query that runs sums each referenced
+ * box's submitted value and combines them, so the rule reads as real SQL rather
+ * than the shorthand. Returns null when the rule is not a plain sum/difference
+ * of boxes (a rate multiplication, say, or a query already written out), so the
+ * caller keeps the rule as it stands.
+ */
+function boxExpressionToSql(
+  calculation: string,
+  idByBox: Map<string, string>,
+  box: string,
+): string | null {
+  if (/select/i.test(calculation)) return null;
+  /* "sum of" and "&" / "and" all mean add; normalise them to a plain +. */
+  const normalised = calculation
+    .replace(/\bsum of\b/gi, " ")
+    .replace(/&/g, " + ")
+    .replace(/\band\b/gi, " + ")
+    .trim();
+  /* Only a sum or difference of whole boxes is translated. */
+  if (!/^box_[0-9a-z_]+(\s*[+-]\s*box_[0-9a-z_]+)*$/i.test(normalised)) return null;
+
+  const tokens = normalised.match(/box_[0-9a-z_]+|[+-]/gi) ?? [];
+  const lines: string[] = [];
+  let op: string | null = null;
+  for (const token of tokens) {
+    if (/^box_/i.test(token)) {
+      const id = idByBox.get(token.toLowerCase());
+      if (!id) return null;
+      const term = `COALESCE(SUM(CASE WHEN return_box_id = ${id} THEN submitted_value END), 0)`;
+      lines.push(lines.length === 0 ? `      ${term}` : `    ${op} ${term}`);
+      op = null;
+    } else {
+      op = token;
+    }
+  }
+
+  return [
+    "SELECT (",
+    ...lines,
+    `) AS ${box}`,
+    "FROM @schema.return_box_values",
+    "WHERE tax_return_id = @TaxReturnId",
+  ].join("\n");
+}
+
 /** The return type Query Builder builds from: the VAT return's field map. */
 export const QUERY_RETURN_TYPE = "be-vat";
 
@@ -162,10 +209,15 @@ type BoxRow = Partial<Record<string, string>>;
 
 /** One row per box of a field map — the fixture's, or the one step four saved. */
 export function boxQueriesFrom(rows: readonly BoxRow[]): BoxQuery[] {
-  return rows.map(boxQuery);
+  /* Box id by name, for turning a calculation's box references into SQL. */
+  const idByBox = new Map<string, string>();
+  for (const row of rows) {
+    if (row.box_name && row.id) idByBox.set(row.box_name.toLowerCase(), row.id);
+  }
+  return rows.map((row) => boxQuery(row, idByBox));
 }
 
-function boxQuery(row: BoxRow): BoxQuery {
+function boxQuery(row: BoxRow, idByBox: Map<string, string>): BoxQuery {
   const id = row.id ?? "";
   const box = row.box_name ?? "";
   const description = row.return_box_description ?? "";
@@ -198,8 +250,11 @@ function boxQuery(row: BoxRow): BoxQuery {
     groupBy: [],
     calculated: row.is_calculated === "TRUE",
     calculation,
-    /* A calculated box runs what the field map wrote for it. */
-    generated: calculation ?? sumQuery(lines),
+    /* A calculated box runs its rule as SQL — the box references summed and
+       combined; a rule that is not a plain box sum is kept as written. */
+    generated: calculation
+      ? boxExpressionToSql(calculation, idByBox, box) ?? calculation
+      : sumQuery(lines),
   };
 }
 
