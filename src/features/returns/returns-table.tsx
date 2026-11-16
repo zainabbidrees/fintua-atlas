@@ -105,7 +105,8 @@ export function ReturnsTable({
   rows?: ObligationRun[];
   selected: ReadonlySet<string>;
   onSelectedChange: (id: string, selected: boolean) => void;
-  onOpenSource: (evidence: Evidence) => void;
+  /** Opens the passage drawer on the row's evidence, sectioned by aspect. */
+  onOpenSource: (row: ObligationRun) => void;
 }) {
   const head = "px-4 py-2.5 text-left text-[12px] font-medium text-text-muted";
 
@@ -193,7 +194,7 @@ function ReturnRow({
   r: ReturnType<typeof useReturns>;
   selected: boolean;
   onSelectedChange: (id: string, selected: boolean) => void;
-  onOpenSource: (evidence: Evidence) => void;
+  onOpenSource: (row: ObligationRun) => void;
 }) {
   const state = rowStateOf(o);
   const flagged = state === "needs_review";
@@ -327,7 +328,7 @@ function ReturnRow({
               )}
             </div>
           ) : (
-            <SourcesCell sources={sources} onOpen={onOpenSource} />
+            <SourcesCell sources={sources} onOpen={() => onOpenSource(o)} />
           )}
         </td>
 
@@ -816,13 +817,14 @@ function ValueEditForm({
   );
 }
 
-/** Every document behind this return type's values, each opening its passage. */
+/** Every document behind this return type's values; any of them opens the
+    row's passage drawer, where the evidence is read section by section. */
 function SourcesCell({
   sources,
   onOpen,
 }: {
   sources: Evidence[];
-  onOpen: (evidence: Evidence) => void;
+  onOpen: () => void;
 }) {
   if (sources.length === 0) {
     return <span className="text-text-faint">{copy.returnsTable.none}</span>;
@@ -836,7 +838,7 @@ function SourcesCell({
           <li key={e.url}>
             <button
               type="button"
-              onClick={() => onOpen(e)}
+              onClick={onOpen}
               className="group/source flex w-full min-w-0 items-start gap-2.5 text-left"
             >
               <span className="-mt-0.5">

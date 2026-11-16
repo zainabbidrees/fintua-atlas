@@ -1141,6 +1141,10 @@ export const copy = {
     exactQuoteLabel: "Exact wording from the source",
     showContext: "Show in context",
     hideContext: "Hide context",
+    /** The passage drawer groups a row's evidence by what each quote
+        establishes. This labels the section for where a deadline moves on a
+        weekend or holiday. */
+    nonWorkingDaysSection: "Non-working days",
   },
 
   documents: {

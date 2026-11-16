@@ -5,25 +5,31 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowUpRight, FileText, MoreHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { copy } from "@/lib/copy";
-import type { Evidence } from "@/lib/types";
+import type { PassageSection } from "./passage-sections";
 
 /**
- * The source passage, read as a precise citation.
+ * The source evidence behind a return type, read as precise citations.
  *
- * The panel stands on what can always be pinned down — the document, its exact
- * section, and the verbatim wording the finding rests on — so the evidence is
- * precise even when no surrounding passage was captured. That quote and its
- * citation are all the panel shows by default; the fuller passage sits behind a
- * quiet control and opens only on request, with the quote highlighted in place.
- * When no passage was captured there is nothing to open — the exact wording
- * stands on its own.
+ * A row's facts come from different sentences, sometimes different documents —
+ * one for how often it is filed, one for its deadline, one for where that
+ * deadline moves on a non-working day. The drawer gives each its own section:
+ * a heading for what it establishes, the source it is drawn from, and the
+ * verbatim wording the finding rests on, so every fact is checked against its
+ * own quote. The fuller passage sits behind a quiet control, per section, and
+ * opens only on request with the quote highlighted in place.
  */
 export function PassageDrawer({
-  evidence,
+  title,
+  subtitle,
+  sections,
   open,
   onOpenChange,
 }: {
-  evidence: Evidence;
+  /** The return type the evidence belongs to. */
+  title: string;
+  /** Its local-language name, when there is one. */
+  subtitle?: string;
+  sections: PassageSection[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -48,28 +54,14 @@ export function PassageDrawer({
             "data-[state=closed]:[animation:drawer-out_220ms_cubic-bezier(0.3,0,0.8,0.15)]",
           )}
         >
-          {/* Header: the source as a real link, its publisher and the exact
-              locator — the precise citation the quote below is drawn from. */}
+          {/* Header: the return type the evidence below is for. Each section
+              carries its own source, so the header names the row, not a doc. */}
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-4">
             <div className="min-w-0">
-              <DialogPrimitive.Title asChild>
-                <a
-                  href={evidence.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group inline-flex items-start gap-1.5 text-[15px] font-medium text-brand transition-colors hover:text-brand-hover"
-                >
-                  <FileText className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
-                  <span className="underline decoration-brand/40 underline-offset-2 group-hover:decoration-brand">
-                    {evidence.sourceTitle}
-                  </span>
-                  <ArrowUpRight className="mt-0.5 size-3.5 shrink-0" />
-                </a>
+              <DialogPrimitive.Title className="text-[15px] font-medium text-heading">
+                {title}
               </DialogPrimitive.Title>
-              <p className="mt-1 text-[13px] text-text-muted">
-                {evidence.publisher}
-                {evidence.locator ? ` · ${evidence.locator}` : ""}
-              </p>
+              {subtitle && <p className="mt-0.5 text-[13px] text-text-muted">{subtitle}</p>}
             </div>
 
             <DialogPrimitive.Close
@@ -80,9 +72,13 @@ export function PassageDrawer({
             </DialogPrimitive.Close>
           </div>
 
-          {/* Keyed on the source so the context toggle resets when the panel is
-              reused for a different finding. */}
-          <Body key={evidence.url} evidence={evidence} />
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+            <div className="space-y-7">
+              {sections.map((section) => (
+                <Section key={section.key} section={section} />
+              ))}
+            </div>
+          </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
@@ -90,28 +86,50 @@ export function PassageDrawer({
 }
 
 /**
- * The precise evidence first — the verbatim quote, marked as the exact wording
- * — with the surrounding passage held behind a dots control, opened on request.
+ * One section: what the quote establishes, the source it is drawn from, the
+ * verbatim wording, and — when a surrounding passage was captured — a quiet
+ * control that opens it with the quote highlighted.
  */
-function Body({ evidence }: { evidence: Evidence }) {
+function Section({ section }: { section: PassageSection }) {
+  const { label, quote, evidence } = section;
   const [showContext, setShowContext] = React.useState(false);
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+    <section>
+      {/* What this wording establishes — frequency, deadline, non-working days. */}
+      <h3 className="text-[13px] font-semibold text-heading">{label}</h3>
+
+      {/* The source as a real link, with its publisher and exact locator. */}
+      <a
+        href={evidence.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group mt-1.5 inline-flex items-start gap-1.5 text-[13px] font-medium text-brand transition-colors hover:text-brand-hover"
+      >
+        <FileText className="mt-0.5 size-3.5 shrink-0" strokeWidth={1.75} />
+        <span className="underline decoration-brand/40 underline-offset-2 group-hover:decoration-brand">
+          {evidence.sourceTitle}
+        </span>
+        <ArrowUpRight className="mt-0.5 size-3 shrink-0" />
+      </a>
+      <p className="mt-0.5 text-[12px] text-text-muted">
+        {evidence.publisher}
+        {evidence.locator ? ` · ${evidence.locator}` : ""}
+      </p>
+
       {/* The words cited, verbatim — the precise evidence, always shown. */}
-      <figure className="border-l-2 border-brand-edge bg-brand-quiet/50 py-3 pl-4 pr-3">
+      <figure className="mt-3 border-l-2 border-brand-edge bg-brand-quiet/50 py-3 pl-4 pr-3">
         <figcaption className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
           {copy.sources.exactQuoteLabel}
         </figcaption>
         <blockquote className="mt-1.5 text-[15px] font-medium leading-relaxed text-text">
-          {evidence.quote}
+          {quote}
         </blockquote>
       </figure>
 
-      {/* The fuller passage is optional, and may not be captured at all. When it
-          is, it waits behind a quiet dots control so the exact wording leads. */}
+      {/* The fuller passage, when captured, waits behind a quiet dots control. */}
       {evidence.article && (
-        <div className="mt-4">
+        <div className="mt-3">
           <button
             type="button"
             onClick={() => setShowContext((v) => !v)}
@@ -125,13 +143,13 @@ function Body({ evidence }: { evidence: Evidence }) {
           {showContext && (
             <div className="mt-3 max-w-[58ch] space-y-4 border-t border-border pt-4 text-[14px] leading-relaxed text-text-muted">
               {evidence.article.split("\n\n").map((p, i) => (
-                <p key={i}>{highlight(p, evidence.quote)}</p>
+                <p key={i}>{highlight(p, quote)}</p>
               ))}
             </div>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

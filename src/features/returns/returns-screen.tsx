@@ -24,9 +24,10 @@ import { useSaveDraft } from "@/features/drafts/use-save-draft";
 import { StepNav, ViewOnlyBar, useStepView, useCameBack } from "@/features/steps/step-view";
 import { copy, fill } from "@/lib/copy";
 import { writeReturnsCarried } from "@/lib/returns-carried";
-import type { Evidence, ObligationRun } from "@/lib/types";
+import type { ObligationRun } from "@/lib/types";
 import { ReturnsTable } from "./returns-table";
 import { PassageDrawer } from "./passage-drawer";
+import { passageSectionsFor } from "./passage-sections";
 import { AddRowDialog, type ReturnTypeChoice } from "./add-row-dialog";
 import { returnTypeOf, useReturns } from "./use-returns";
 
@@ -62,9 +63,9 @@ export function ReturnsScreen({
     skip: readOnly || cameBack || viewFrom !== null,
   });
 
-  /* One passage drawer for the whole table — a source click anywhere opens it on
-     that document, scrolled to the exact wording. */
-  const [passage, setPassage] = React.useState<Evidence | null>(null);
+  /* One passage drawer for the whole table — a source click on a row opens the
+     row's evidence, sectioned by what each quote establishes. */
+  const [passage, setPassage] = React.useState<ObligationRun | null>(null);
 
   /* Adding a schedule the agent missed: to one of this country's return
      types, each listed once with the frequencies it already has. */
@@ -290,7 +291,7 @@ export function ReturnsScreen({
                     rows={paged.items}
                     selected={carriedIds}
                     onSelectedChange={setRowSelected}
-                    onOpenSource={(evidence) => setPassage(evidence)}
+                    onOpenSource={(row) => setPassage(row)}
                   />
                 )}
                 <Pagination
@@ -347,7 +348,9 @@ export function ReturnsScreen({
 
       {passage && (
         <PassageDrawer
-          evidence={passage}
+          title={passage.name}
+          subtitle={passage.localName ?? undefined}
+          sections={passageSectionsFor(passage)}
           open={passage !== null}
           onOpenChange={(open) => !open && setPassage(null)}
         />
